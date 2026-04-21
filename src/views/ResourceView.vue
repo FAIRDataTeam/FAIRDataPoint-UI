@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { ref } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
 
 const {
@@ -9,10 +10,13 @@ const {
   description,
   breadcrumbs,
   metadataRows,
+  unknownMetadataRows,
   childSections,
   childSummaries,
   internalHref,
 } = useResourceView()
+
+const showUnknown = ref(false)
 </script>
 
 <template>
@@ -43,15 +47,142 @@ const {
           <div v-for="row in metadataRows" :key="row.predicate" class="metadata-row">
             <div class="metadata-label">{{ row.label }}</div>
             <div class="metadata-value">
-              <div v-for="value in row.values" :key="value">{{ value }}</div>
+              <template v-if="row.kind === 'literal'">
+                <div v-for="value in row.values" :key="value.text">{{ value.text }}</div>
+              </template>
+
+              <template v-else-if="row.kind === 'blank-node'">
+                <div
+                  v-for="(bnProps, bnIndex) in row.blankNodes"
+                  :key="bnIndex"
+                  class="blank-node-card"
+                >
+                  <div v-for="prop in bnProps" :key="prop.label" class="blank-node-row">
+                    <span class="blank-node-label">{{ prop.label }}</span>
+                    <span class="blank-node-value">
+                      <template v-for="val in prop.values" :key="val.text">
+                        <a
+                          v-if="val.href && !val.internal"
+                          :href="val.href"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-link"
+                          >{{ val.text }}</a
+                        >
+                        <router-link
+                          v-else-if="val.href && val.internal"
+                          :to="internalHref(val.href)"
+                          class="text-link"
+                          >{{ val.text }}</router-link
+                        >
+                        <span v-else>{{ val.text }}</span>
+                      </template>
+                    </span>
+                  </div>
+                </div>
+              </template>
+
+              <template v-else>
+                <ul>
+                  <li v-for="value in row.values" :key="value.href">
+                    <a
+                      v-if="!value.internal"
+                      :href="value.href"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-link"
+                      >{{ value.text }}</a
+                    >
+                    <router-link
+                      v-else-if="value.href"
+                      :to="internalHref(value.href)"
+                      class="text-link"
+                      >{{ value.text }}</router-link
+                    >
+                  </li>
+                </ul>
+              </template>
             </div>
           </div>
         </section>
 
+        <template v-if="unknownMetadataRows.length > 0">
+          <button type="button" class="unknown-toggle" @click="showUnknown = !showUnknown">
+            {{
+              showUnknown
+                ? `Hide non-DASH rows (${unknownMetadataRows.length})`
+                : `Show non-DASH rows (${unknownMetadataRows.length})`
+            }}
+          </button>
+
+          <section v-if="showUnknown" class="metadata-table">
+            <div v-for="row in unknownMetadataRows" :key="row.predicate" class="metadata-row">
+              <div class="metadata-label">{{ row.label }}</div>
+              <div class="metadata-value">
+                <template v-if="row.kind === 'literal'">
+                  <div v-for="value in row.values" :key="value.text">{{ value.text }}</div>
+                </template>
+
+                <template v-else-if="row.kind === 'blank-node'">
+                  <div
+                    v-for="(bnProps, bnIndex) in row.blankNodes"
+                    :key="bnIndex"
+                    class="blank-node-card"
+                  >
+                    <div v-for="prop in bnProps" :key="prop.label" class="blank-node-row">
+                      <span class="blank-node-label">{{ prop.label }}</span>
+                      <span class="blank-node-value">
+                        <template v-for="val in prop.values" :key="val.text">
+                          <a
+                            v-if="val.href && !val.internal"
+                            :href="val.href"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            class="text-link"
+                            >{{ val.text }}</a
+                          >
+                          <router-link
+                            v-else-if="val.href && val.internal"
+                            :to="internalHref(val.href)"
+                            class="text-link"
+                            >{{ val.text }}</router-link
+                          >
+                          <span v-else>{{ val.text }}</span>
+                        </template>
+                      </span>
+                    </div>
+                  </div>
+                </template>
+
+                <template v-else>
+                  <ul>
+                    <li v-for="value in row.values" :key="value.href">
+                      <a
+                        v-if="!value.internal"
+                        :href="value.href"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-link"
+                        >{{ value.text }}</a
+                      >
+                      <router-link
+                        v-else-if="value.href"
+                        :to="internalHref(value.href)"
+                        class="text-link"
+                        >{{ value.text }}</router-link
+                      >
+                    </li>
+                  </ul>
+                </template>
+              </div>
+            </div>
+          </section>
+        </template>
+
         <section v-for="section in childSections" :key="section.label" class="child-section">
           <h2 class="section-title">{{ section.label }}</h2>
           <div class="child-list">
-            <article v-for="uri in section.uris" :key="uri" class="child-card">
+            <article v-for="uri in section.items" :key="uri" class="child-card">
               <router-link :to="internalHref(uri)" class="child-card__title">
                 {{ childSummaries[uri]?.title ?? uri }}
               </router-link>

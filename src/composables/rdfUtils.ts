@@ -1,6 +1,15 @@
 import { Parser as N3Parser } from 'n3'
 import type { Quad } from 'n3'
-import { RDF_TYPE, prefixes } from './vocabularies'
+import {
+  RDF_TYPE,
+  RDFS_LABEL,
+  FOAF_NAME,
+  DCT_TITLE,
+  DCT_IDENTIFIER,
+  XSD_DATE,
+  XSD_DATETIME,
+  prefixes,
+} from './vocabularies'
 
 export type RdfValue = {
   '@id'?: string
@@ -22,6 +31,10 @@ export type FetchRdfResult = {
 
 function isRdfNodeArray(value: unknown): value is RdfNode[] {
   return Array.isArray(value)
+}
+
+export function hasType(node: RdfNode, type: string): boolean {
+  return Array.isArray(node['@type']) && node['@type'].includes(type)
 }
 
 export function flattenGraph(nodes: RdfNode[]): RdfNode[] {
@@ -109,6 +122,35 @@ export function internalHref(uri: string): string {
     return '/'
   }
   return uri
+}
+
+function formatDate(isoString: string): string {
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return isoString
+  const day = String(date.getUTCDate()).padStart(2, '0')
+  const month = String(date.getUTCMonth() + 1).padStart(2, '0')
+  const year = date.getUTCFullYear()
+  return `${day}-${month}-${year}`
+}
+
+export function formatLiteralValue(value: RdfValue): string | null {
+  if (typeof value['@value'] !== 'string') return null
+  const datatype = value['@type']
+  if (datatype === XSD_DATETIME || datatype === XSD_DATE) {
+    return formatDate(value['@value'])
+  }
+  return value['@value']
+}
+
+export function uriLabel(uri: string, graphNode: RdfNode | null): string {
+  const title =
+    getFirstLiteral(graphNode, DCT_TITLE) ??
+    getFirstLiteral(graphNode, RDFS_LABEL) ??
+    getFirstLiteral(graphNode, FOAF_NAME) ??
+    getFirstLiteral(graphNode, DCT_IDENTIFIER)
+  if (title) return title
+  const lastSegment = uri.split('/').filter(Boolean).pop()
+  return lastSegment || uri
 }
 
 export function getFirstLiteral(node: RdfNode | null, predicate: string): string | null {
