@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, watch, watchEffect, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { fetchRdf, flattenGraph, getFirstLiteral, getIdValues, compactUri, internalHref } from '@/composables/rdfUtils'
-import type { RdfNode, RdfValue } from '@/composables/rdfUtils'
-import { DCT_TITLE, DCT_DESCRIPTION, LDP_CONTAINS } from '@/composables/vocabularies'
+import { fetchRdf, flattenGraph, getFirstLiteral, getIdValues, compactUri, internalHref } from '../composables/rdfUtils'
+import type { RdfNode, RdfValue } from '../composables/rdfUtils'
+import { DCT_TITLE, DCT_DESCRIPTION, DCT_IS_PART_OF, LDP_CONTAINS } from '../composables/vocabularies'
 
 const route = useRoute()
 
@@ -20,11 +20,17 @@ type ChildSummary = {
   type: string | null
 }
 
+type ParentSummary = {
+  title: string | null
+  isPartOf: string | null
+}
+
 const loading = ref(false)
 const error = ref<string | null>(null)
 const node = ref<RdfNode | null>(null)
 const graph = ref<RdfNode[]>([])
 const childSummaries = ref<Record<string, ChildSummary>>({})
+const parentSummaries = ref<Record<string, ParentSummary>>({})
 
 watchEffect(async () => {
   loading.value = true
@@ -32,6 +38,7 @@ watchEffect(async () => {
   node.value = null
   graph.value = []
   childSummaries.value = {}
+  parentSummaries.value = {}
 
   try {
     const { nodes } = await fetchRdf(resourceUri.value)
@@ -47,7 +54,7 @@ watchEffect(async () => {
 const title = computed(() => getFirstLiteral(node.value, DCT_TITLE))
 const description = computed(() => getFirstLiteral(node.value, DCT_DESCRIPTION))
 
-const SKIP_KEYS = new Set(['@id', '@type', '@graph'])
+const SKIP_KEYS = new Set(['@id', '@type', '@graph', DCT_IS_PART_OF])
 
 const metadataRows = computed(() => {
   if (!node.value) return []
@@ -89,6 +96,67 @@ watch(
   { immediate: true },
 )
 
+async function loadParentChain(uri: string) {
+  if (parentSummaries.value[uri]) return
+  const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  try {
+    const { nodes } = await fetchRdf(uri)
+    const g = flattenGraph(nodes)
+    const n = g.find((x) => x['@id'] === uri) ?? g[0] ?? null
+    const isPartOf = getIdValues(n, DCT_IS_PART_OF)[0] ?? null
+    parentSummaries.value[uri] = { title: getFirstLiteral(n, DCT_TITLE), isPartOf }
+    if (isPartOf && isPartOf.replace(/\/$/, '') !== base) {
+      await loadParentChain(isPartOf)
+    }
+  } catch {
+    // ignore
+  }
+}
+
+watch(
+  node,
+  (n) => {
+    if (!n) return
+    const parentUri = getIdValues(n, DCT_IS_PART_OF)[0]
+    if (!parentUri) return
+    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+    if (parentUri.replace(/\/$/, '') !== base) {
+      void loadParentChain(parentUri)
+    }
+  },
+  { immediate: true },
+)
+
+const breadcrumbs = computed(() => {
+  const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  const items: { text: string; uri: string }[] = []
+
+  const fdpRootNode = graph.value.find((n) => n['@id'] === base || n['@id'] === `${base}/`) ?? null
+  const fdpTitle = getFirstLiteral(fdpRootNode, DCT_TITLE) ?? 'FAIR Data Point'
+  items.push({ text: fdpTitle, uri: base })
+
+  const ancestors: { text: string; uri: string }[] = []
+  const visited = new Set<string>()
+
+  let uri: string | undefined = getIdValues(node.value, DCT_IS_PART_OF)[0]
+  while (uri && uri.replace(/\/$/, '') !== base && !visited.has(uri)) {
+    visited.add(uri)
+    ancestors.unshift({
+      text: parentSummaries.value[uri]?.title ?? uri,
+      uri,
+    })
+    uri = parentSummaries.value[uri]?.isPartOf ?? undefined
+  }
+
+  items.push(...ancestors)
+
+  if (resourceUri.value.replace(/\/$/, '') !== base) {
+    items.push({ text: title.value ?? resourceUri.value, uri: resourceUri.value })
+  }
+
+  return items
+})
+
 const childSections = computed(() => {
   const sections = new Map<string, string[]>()
   for (const uri of children.value) {
@@ -105,35 +173,52 @@ const childSections = computed(() => {
 </script>
 
 <template>
-  <main class="page-container">
-    <p v-if="loading">Loading…</p>
-    <p v-else-if="error">Error: {{ error }}</p>
-    <template v-else-if="node">
-      <h1 v-if="title">{{ title }}</h1>
-      <p v-if="description">{{ description }}</p>
+  <div>
+    <nav v-if="node && breadcrumbs.length > 1" class="breadcrumbs" aria-label="Breadcrumb">
+      <div class="breadcrumbs__inner">
+        <template v-for="(item, index) in breadcrumbs" :key="item.uri">
+          <router-link
+            v-if="index < breadcrumbs.length - 1"
+            :to="internalHref(item.uri)"
+            class="breadcrumb-link"
+            >{{ item.text }}</router-link
+          >
+          <span v-else class="breadcrumb-current">{{ item.text }}</span>
+          <span v-if="index < breadcrumbs.length - 1" class="breadcrumb-sep">/</span>
+        </template>
+      </div>
+    </nav>
 
-      <section v-if="metadataRows.length > 0" class="metadata-table">
-        <div v-for="row in metadataRows" :key="row.predicate" class="metadata-row">
-          <div class="metadata-label">{{ row.label }}</div>
-          <div class="metadata-value">
-            <div v-for="value in row.values" :key="value">{{ value }}</div>
+    <main class="page-container">
+      <p v-if="loading">Loading…</p>
+      <p v-else-if="error">Error: {{ error }}</p>
+      <template v-else-if="node">
+        <h1 v-if="title">{{ title }}</h1>
+        <p v-if="description">{{ description }}</p>
+
+        <section v-if="metadataRows.length > 0" class="metadata-table">
+          <div v-for="row in metadataRows" :key="row.predicate" class="metadata-row">
+            <div class="metadata-label">{{ row.label }}</div>
+            <div class="metadata-value">
+              <div v-for="value in row.values" :key="value">{{ value }}</div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section v-for="section in childSections" :key="section.label" class="child-section">
-        <h2 class="section-title">{{ section.label }}</h2>
-        <div class="child-list">
-          <article v-for="uri in section.uris" :key="uri" class="child-card">
-            <RouterLink :to="internalHref(uri)" class="child-card__title">
-              {{ childSummaries[uri]?.title ?? uri }}
-            </RouterLink>
-            <p v-if="childSummaries[uri]?.description" class="child-card__description">
-              {{ childSummaries[uri].description }}
-            </p>
-          </article>
-        </div>
-      </section>
-    </template>
-  </main>
+        <section v-for="section in childSections" :key="section.label" class="child-section">
+          <h2 class="section-title">{{ section.label }}</h2>
+          <div class="child-list">
+            <article v-for="uri in section.uris" :key="uri" class="child-card">
+              <router-link :to="internalHref(uri)" class="child-card__title">
+                {{ childSummaries[uri]?.title ?? uri }}
+              </router-link>
+              <p v-if="childSummaries[uri]?.description" class="child-card__description">
+                {{ childSummaries[uri].description }}
+              </p>
+            </article>
+          </div>
+        </section>
+      </template>
+    </main>
+  </div>
 </template>

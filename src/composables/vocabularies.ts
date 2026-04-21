@@ -10,6 +10,7 @@ const FDP = 'https://w3id.org/fdp/fdp-o#'
 
 export const DCT_TITLE = `${DCT}title`
 export const DCT_DESCRIPTION = `${DCT}description`
+export const DCT_IS_PART_OF = `${DCT}isPartOf`
 
 export const RDF_TYPE = `${RDF}type`
 

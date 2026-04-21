@@ -69,6 +69,38 @@ a:hover {
   padding: var(--fdp-space-8) var(--fdp-space-4) 3rem;
 }
 
+.breadcrumbs {
+  width: 100%;
+  background: var(--fdp-color-card);
+  font-size: 0.875rem;
+  color: var(--fdp-color-muted);
+}
+
+.breadcrumbs__inner {
+  max-width: calc(var(--fdp-page-width) + 120px);
+  margin: 0 auto;
+  padding: var(--fdp-space-3) var(--fdp-space-4);
+}
+
+.breadcrumb-link {
+  color: var(--fdp-color-muted);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.breadcrumb-link:hover {
+  color: var(--fdp-color-text);
+}
+
+.breadcrumb-current {
+  color: var(--fdp-color-text);
+}
+
+.breadcrumb-sep {
+  margin: 0 var(--fdp-space-2);
+  color: var(--fdp-color-muted);
+}
+
 .metadata-table {
   border-top: 1px solid var(--fdp-color-border);
   margin-top: var(--fdp-space-6);
