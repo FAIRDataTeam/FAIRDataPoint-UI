@@ -8,14 +8,14 @@ import 'prismjs/themes/prism.css'
 const {
   loading,
   error,
-  resourceUri,
-  currentNode,
   activeFormat,
   activeRawText,
-  accessUrl,
-  downloadUrl,
+  resourceUri,
+  currentNode,
   title,
   description,
+  accessUrl,
+  downloadUrl,
   breadcrumbs,
   graph,
   metadataRows,
@@ -69,7 +69,7 @@ const {
 
     <main class="page-container">
       <p v-if="loading">Loading…</p>
-      <p v-else-if="error">Error: {{ error }}</p>
+      <p v-else-if="error" class="alert alert-danger">Error: {{ error }}</p>
 
       <template v-else-if="currentNode">
         <section class="resource-header">
@@ -148,7 +148,7 @@ const {
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-link"
-                      >
+                    >
                       {{ value.text }}
                     </a>
                     <router-link
@@ -221,7 +221,7 @@ const {
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-link"
-                        >
+                      >
                         {{ value.text }}
                       </a>
                       <router-link
@@ -319,7 +319,12 @@ const {
 
         <section v-for="section in childSections" :key="section.predicate" class="child-section">
           <h2 class="section-title">{{ section.label }}</h2>
-          <div class="child-list">
+
+          <p v-if="section.items.length === 0" class="child-section__empty">
+            There are no {{ section.label.toLowerCase() }} yet.
+          </p>
+
+          <div v-else class="child-list">
             <article v-for="item in section.items" :key="item" class="child-card">
               <router-link :to="internalHref(item)" class="child-card__title">{{
                 childSummaries[item]?.title ?? resourceLabel(item)

@@ -10,6 +10,7 @@ const FDP = 'https://w3id.org/fdp/fdp-o#'
 const RE3DATA = 'http://www.re3data.org/schema/3-0#'
 const PROF = 'http://www.w3.org/ns/dx/prof/'
 const SH = 'http://www.w3.org/ns/shacl#'
+const SKOS = 'http://www.w3.org/2004/02/skos/core#'
 const PROV = 'http://www.w3.org/ns/prov#'
 const ODRL = 'http://www.w3.org/ns/odrl/2/'
 const DASH = 'http://datashapes.org/dash#'
@@ -18,13 +19,13 @@ const SIO = 'http://semanticscience.org/resource/'
 // Dublin Core Terms
 export const DCT_TITLE = `${DCT}title`
 export const DCT_DESCRIPTION = `${DCT}description`
-export const DCT_IS_PART_OF = `${DCT}isPartOf`
 export const DCT_CONFORMS_TO = `${DCT}conformsTo`
 export const DCT_LANGUAGE = `${DCT}language`
 export const DCT_LICENSE = `${DCT}license`
 export const DCT_ISSUED = `${DCT}issued`
 export const DCT_MODIFIED = `${DCT}modified`
 export const DCT_HAS_VERSION = `${DCT}hasVersion`
+export const DCT_IS_PART_OF = `${DCT}isPartOf`
 export const DCT_FORMAT = `${DCT}format`
 export const DCT_IDENTIFIER = `${DCT}identifier`
 export const DCT_PUBLISHER = `${DCT}publisher`
@@ -38,6 +39,9 @@ export const RDFS_LABEL = `${RDFS}label`
 // XSD
 export const XSD_DATE = `${XSD}date`
 export const XSD_DATETIME = `${XSD}dateTime`
+
+// OWL
+export const OWL_VERSION_INFO = `${OWL}versionInfo`
 
 // DCAT
 export const DCAT_CATALOG = `${DCAT}catalog`
@@ -54,8 +58,12 @@ export const DCAT_ACCESS_URL = `${DCAT}accessURL`
 export const DCAT_DOWNLOAD_URL = `${DCAT}downloadURL`
 export const DCAT_MEDIA_TYPE = `${DCAT}mediaType`
 export const DCAT_BYTE_SIZE = `${DCAT}byteSize`
+export const DCAT_PACKAGE_FORMAT = `${DCAT}packageFormat`
+export const DCAT_COMPRESS_FORMAT = `${DCAT}compressFormat`
 export const DCAT_SERVES_DATASET = `${DCAT}servesDataset`
 export const DCAT_ENDPOINT_DESCRIPTION = `${DCAT}endpointDescription`
+export const DCAT_QUALIFIED_RELATION = `${DCAT}qualifiedRelation`
+export const DCAT_HAD_ROLE = `${DCAT}hadRole`
 
 // LDP
 export const LDP_DIRECT_CONTAINER = `${LDP}DirectContainer`
@@ -72,15 +80,19 @@ export const FDP_METADATA_ISSUED = `${FDP}metadataIssued`
 export const FDP_METADATA_MODIFIED = `${FDP}metadataModified`
 export const FDP_METADATA_IDENTIFIER = `${FDP}metadataIdentifier`
 export const FDP_METADATA_CATALOG = `${FDP}metadataCatalog`
+export const FDP_TYPE = `${FDP}FAIRDataPoint`
 export const FDP_SOFTWARE_VERSION = `${FDP}fdpSoftwareVersion`
 export const FDP_START_DATE = `${FDP}startDate`
 export const FDP_END_DATE = `${FDP}endDate`
 export const FDP_UI_LANGUAGE = `${FDP}uiLanguage`
+export const FDP_IS_METADATA_OF = `${FDP}isMetadataOf`
+export const FDP_HAS_METADATA = `${FDP}hasMetadata`
+export const FDP_SERVES_METADATA = `${FDP}servesMetadata`
 
 // RE3DATA
 export const RE3DATA_REPOSITORY_IDENTIFIER = `${RE3DATA}repositoryIdentifier`
 
-// PROF
+// PROF (W3C Profiles Vocabulary)
 export const PROF_IS_PROFILE_OF = `${PROF}isProfileOf`
 export const PROF_HAS_RESOURCE = `${PROF}hasResource`
 export const PROF_HAS_ROLE = `${PROF}hasRole`
@@ -98,6 +110,11 @@ export const SHACL_MIN_COUNT = `${SH}minCount`
 export const SHACL_MAX_COUNT = `${SH}maxCount`
 export const SHACL_NAME = `${SH}name`
 export const SHACL_ORDER = `${SH}order`
+export const SHACL_NODE = `${SH}node`
+
+// SKOS
+export const SKOS_CONCEPT = `${SKOS}Concept`
+export const SKOS_CONCEPT_SCHEME = `${SKOS}ConceptScheme`
 
 // PROV
 export const PROV_WAS_GENERATED_BY = `${PROV}wasGeneratedBy`
@@ -106,12 +123,13 @@ export const PROV_QUALIFIED_ATTRIBUTION = `${PROV}qualifiedAttribution`
 // ODRL
 export const ODRL_HAS_POLICY = `${ODRL}hasPolicy`
 
-// SIO
+// SIO (Semanticscience Integrated Ontology) — graph-provenance predicates injected by the FDP server
 export const SIO_IS_ABOUT = `${SIO}SIO_000628`
 export const SIO_IS_RELATED_TO = `${SIO}SIO_000332`
 
 // DASH
 export const DASH_VIEWER = `${DASH}viewer`
+export const DASH_LABEL_VIEWER = `${DASH}LabelViewer`
 export const DASH_URI_VIEWER = `${DASH}URIViewer`
 
 export const prefixes: Record<string, string> = {
@@ -127,6 +145,7 @@ export const prefixes: Record<string, string> = {
   [RE3DATA]: 're3data',
   [PROF]: 'prof',
   [SH]: 'sh',
+  [SKOS]: 'skos',
   [PROV]: 'prov',
   [ODRL]: 'odrl',
   [DASH]: 'dash',
