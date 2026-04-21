@@ -89,6 +89,28 @@ export function compactUri(uri: string): string {
   return uri
 }
 
+export function getIdValues(node: RdfNode | null, predicate: string): string[] {
+  if (!node) return []
+  const raw = node[predicate]
+  if (!Array.isArray(raw)) return []
+  return (raw as RdfValue[])
+    .filter((item) => typeof item['@id'] === 'string')
+    .map((item) => item['@id'] as string)
+}
+
+export function internalHref(uri: string): string {
+  const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  const normalized = uri.replace(/\/$/, '')
+  if (normalized === base) return '/'
+  const prefix = `${base}/`
+  if (normalized.startsWith(prefix)) {
+    const parts = normalized.slice(prefix.length).split('/')
+    if (parts.length >= 2) return `/${parts[0]}/${parts[1]}`
+    return '/'
+  }
+  return uri
+}
+
 export function getFirstLiteral(node: RdfNode | null, predicate: string): string | null {
   if (!node) return null
 

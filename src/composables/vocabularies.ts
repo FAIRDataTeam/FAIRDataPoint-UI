@@ -13,6 +13,8 @@ export const DCT_DESCRIPTION = `${DCT}description`
 
 export const RDF_TYPE = `${RDF}type`
 
+export const LDP_CONTAINS = `${LDP}contains`
+
 export const prefixes: Record<string, string> = {
   [DCT]: 'dct',
   [RDF]: 'rdf',
