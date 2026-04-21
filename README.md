@@ -8,9 +8,21 @@ This client replaces the original [FAIRDataPoint-client].
 
 ## Setting up a development machine
 
-Here's how to get started, provided you've got [npm] installed:
+### Environment variables
 
-1. Install dependencies,
+As mentioned in the [vite docs], vite uses [dotenv] to load environment variables.
+
+For local development, a `.env.development` file can be created, in the project root, with the following content:
+
+```bash
+VITE_FDP_BASE_URL=http://localhost
+```
+
+### Dependencies and development server
+
+Here's how to install project dependencies and run the development server, provided you've got [npm] installed:
+
+1. Install dependencies (including dev dependencies),
 
    - either using [npm clean-install] to create a reproducible installation from `package-lock.json`
 
@@ -48,3 +60,5 @@ Here's how to get started, provided you've got [npm] installed:
 [Vue.js quickstart]: https://vuejs.org/guide/quick-start.html
 [package.json]: ./package.json
 [vite development server]: https://vite.dev/guide/cli#dev-server
+[dotenv]: https://github.com/motdotla/dotenv
+[vite docs]: https://vite.dev/guide/env-and-mode#env-files

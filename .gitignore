@@ -20,3 +20,6 @@ dist
 
 # Vite
 *.timestamp-*-*.mjs
+
+# Environment variable files
+*.env*
