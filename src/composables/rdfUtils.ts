@@ -25,8 +25,12 @@ export type RdfNode = {
   [key: string]: unknown
 }
 
+export type RdfFormat = 'json-ld' | 'turtle' | 'unknown'
+
 export type FetchRdfResult = {
   nodes: RdfNode[]
+  format: RdfFormat
+  rawText: string
 }
 
 function isRdfNodeArray(value: unknown): value is RdfNode[] {
@@ -211,6 +215,12 @@ export function parseTurtle(turtle: string): RdfNode[] {
   return [...nodeMap.values()]
 }
 
+export async function fetchRdfRaw(uri: string, accept: string): Promise<string> {
+  const response = await fetch(uri, { headers: { Accept: accept } })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.text()
+}
+
 export async function fetchRdf(uri: string): Promise<FetchRdfResult> {
   const accept = 'text/turtle, application/ld+json;q=0.9, */*;q=0.1'
 
@@ -222,24 +232,24 @@ export async function fetchRdf(uri: string): Promise<FetchRdfResult> {
   const text = await response.text()
 
   if (contentType.includes('text/turtle') || contentType.includes('application/x-turtle')) {
-    return { nodes: parseTurtle(text) }
+    return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
   }
 
   if (contentType.includes('application/ld+json')) {
     const data: unknown = JSON.parse(text)
     if (!isRdfNodeArray(data)) throw new Error('Expected a JSON-LD graph array')
-    return { nodes: data }
+    return { nodes: data, format: 'json-ld', rawText: text }
   }
 
   try {
-    return { nodes: parseTurtle(text) }
+    return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
   } catch {
     // not Turtle
   }
 
   try {
     const data: unknown = JSON.parse(text)
-    if (isRdfNodeArray(data)) return { nodes: data }
+    if (isRdfNodeArray(data)) return { nodes: data, format: 'json-ld', rawText: text }
   } catch {
     // not JSON
   }

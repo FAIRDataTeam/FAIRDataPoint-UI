@@ -12,6 +12,7 @@ import {
   formatLiteralValue,
   type RdfNode,
   type RdfValue,
+  type RdfFormat,
 } from './rdfUtils'
 import { predicateLabel, metadataPredicatePriority } from './shaclFallback'
 import {
@@ -119,6 +120,8 @@ export function useResourceView() {
   const error = ref<string | null>(null)
   const node = ref<RdfNode | null>(null)
   const graph = ref<RdfNode[]>([])
+  const activeFormat = ref<RdfFormat | null>(null)
+  const activeRawText = ref<string | null>(null)
   const childSummaries = ref<Record<string, ChildSummary>>({})
   const parentSummaries = ref<Record<string, ParentSummary>>({})
   const shapeGraphs = ref<Record<string, RdfNode[]>>({})
@@ -128,13 +131,17 @@ export function useResourceView() {
     error.value = null
     node.value = null
     graph.value = []
+    activeFormat.value = null
+    activeRawText.value = null
     childSummaries.value = {}
     parentSummaries.value = {}
     shapeGraphs.value = {}
 
     try {
-      const { nodes } = await fetchRdf(resourceUri.value)
+      const { nodes, format, rawText } = await fetchRdf(resourceUri.value)
       graph.value = flattenGraph(nodes)
+      activeFormat.value = format
+      activeRawText.value = rawText
       node.value = graph.value.find((n) => n['@id'] === resourceUri.value) ?? graph.value[0] ?? null
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Unknown error'
@@ -474,6 +481,9 @@ export function useResourceView() {
     loading,
     error,
     node,
+    resourceUri,
+    activeFormat,
+    activeRawText,
     title,
     description,
     breadcrumbs,

@@ -1,11 +1,16 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
+import { useRawFormat, formats } from '../composables/useRawFormat'
+import 'prismjs/themes/prism.css'
 
 const {
   loading,
   error,
   node,
+  resourceUri,
+  activeFormat,
+  activeRawText,
   title,
   description,
   breadcrumbs,
@@ -18,6 +23,15 @@ const {
 } = useResourceView()
 
 const showUnknown = ref(false)
+
+const {
+  shownFormat,
+  rawLoading,
+  rawContentHeight,
+  startRawResize,
+  highlightedRawContent,
+  toggleFormat,
+} = useRawFormat(resourceUri, activeFormat, activeRawText)
 </script>
 
 <template>
@@ -41,8 +55,8 @@ const showUnknown = ref(false)
       <p v-if="loading">Loading…</p>
       <p v-else-if="error">Error: {{ error }}</p>
       <template v-else-if="node">
-        <h1 v-if="title">{{ title }}</h1>
-        <p v-if="description">{{ description }}</p>
+        <h1 v-if="title" class="resource-title">{{ title }}</h1>
+        <p v-if="description" class="resource-description">{{ description }}</p>
 
         <section v-if="metadataRows.length > 0" class="metadata-table">
           <div v-for="row in metadataRows" :key="row.predicate" class="metadata-row">
@@ -179,6 +193,59 @@ const showUnknown = ref(false)
             </div>
           </section>
         </template>
+
+        <section class="action-row">
+          <span v-for="fmt in formats" :key="fmt.id" class="action-button-group">
+            <button
+              type="button"
+              :class="[
+                'action-button',
+                {
+                  'action-button--active':
+                    shownFormat === fmt.id || (shownFormat === null && activeFormat === fmt.id),
+                },
+              ]"
+              :title="shownFormat === fmt.id ? `Close ${fmt.label}` : `Show ${fmt.label} below`"
+              @click="toggleFormat(fmt.id, fmt.accept)"
+            >
+              {{ fmt.label }}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                class="action-button__chevron"
+                :class="{ 'action-button__chevron--open': shownFormat === fmt.id }"
+                aria-hidden="true"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+            <a
+              :href="`${resourceUri}?format=${fmt.param}`"
+              class="action-button action-button--icon"
+              target="_blank"
+              rel="noopener noreferrer"
+              :title="`Open raw ${fmt.label} in a new tab`"
+              >&#8599;</a
+            >
+          </span>
+        </section>
+
+        <section v-if="shownFormat" class="raw-section">
+          <p v-if="rawLoading" class="raw-loading">Loading…</p>
+          <pre
+            v-else
+            class="raw-content language-none"
+            :style="{ height: rawContentHeight + 'px' }"
+          ><code v-html="highlightedRawContent" /></pre>
+          <div class="raw-resize-handle" @mousedown.prevent="startRawResize" />
+        </section>
 
         <section v-for="section in childSections" :key="section.label" class="child-section">
           <h2 class="section-title">{{ section.label }}</h2>
