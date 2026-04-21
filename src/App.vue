@@ -1,11 +1,26 @@
-<script setup lang="ts"></script>
+<script setup lang="ts">
+import { RouterView, RouterLink } from 'vue-router'
+</script>
 
 <template>
-  <h1>You did it!</h1>
-  <p>
-    Visit <a href="https://vuejs.org/" target="_blank" rel="noopener">vuejs.org</a> to read the
-    documentation
-  </p>
-</template>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <RouterLink to="/" class="app-header__brand">
+          <img src="/assets/fair-logo.png" alt="FAIR Data Point logo" class="app-header__logo" />
+          <span class="app-header__title">
+            <span class="app-header__title-full">
+              FAIR Data Point
+              <small>Metadata for machines</small>
+            </span>
+            <span class="app-header__title-short">FAIR Data Point</span>
+          </span>
+        </RouterLink>
+      </div>
+    </header>
 
-<style scoped></style>
+    <main class="app-main">
+      <RouterView />
+    </main>
+  </div>
+</template>

@@ -1,0 +1,116 @@
+:root {
+  --fdp-font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  --fdp-color-text: #2f3540;
+  --fdp-color-surface: #ffffff;
+  --fdp-color-surface-soft: #fafafa;
+
+  --fdp-page-width: 980px;
+
+  --fdp-space-3: 0.75rem;
+  --fdp-space-4: 1rem;
+
+  --fdp-line-height: 1.5;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--fdp-font-family);
+  line-height: var(--fdp-line-height);
+  color: var(--fdp-color-text);
+  background: var(--fdp-color-surface);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--fdp-color-text);
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 100vh;
+  background: var(--fdp-color-surface);
+}
+
+.app-header {
+  border-bottom: 6px solid transparent;
+  border-image: linear-gradient(to right, #00518e, #2a7a6a, #8a9a1a) 1;
+  background: var(--fdp-color-surface-soft);
+}
+
+.app-header__inner {
+  max-width: calc(var(--fdp-page-width) + 120px);
+  margin: 0 auto;
+  padding: var(--fdp-space-4) var(--fdp-space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-3);
+  color: inherit;
+  text-decoration: none;
+}
+
+.app-header__logo {
+  height: 2.5rem;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.app-header__title {
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header__title-full {
+  font-size: 1.4rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #00518e;
+}
+
+.app-header__title-full small {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 400;
+  color: #00518e;
+}
+
+.app-header__title-short {
+  display: none;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #00518e;
+}
+
+@media (max-width: 720px) {
+  .app-header__title-full {
+    display: none;
+  }
+
+  .app-header__title-short {
+    display: block;
+  }
+}
