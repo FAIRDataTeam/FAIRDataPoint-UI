@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ResourceView from '@/views/ResourceView.vue'
 import LoginView from '@/views/LoginView.vue'
+import SearchView from '@/views/SearchView.vue'
 
 export default createRouter({
   history: createWebHistory(),
@@ -19,6 +20,11 @@ export default createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
+    },
+    {
+      path: '/search',
+      name: 'search',
+      component: SearchView,
     },
   ],
 })

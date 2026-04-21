@@ -567,6 +567,67 @@ pre.raw-content code {
   }
 }
 
+/* --- Header search --- */
+
+.header-search {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  max-width: 28rem;
+  margin: 0 var(--fdp-space-5);
+  background: var(--fdp-color-surface);
+  border: 1px solid var(--fdp-color-border);
+  border-radius: var(--fdp-radius-pill);
+  padding: 0 var(--fdp-space-3);
+  gap: var(--fdp-space-2);
+}
+
+.header-search__icon {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fdp-color-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.header-search__input {
+  flex: 1;
+  border: none;
+  background: none;
+  padding: 0.45rem 0;
+  font: inherit;
+  font-size: var(--fdp-font-size-sm);
+  color: inherit;
+  outline: none;
+  min-width: 0;
+}
+
+.header-search__input::placeholder {
+  color: var(--fdp-color-muted);
+}
+
+.header-search__input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.header-search__clear {
+  display: flex;
+  align-items: center;
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--fdp-color-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.header-search__clear:hover {
+  color: var(--fdp-color-text);
+}
+
 /* --- Header nav / login / user menu --- */
 
 .app-header__nav {
@@ -653,6 +714,70 @@ pre.raw-content code {
 
 .user-dropdown__item:hover {
   background: var(--fdp-color-card);
+}
+
+/* --- Search page --- */
+
+.search-page {
+  max-width: var(--fdp-page-width);
+  margin: 0 auto;
+  padding: var(--fdp-space-6) var(--fdp-space-4);
+}
+
+.search-page__heading {
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: var(--fdp-space-5);
+}
+
+.search-page__status {
+  color: var(--fdp-color-muted);
+}
+
+.search-page__status--error {
+  color: var(--fdp-color-danger);
+}
+
+.search-results {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--fdp-space-4);
+}
+
+.search-result {
+  background: var(--fdp-color-card);
+  border-radius: var(--fdp-radius-md);
+  padding: var(--fdp-space-4);
+}
+
+.search-result__type {
+  display: inline-block;
+  font-size: var(--fdp-font-size-sm);
+  color: var(--fdp-color-muted);
+  margin-bottom: var(--fdp-space-1);
+}
+
+.search-result__title {
+  display: block;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--fdp-color-link);
+  text-decoration: none;
+}
+
+.search-result__title:hover {
+  text-decoration: underline;
+  color: var(--fdp-color-link-hover);
+}
+
+.search-result__description {
+  margin-top: var(--fdp-space-2);
+  font-size: var(--fdp-font-size-sm);
+  color: var(--fdp-color-muted);
+  line-height: 1.5;
 }
 
 /* --- Login page --- */
