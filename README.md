@@ -10,7 +10,7 @@ This client replaces the original [FAIRDataPoint-client].
 
 ### Environment variables
 
-For local development, a `.env` file can be created, in the project root, with the following content:
+For local development, a `.env.development` file can be created, in the project root, with the following content:
 
 ```bash
 VITE_FDP_BASE_URL=http://localhost
