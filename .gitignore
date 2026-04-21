@@ -22,5 +22,5 @@ dist
 *.timestamp-*-*.mjs
 
 # Environment variable files
-*.env
-!.development.env
+*.env*
+!.env.development
