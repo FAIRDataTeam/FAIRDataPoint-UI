@@ -1,4 +1,4 @@
-name: continuous integration checks and tests
+name: continuous integration checks
 
 on:
   push:
@@ -43,5 +43,3 @@ jobs:
 
       - name: Check if we can build
         run: npm run build
-
-      # todo: run tests when they become available
