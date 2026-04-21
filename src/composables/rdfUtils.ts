@@ -291,10 +291,15 @@ export async function fetchRdfRaw(uri: string, accept: string): Promise<string> 
   return response.text()
 }
 
-export async function fetchRdf(uri: string): Promise<FetchRdfResult> {
+export async function fetchRdf(
+  uri: string,
+  headers?: Record<string, string>,
+): Promise<FetchRdfResult> {
   const accept = 'text/turtle, application/ld+json;q=0.9, */*;q=0.1'
 
-  const response = await fetch(uri, { headers: { Accept: accept } })
+  const response = await fetch(uri, {
+    headers: { Accept: accept, ...headers },
+  })
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
 

@@ -11,6 +11,9 @@
   --fdp-color-card-badge: #b8d5ef;
   --fdp-color-surface: #ffffff;
   --fdp-color-surface-soft: #fafafa;
+  --fdp-color-alert-bg: #f8d7da;
+  --fdp-color-alert-text: #842029;
+  --fdp-color-danger: #842029;
 
   --fdp-page-width: 980px;
   --fdp-radius-sm: 6px;
@@ -24,8 +27,10 @@
   --fdp-space-5: 1.25rem;
   --fdp-space-6: 1.5rem;
   --fdp-space-8: 2rem;
+  --fdp-space-10: 2.5rem;
 
   --fdp-font-size-sm: 0.92rem;
+  --fdp-font-size-base: 1rem;
   --fdp-font-size-lg: 1.1rem;
   --fdp-font-size-xl: 1.9rem;
   --fdp-font-size-2xl: 2.35rem;
@@ -361,6 +366,12 @@ pre.raw-content code {
   margin-top: var(--fdp-space-8);
 }
 
+.child-section__empty {
+  margin: 0;
+  color: var(--fdp-color-muted);
+  font-size: var(--fdp-font-size-base);
+}
+
 .child-list {
   display: flex;
   flex-direction: column;
@@ -448,6 +459,16 @@ pre.raw-content code {
 
 .blank-node-value {
   color: var(--fdp-color-text);
+}
+
+.alert {
+  padding: 0.75rem 1rem;
+  border-radius: var(--fdp-radius-sm);
+}
+
+.alert-danger {
+  background: var(--fdp-color-alert-bg);
+  color: var(--fdp-color-alert-text);
 }
 
 .app-shell {
@@ -545,3 +566,160 @@ pre.raw-content code {
     flex-direction: column;
   }
 }
+
+/* --- Header nav / login / user menu --- */
+
+.app-header__nav {
+  display: flex;
+  align-items: center;
+}
+
+.header-login-btn {
+  padding: var(--fdp-space-2) var(--fdp-space-4);
+  border: 1.5px solid #00518e;
+  border-radius: var(--fdp-radius-sm);
+  color: #00518e;
+  font-size: var(--fdp-font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s;
+}
+
+.header-login-btn:hover {
+  background: #00518e;
+  color: #fff;
+}
+
+.user-menu {
+  position: relative;
+}
+
+.user-avatar {
+  width: 2.2rem;
+  height: 2.2rem;
+  border-radius: 50%;
+  background: #00518e;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.user-avatar:hover {
+  background: #004b86;
+}
+
+.user-dropdown {
+  position: absolute;
+  top: calc(100% + var(--fdp-space-2));
+  right: 0;
+  min-width: 200px;
+  background: var(--fdp-color-surface);
+  border: 1px solid var(--fdp-color-border);
+  border-radius: var(--fdp-radius-md);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  z-index: 100;
+  overflow: hidden;
+}
+
+.user-dropdown__email {
+  padding: var(--fdp-space-3) var(--fdp-space-4);
+  font-size: var(--fdp-font-size-sm);
+  color: var(--fdp-color-muted);
+  word-break: break-all;
+}
+
+.user-dropdown__divider {
+  margin: 0;
+  border: none;
+  border-top: 1px solid var(--fdp-color-border);
+}
+
+.user-dropdown__item {
+  display: block;
+  width: 100%;
+  padding: var(--fdp-space-3) var(--fdp-space-4);
+  text-align: left;
+  background: none;
+  border: none;
+  font-size: var(--fdp-font-size-sm);
+  color: var(--fdp-color-text);
+  cursor: pointer;
+}
+
+.user-dropdown__item:hover {
+  background: var(--fdp-color-card);
+}
+
+/* --- Login page --- */
+
+.login-page {
+  display: flex;
+  justify-content: center;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  margin-top: var(--fdp-space-10);
+}
+
+.login-title {
+  font-size: var(--fdp-font-size-xl);
+  font-weight: 700;
+  margin: 0 0 var(--fdp-space-6);
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--fdp-space-3);
+}
+
+.login-label {
+  font-size: var(--fdp-font-size-sm);
+  font-weight: 600;
+  color: var(--fdp-color-text);
+}
+
+.login-input {
+  padding: var(--fdp-space-2) var(--fdp-space-3);
+  border: 1px solid var(--fdp-color-border);
+  border-radius: var(--fdp-radius-sm);
+  font-size: var(--fdp-font-size-base);
+  font-family: var(--fdp-font-family);
+  background: var(--fdp-color-surface-soft);
+  color: var(--fdp-color-text);
+  width: 100%;
+}
+
+.login-input:focus {
+  outline: 2px solid #00518e;
+  outline-offset: 1px;
+}
+
+.login-submit {
+  margin-top: var(--fdp-space-2);
+  padding: var(--fdp-space-3) var(--fdp-space-4);
+  background: #00518e;
+  color: #fff;
+  border: none;
+  border-radius: var(--fdp-radius-sm);
+  font-size: var(--fdp-font-size-base);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.login-submit:hover:not(:disabled) {
+  background: #004b86;
+}
+
+.login-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
