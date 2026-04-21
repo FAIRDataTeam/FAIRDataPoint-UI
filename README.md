@@ -10,13 +10,13 @@ This client replaces the original [FAIRDataPoint-client].
 
 ### Environment variables
 
+As mentioned in the [vite docs], vite uses [dotenv] to load environment variables.
+
 For local development, a `.env.development` file can be created, in the project root, with the following content:
 
 ```bash
 VITE_FDP_BASE_URL=http://localhost
 ```
-
-As mentioned in the [vite docs], vite uses [dotenv] to load environment variables.
 
 ### Dependencies and development server
 
