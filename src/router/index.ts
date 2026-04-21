@@ -5,5 +5,6 @@ export default createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/', component: ResourceView },
+    { path: '/:resourceType/:id', component: ResourceView },
   ],
 })
