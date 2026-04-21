@@ -28,10 +28,14 @@ export function useAuth() {
     })
 
     if (!response.ok) {
-      throw new Error(response.status === 401 ? 'Invalid email or password' : `Login failed (HTTP ${response.status})`)
+      throw new Error(
+        response.status === 401
+          ? 'Invalid email or password'
+          : `Login failed (HTTP ${response.status})`,
+      )
     }
 
-    const data = await response.json() as { token: string }
+    const data = (await response.json()) as { token: string }
     token.value = data.token
     userEmail.value = email
     sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)

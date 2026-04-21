@@ -27,7 +27,10 @@ function resourceTypeLabel(types: string[]): string {
 }
 
 async function search(q: string) {
-  if (!q.trim()) { results.value = []; return }
+  if (!q.trim()) {
+    results.value = []
+    return
+  }
   loading.value = true
   error.value = null
   try {
@@ -37,7 +40,7 @@ async function search(q: string) {
       body: JSON.stringify({ query: q }),
     })
     if (!response.ok) throw new Error(`Search failed (HTTP ${response.status})`)
-    results.value = await response.json() as SearchResult[]
+    results.value = (await response.json()) as SearchResult[]
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Search failed'
   } finally {

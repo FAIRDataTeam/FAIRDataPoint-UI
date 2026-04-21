@@ -1,6 +1,15 @@
 import { Parser as N3Parser } from 'n3'
 import type { Quad } from 'n3'
-import { DCT_TITLE, RDFS_LABEL, DCT_IDENTIFIER, FOAF_NAME, RDF_TYPE, prefixes, XSD_DATE, XSD_DATETIME } from './vocabularies'
+import {
+  DCT_TITLE,
+  RDFS_LABEL,
+  DCT_IDENTIFIER,
+  FOAF_NAME,
+  RDF_TYPE,
+  prefixes,
+  XSD_DATE,
+  XSD_DATETIME,
+} from './vocabularies'
 
 export type RdfValue = {
   '@id'?: string
