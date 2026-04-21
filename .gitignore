@@ -23,4 +23,3 @@ dist
 
 # Environment variable files
 *.env*
-!.env.development
