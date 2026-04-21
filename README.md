@@ -16,7 +16,7 @@ For local development, a `.env` file can be created, in the project root, with t
 VITE_FDP_BASE_URL=http://localhost
 ```
 
-Note that environment variables are loaded using [dotenv].
+As mentioned in the [vite docs], vite uses [dotenv] to load environment variables.
 
 ### Dependencies and development server
 
@@ -61,3 +61,4 @@ Here's how to install project dependencies and run the development server, provi
 [package.json]: ./package.json
 [vite development server]: https://vite.dev/guide/cli#dev-server
 [dotenv]: https://github.com/motdotla/dotenv
+[vite docs]: https://vite.dev/guide/env-and-mode#env-files
