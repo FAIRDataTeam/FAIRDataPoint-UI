@@ -1,51 +1,44 @@
-import { computed, watch, watchEffect, ref } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  fetchRdf,
   flattenGraph,
+  hasType,
+  compactUri,
+  formatLiteralValue,
   getFirstLiteral,
   getIdValues,
-  compactUri,
-  internalHref,
-  hasType,
   uriLabel,
-  formatLiteralValue,
+  internalHref,
   type RdfNode,
   type RdfValue,
-  type RdfFormat,
 } from './rdfUtils'
-import { predicateLabel, metadataPredicatePriority } from './shaclFallback'
+import { metadataPredicatePriority, predicateLabel } from './shaclFallback'
 import {
   DCT_TITLE,
   DCT_DESCRIPTION,
   DCT_IS_PART_OF,
-  DCT_CONFORMS_TO,
   RDFS_LABEL,
-  DCT_ISSUED,
-  DCT_MODIFIED,
-  DCAT_THEME_TAXONOMY,
-  FDP_METADATA_ISSUED,
-  FDP_METADATA_MODIFIED,
-  LDP_CONTAINS,
   LDP_DIRECT_CONTAINER,
+  LDP_CONTAINS,
   LDP_MEMBERSHIP_RESOURCE,
   LDP_HAS_MEMBER_RELATION,
   SHACL_NODE_SHAPE,
   SHACL_TARGET_CLASS,
   SHACL_PROPERTY,
+  SHACL_NODE_KIND,
+  SHACL_IRI,
+  DCT_CONFORMS_TO,
   SHACL_PATH,
   SHACL_NAME,
   SHACL_ORDER,
-  SHACL_NODE_KIND,
-  SHACL_IRI,
   DASH_VIEWER,
   DASH_URI_VIEWER,
   DCAT_ACCESS_URL,
   DCAT_DOWNLOAD_URL,
-  PROF_HAS_ARTIFACT,
   SIO_IS_ABOUT,
   SIO_IS_RELATED_TO,
 } from './vocabularies'
+import { useRdfLoader, isPrimaryDomainNode, type ChildSummary } from './useRdfLoader'
 
 type LinkValue = {
   text: string
@@ -58,7 +51,7 @@ type BlankNodeProperty = {
   values: LinkValue[]
 }
 
-export type MetadataRow = {
+type MetadataRow = {
   predicate: string
   label: string
   kind: 'literal' | 'link' | 'blank-node'
@@ -66,17 +59,10 @@ export type MetadataRow = {
   blankNodes?: BlankNodeProperty[][]
 }
 
-type ChildSummary = {
-  title: string | null
-  description: string | null
-  issued: string | null
-  modified: string | null
-  theme: string | null
-}
-
-type ParentSummary = {
-  title: string | null
-  isPartOf: string | null
+type ChildSection = {
+  predicate: string
+  label: string
+  items: string[]
 }
 
 type ShapeProperty = {
@@ -87,71 +73,79 @@ type ShapeProperty = {
   nodeKind: string | null
 }
 
-const embeddedNodeSkipList = new Set(['@id', '@type', '@graph', SIO_IS_ABOUT, SIO_IS_RELATED_TO])
+export type { ChildSummary }
 
+const embeddedNodeSkipList = new Set([
+  '@id',
+  '@type',
+  '@graph',
+  SIO_IS_ABOUT,
+  SIO_IS_RELATED_TO,
+])
+
+// Predicates handled elsewhere in the UI — not shown in the metadata table
 const metadataSkipList = new Set([
   '@id',
   '@type',
   '@graph',
+  // Shown in page header
   DCT_TITLE,
   DCT_DESCRIPTION,
   RDFS_LABEL,
+  // Promoted to access/download buttons
   DCAT_ACCESS_URL,
   DCAT_DOWNLOAD_URL,
+  // Used for breadcrumbs
   DCT_IS_PART_OF,
+  // LDP structural predicates
   LDP_CONTAINS,
   LDP_MEMBERSHIP_RESOURCE,
   LDP_HAS_MEMBER_RELATION,
+  // SIO provenance predicates from the server's named graph container, not resource metadata
   SIO_IS_ABOUT,
   SIO_IS_RELATED_TO,
 ])
 
 export function useResourceView() {
   const route = useRoute()
+  const fdpBaseUri = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+
+  const fdpUri = computed(() => `${fdpBaseUri}/`)
 
   const resourceUri = computed(() => {
-    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-    const { resourceType, id } = route.params
-    if (resourceType && id) return `${base}/${resourceType}/${id}`
-    return base
-  })
+    const resourceType = route.params.resourceType
+    const id = route.params.id
 
-  const loading = ref(false)
-  const error = ref<string | null>(null)
-  const node = ref<RdfNode | null>(null)
-  const graph = ref<RdfNode[]>([])
-  const activeFormat = ref<RdfFormat | null>(null)
-  const activeRawText = ref<string | null>(null)
-  const childSummaries = ref<Record<string, ChildSummary>>({})
-  const parentSummaries = ref<Record<string, ParentSummary>>({})
-  const shapeGraphs = ref<Record<string, RdfNode[]>>({})
-
-  watchEffect(async () => {
-    loading.value = true
-    error.value = null
-    node.value = null
-    graph.value = []
-    activeFormat.value = null
-    activeRawText.value = null
-    childSummaries.value = {}
-    parentSummaries.value = {}
-    shapeGraphs.value = {}
-
-    try {
-      const { nodes, format, rawText } = await fetchRdf(resourceUri.value)
-      graph.value = flattenGraph(nodes)
-      activeFormat.value = format
-      activeRawText.value = rawText
-      node.value = graph.value.find((n) => n['@id'] === resourceUri.value) ?? graph.value[0] ?? null
-    } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Unknown error'
-    } finally {
-      loading.value = false
+    if (typeof resourceType === 'string' && typeof id === 'string') {
+      return `${import.meta.env.VITE_FDP_BASE_URL}/${resourceType}/${id}`
     }
+
+    return `${import.meta.env.VITE_FDP_BASE_URL}/`
   })
+
+  const {
+    loading,
+    error,
+    rawGraph,
+    activeFormat,
+    activeRawText,
+    childSummaries,
+    parentSummaries,
+    shapeGraphs,
+    loadResource,
+    loadChildSummary,
+    loadParentChain,
+    loadProfile,
+  } = useRdfLoader()
+
+  const graph = computed(() => flattenGraph(rawGraph.value))
 
   function getNodeById(id: string): RdfNode | null {
-    return graph.value.find((n) => n['@id'] === id) ?? null
+    return graph.value.find((node) => node['@id'] === id) ?? null
+  }
+
+  function resourceLabel(uri: string): string {
+    return uriLabel(uri, getNodeById(uri))
   }
 
   function isInternalUri(uri: string): boolean {
@@ -160,52 +154,53 @@ export function useResourceView() {
     return normalized === base || normalized.startsWith(`${base}/`)
   }
 
-  function resourceLabel(uri: string): string {
-    return uriLabel(uri, getNodeById(uri))
-  }
+  const currentNode = computed(() => {
+    const exact = graph.value.find((node) => node['@id'] === resourceUri.value)
 
-  const title = computed(() => {
-    if (!node.value) return null
-    const explicit = getFirstLiteral(node.value, DCT_TITLE) ?? getFirstLiteral(node.value, RDFS_LABEL)
-    if (explicit) return explicit
-    if (hasType(node.value, SHACL_NODE_SHAPE)) {
-      const targetClass = getIdValues(node.value, SHACL_TARGET_CLASS)[0]
-      if (targetClass) return `Shape: ${compactUri(targetClass)}`
-    }
-    return null
+    if (exact && !hasType(exact, LDP_DIRECT_CONTAINER)) return exact
+
+    const preferred = graph.value.find((node) => isPrimaryDomainNode(node))
+    if (preferred) return preferred
+
+    if (exact) return exact
+
+    return graph.value.find((node) => typeof node['@id'] === 'string') ?? null
   })
-
-  const description = computed(() => getFirstLiteral(node.value, DCT_DESCRIPTION))
 
   const shapePropertyMap = computed<Map<string, ShapeProperty>>(() => {
     const map = new Map<string, ShapeProperty>()
+
     const currentTypes = new Set<string>(
-      Array.isArray(node.value?.['@type']) ? (node.value!['@type'] as string[]) : [],
+      Array.isArray(currentNode.value?.['@type']) ? (currentNode.value!['@type'] as string[]) : [],
     )
     if (currentTypes.size === 0) return map
 
     for (const shapeGraph of Object.values(shapeGraphs.value)) {
       const relevantPropertyIds = new Set<string>()
-      for (const n of shapeGraph) {
-        if (!hasType(n, SHACL_NODE_SHAPE)) continue
-        const targetClasses = getIdValues(n, SHACL_TARGET_CLASS)
+      for (const node of shapeGraph) {
+        if (!hasType(node, SHACL_NODE_SHAPE)) continue
+        const targetClasses = getIdValues(node, SHACL_TARGET_CLASS)
         if (!targetClasses.some((tc) => currentTypes.has(tc))) continue
-        getIdValues(n, SHACL_PROPERTY).forEach((id) => relevantPropertyIds.add(id))
+        getIdValues(node, SHACL_PROPERTY).forEach((id) => relevantPropertyIds.add(id))
       }
 
-      for (const n of shapeGraph) {
-        const nodeId = n['@id']
+      for (const node of shapeGraph) {
+        const nodeId = node['@id']
         if (typeof nodeId !== 'string' || !relevantPropertyIds.has(nodeId)) continue
-        const path = getIdValues(n, SHACL_PATH)[0]
+
+        const path = getIdValues(node, SHACL_PATH)[0]
         if (!path) continue
-        const label = getFirstLiteral(n, SHACL_NAME)
-        const orderRaw = n[SHACL_ORDER]
+
+        const label = getFirstLiteral(node, SHACL_NAME)
+        const orderRaw = node[SHACL_ORDER]
         const order =
           Array.isArray(orderRaw) && orderRaw.length > 0
             ? parseInt((orderRaw[0] as RdfValue)['@value'] ?? '999', 10)
             : 999
-        const viewer = getIdValues(n, DASH_VIEWER)[0] ?? null
-        const nodeKind = getIdValues(n, SHACL_NODE_KIND)[0] ?? null
+        const viewer = getIdValues(node, DASH_VIEWER)[0] ?? null
+        const nodeKind = getIdValues(node, SHACL_NODE_KIND)[0] ?? null
+
+        // Lowest order wins — most specific ordering takes precedence
         const existing = map.get(path)
         if (!existing || order < existing.order) {
           map.set(path, {
@@ -221,59 +216,92 @@ export function useResourceView() {
     return map
   })
 
-  async function loadShapeDocument(uri: string): Promise<void> {
-    if (shapeGraphs.value[uri]) return
-    try {
-      const { nodes } = await fetchRdf(uri)
-      shapeGraphs.value[uri] = flattenGraph(nodes)
-    } catch {
-      // ignore
-    }
-  }
+  const title = computed(() => {
+    const node = currentNode.value
+    if (!node) return null
 
-  async function loadProfile(uri: string): Promise<void> {
-    try {
-      const { nodes } = await fetchRdf(uri)
-      const profileGraph = flattenGraph(nodes)
-      const artifactUris = profileGraph.flatMap((n) => getIdValues(n, PROF_HAS_ARTIFACT))
-      for (const artifactUri of artifactUris) {
-        void loadShapeDocument(artifactUri)
-      }
-    } catch {
-      // ignore
-    }
-  }
+    const explicit = getFirstLiteral(node, DCT_TITLE) ?? getFirstLiteral(node, RDFS_LABEL)
+    if (explicit) return explicit
 
-  watch(
-    node,
-    (n) => {
-      if (!n) return
-      const profileUri = getIdValues(n, DCT_CONFORMS_TO)[0]
-      if (profileUri) void loadProfile(profileUri)
-    },
-    { immediate: true },
-  )
+    if (hasType(node, SHACL_NODE_SHAPE)) {
+      const targetClass = getIdValues(node, SHACL_TARGET_CLASS)[0]
+      if (targetClass) return `Shape: ${compactUri(targetClass)}`
+    }
+
+    return null
+  })
+
+  const description = computed(() => getFirstLiteral(currentNode.value, DCT_DESCRIPTION))
+
+  const accessUrl = computed(() => getIdValues(currentNode.value, DCAT_ACCESS_URL)[0] ?? null)
+  const downloadUrl = computed(() => getIdValues(currentNode.value, DCAT_DOWNLOAD_URL)[0] ?? null)
+
+  const breadcrumbs = computed(() => {
+    const items: { text: string; uri: string }[] = []
+
+    const fdpTitle = getFirstLiteral(getNodeById(fdpUri.value), DCT_TITLE) ?? 'FAIR Data Point'
+    items.push({ text: fdpTitle, uri: fdpUri.value })
+
+    const normalizedFdpUri = fdpUri.value.replace(/\/$/, '')
+    const ancestors: { text: string; uri: string }[] = []
+    const visited = new Set<string>()
+
+    let uri: string | undefined = getIdValues(currentNode.value, DCT_IS_PART_OF)[0]
+    while (uri && uri.replace(/\/$/, '') !== normalizedFdpUri && !visited.has(uri)) {
+      visited.add(uri)
+      ancestors.unshift({
+        text: parentSummaries.value[uri]?.title ?? resourceLabel(uri),
+        uri,
+      })
+      // Walk up using the isPartOf stored during recursive fetch
+      uri = parentSummaries.value[uri]?.isPartOf ?? undefined
+    }
+
+    items.push(...ancestors)
+
+    const normalizedResourceUri = resourceUri.value.replace(/\/$/, '')
+    if (normalizedResourceUri !== normalizedFdpUri) {
+      items.push({
+        text: title.value ?? resourceLabel(resourceUri.value),
+        uri: resourceUri.value,
+      })
+    }
+
+    return items
+  })
 
   function resolveBlankNode(id: string): BlankNodeProperty[] {
-    const n = getNodeById(id)
-    if (!n) return []
+    const node = getNodeById(id)
+    if (!node) return []
+
     const props: BlankNodeProperty[] = []
-    const predicates = Object.keys(n)
+
+    const predicates = Object.keys(node)
       .filter((p) => !embeddedNodeSkipList.has(p))
       .sort((a, b) => predicateLabel(a).localeCompare(predicateLabel(b)))
+
     for (const predicate of predicates) {
-      const raw = n[predicate]
+      const raw = node[predicate]
       if (!Array.isArray(raw) || raw.length === 0) continue
-      const literalValues = (raw as RdfValue[])
+
+      const literalValues = raw
+        .map((item) => item as RdfValue)
         .map(formatLiteralValue)
         .filter((v): v is string => v !== null)
+
       if (literalValues.length > 0) {
-        props.push({ label: predicateLabel(predicate), values: literalValues.map((text) => ({ text })) })
+        props.push({
+          label: predicateLabel(predicate),
+          values: literalValues.map((text) => ({ text })),
+        })
         continue
       }
-      const linkValues = (raw as RdfValue[])
+
+      const linkValues = raw
+        .map((item) => item as RdfValue)
         .filter((item) => typeof item['@id'] === 'string')
         .map((item) => item['@id'] as string)
+
       if (linkValues.length > 0) {
         props.push({
           label: predicateLabel(predicate),
@@ -285,20 +313,20 @@ export function useResourceView() {
         })
       }
     }
+
     return props
   }
 
-  function buildRow(
-    predicate: string,
-    raw: unknown[],
-    viewer?: string | null,
-    nodeKind?: string | null,
-  ): MetadataRow | null {
+  function buildRow(predicate: string, raw: unknown[], viewer?: string | null, nodeKind?: string | null): MetadataRow | null {
     const literalValues = [
       ...new Set(
-        (raw as RdfValue[]).map(formatLiteralValue).filter((v): v is string => v !== null),
+        raw
+          .map((item) => item as RdfValue)
+          .map(formatLiteralValue)
+          .filter((value): value is string => typeof value === 'string'),
       ),
     ]
+
     if (literalValues.length > 0) {
       return {
         predicate,
@@ -310,13 +338,16 @@ export function useResourceView() {
 
     const linkValues = [
       ...new Set(
-        (raw as RdfValue[])
+        raw
+          .map((item) => item as RdfValue)
           .filter((item) => typeof item['@id'] === 'string')
           .map((item) => item['@id'] as string),
       ),
     ]
+
     if (linkValues.length > 0) {
       const hasBlankNodes = linkValues.some((href) => href.startsWith('_:'))
+
       if (hasBlankNodes) {
         return {
           predicate,
@@ -328,42 +359,44 @@ export function useResourceView() {
             .map((id) => resolveBlankNode(id)),
         }
       }
+
       return {
         predicate,
         label: predicateLabel(predicate),
         kind: 'link',
         values: linkValues.map((href) => ({
-          text:
-            viewer === DASH_URI_VIEWER || (viewer == null && nodeKind === SHACL_IRI)
-              ? href
-              : resourceLabel(href),
+          text: viewer === DASH_URI_VIEWER || (viewer == null && nodeKind === SHACL_IRI) ? href : resourceLabel(href),
           href,
           internal: isInternalUri(href),
         })),
       }
     }
+
     return null
   }
 
-  function buildRowsFor(n: RdfNode, predicates: string[]): MetadataRow[] {
+  function buildRowsFor(node: RdfNode, predicates: string[]): MetadataRow[] {
     const rows: MetadataRow[] = []
     for (const predicate of predicates) {
-      const raw = n[predicate]
+      const raw = node[predicate]
       if (!Array.isArray(raw) || raw.length === 0) continue
       const shape = shapePropertyMap.value.get(predicate)
-      const row = buildRow(predicate, raw, shape?.viewer ?? null, shape?.nodeKind ?? null)
+      const viewer = shape?.viewer ?? null
+      const nodeKind = shape?.nodeKind ?? null
+      const row = buildRow(predicate, raw, viewer, nodeKind)
       if (row) rows.push(row)
     }
     return rows
   }
 
-  const childSections = computed(() => {
-    const n = node.value
-    if (!n || typeof n['@id'] !== 'string') return []
+  const childSections = computed<ChildSection[]>(() => {
+    const node = currentNode.value
+    if (!node || typeof node['@id'] !== 'string') return []
+
     return graph.value
       .filter((candidate) => hasType(candidate, LDP_DIRECT_CONTAINER))
       .filter((candidate) =>
-        getIdValues(candidate, LDP_MEMBERSHIP_RESOURCE).includes(n['@id'] as string),
+        getIdValues(candidate, LDP_MEMBERSHIP_RESOURCE).includes(node['@id'] as string),
       )
       .map((candidate) => {
         const relation = getIdValues(candidate, LDP_HAS_MEMBER_RELATION)[0] ?? LDP_CONTAINS
@@ -372,121 +405,103 @@ export function useResourceView() {
       })
   })
 
-  watch(
-    childSections,
-    async (sections) => {
-      const uris = [...new Set(sections.flatMap((s) => s.items))]
-      for (const uri of uris) {
-        if (childSummaries.value[uri]) continue
-        try {
-          const { nodes } = await fetchRdf(uri)
-          const g = flattenGraph(nodes)
-          const n = g.find((x) => x['@id'] === uri) ?? g[0] ?? null
-          childSummaries.value[uri] = {
-            title: getFirstLiteral(n, DCT_TITLE),
-            description: getFirstLiteral(n, DCT_DESCRIPTION),
-            issued: getFirstLiteral(n, DCT_ISSUED) ?? getFirstLiteral(n, FDP_METADATA_ISSUED),
-            modified: getFirstLiteral(n, DCT_MODIFIED) ?? getFirstLiteral(n, FDP_METADATA_MODIFIED),
-            theme: getFirstLiteral(n, DCAT_THEME_TAXONOMY) ?? getIdValues(n, DCAT_THEME_TAXONOMY)[0] ?? null,
-          }
-        } catch {
-          // ignore
-        }
-      }
-    },
-    { immediate: true },
-  )
+  const nodePredicateSets = computed(() => {
+    const node = currentNode.value
+    if (!node) return null
 
-  async function loadParentChain(uri: string) {
-    if (parentSummaries.value[uri]) return
-    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-    try {
-      const { nodes } = await fetchRdf(uri)
-      const g = flattenGraph(nodes)
-      const n = g.find((x) => x['@id'] === uri) ?? g[0] ?? null
-      const isPartOf = getIdValues(n, DCT_IS_PART_OF)[0] ?? null
-      parentSummaries.value[uri] = { title: getFirstLiteral(n, DCT_TITLE), isPartOf }
-      if (isPartOf && isPartOf.replace(/\/$/, '') !== base) {
-        await loadParentChain(isPartOf)
-      }
-    } catch {
-      // ignore
-    }
-  }
+    const childSectionPredicates = new Set(childSections.value.map((s) => s.predicate))
+    const allPredicates = Object.keys(node).filter(
+      (p) => !metadataSkipList.has(p) && !childSectionPredicates.has(p),
+    )
+    const shapeLoaded = shapePropertyMap.value.size > 0
 
-  watch(
-    node,
-    (n) => {
-      if (!n) return
-      const parentUri = getIdValues(n, DCT_IS_PART_OF)[0]
-      if (!parentUri) return
-      const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-      if (parentUri.replace(/\/$/, '') !== base) {
-        void loadParentChain(parentUri)
-      }
-    },
-    { immediate: true },
-  )
+    const shapeOrdered = allPredicates
+      .filter((p) => shapePropertyMap.value.get(p)?.viewer != null)
+      .sort((a, b) => shapePropertyMap.value.get(a)!.order - shapePropertyMap.value.get(b)!.order)
 
-  const breadcrumbs = computed(() => {
-    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-    const items: { text: string; uri: string }[] = []
-    const fdpRootNode = graph.value.find((n) => n['@id'] === base || n['@id'] === `${base}/`) ?? null
-    const fdpTitle = getFirstLiteral(fdpRootNode, DCT_TITLE) ?? 'FAIR Data Point'
-    items.push({ text: fdpTitle, uri: base })
-    const ancestors: { text: string; uri: string }[] = []
-    const visited = new Set<string>()
-    let uri: string | undefined = getIdValues(node.value, DCT_IS_PART_OF)[0]
-    while (uri && uri.replace(/\/$/, '') !== base && !visited.has(uri)) {
-      visited.add(uri)
-      ancestors.unshift({ text: parentSummaries.value[uri]?.title ?? uri, uri })
-      uri = parentSummaries.value[uri]?.isPartOf ?? undefined
-    }
-    items.push(...ancestors)
-    if (resourceUri.value.replace(/\/$/, '') !== base) {
-      items.push({ text: title.value ?? resourceUri.value, uri: resourceUri.value })
-    }
-    return items
+    const unknown = allPredicates
+      .filter((p) => !shapePropertyMap.value.get(p)?.viewer)
+      .sort((a, b) => predicateLabel(a).localeCompare(predicateLabel(b)))
+    return { node, allPredicates, shapeLoaded, shapeOrdered, unknown }
   })
 
   const metadataRows = computed<MetadataRow[]>(() => {
-    if (!node.value) return []
-    const allPredicates = Object.keys(node.value).filter((p) => !metadataSkipList.has(p))
-    const shapeLoaded = shapePropertyMap.value.size > 0
+    const sets = nodePredicateSets.value
+    if (!sets) return []
+    const { node, allPredicates, shapeLoaded, shapeOrdered } = sets
 
     let predicates: string[]
     if (shapeLoaded) {
-      predicates = allPredicates
-        .filter((p) => shapePropertyMap.value.get(p)?.viewer != null)
-        .sort((a, b) => shapePropertyMap.value.get(a)!.order - shapePropertyMap.value.get(b)!.order)
+      predicates = shapeOrdered
     } else {
       const prioritized = metadataPredicatePriority.filter((p) => allPredicates.includes(p))
       const prioritySet = new Set(prioritized)
       predicates = [...prioritized, ...allPredicates.filter((p) => !prioritySet.has(p))]
     }
 
-    return buildRowsFor(node.value, predicates)
+    return buildRowsFor(node, predicates)
   })
 
   const unknownMetadataRows = computed<MetadataRow[]>(() => {
-    if (!node.value || shapePropertyMap.value.size === 0) return []
-    const allPredicates = Object.keys(node.value).filter((p) => !metadataSkipList.has(p))
-    const unknown = allPredicates
-      .filter((p) => !shapePropertyMap.value.get(p)?.viewer)
-      .sort((a, b) => predicateLabel(a).localeCompare(predicateLabel(b)))
-    return buildRowsFor(node.value, unknown)
+    const sets = nodePredicateSets.value
+    if (!sets || !sets.shapeLoaded) return []
+    return buildRowsFor(sets.node, sets.unknown)
   })
+
+  watch(
+    resourceUri,
+    async (uri) => {
+      await loadResource(uri)
+    },
+    { immediate: true },
+  )
+
+  watch(
+    childSections,
+    (sections) => {
+      const uris = [...new Set(sections.flatMap((section) => section.items))]
+      uris.forEach((uri) => {
+        void loadChildSummary(uri)
+      })
+    },
+    { immediate: true },
+  )
+
+  watch(
+    currentNode,
+    (node) => {
+      if (!node) return
+      const parentUri = getIdValues(node, DCT_IS_PART_OF)[0]
+      if (parentUri && parentUri !== fdpUri.value) {
+        void loadParentChain(parentUri)
+      }
+    },
+    { immediate: true },
+  )
+
+  watch(
+    currentNode,
+    (node) => {
+      if (!node) return
+      const profileUri = getIdValues(node, DCT_CONFORMS_TO)[0]
+      if (profileUri) void loadProfile(profileUri)
+    },
+    { immediate: true },
+  )
 
   return {
     loading,
     error,
-    node,
-    resourceUri,
     activeFormat,
     activeRawText,
+    resourceUri,
+    currentNode,
     title,
     description,
+    accessUrl,
+    downloadUrl,
     breadcrumbs,
+    graph,
     metadataRows,
     unknownMetadataRows,
     childSections,

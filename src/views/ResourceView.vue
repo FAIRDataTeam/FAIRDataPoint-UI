@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import 'prismjs/themes/prism.css'
@@ -7,13 +7,16 @@ import 'prismjs/themes/prism.css'
 const {
   loading,
   error,
-  node,
   resourceUri,
+  currentNode,
   activeFormat,
   activeRawText,
+  accessUrl,
+  downloadUrl,
   title,
   description,
   breadcrumbs,
+  graph,
   metadataRows,
   unknownMetadataRows,
   childSections,
@@ -23,6 +26,13 @@ const {
 } = useResourceView()
 
 const showUnknown = ref(false)
+
+const unknownStateByUri = new Map<string, boolean>()
+
+watch(resourceUri, (newUri, oldUri) => {
+  unknownStateByUri.set(oldUri, showUnknown.value)
+  showUnknown.value = unknownStateByUri.get(newUri) ?? false
+})
 
 const {
   shownFormat,
@@ -36,7 +46,7 @@ const {
 
 <template>
   <div>
-    <nav v-if="node && breadcrumbs.length > 1" class="breadcrumbs" aria-label="Breadcrumb">
+    <nav v-if="currentNode && breadcrumbs.length > 1" class="breadcrumbs" aria-label="Breadcrumb">
       <div class="breadcrumbs__inner">
         <template v-for="(item, index) in breadcrumbs" :key="item.uri">
           <router-link
@@ -54,9 +64,35 @@ const {
     <main class="page-container">
       <p v-if="loading">Loading…</p>
       <p v-else-if="error">Error: {{ error }}</p>
-      <template v-else-if="node">
-        <h1 v-if="title" class="resource-title">{{ title }}</h1>
-        <p v-if="description" class="resource-description">{{ description }}</p>
+
+      <template v-else-if="currentNode">
+        <section class="resource-header">
+          <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
+          <p v-if="description" class="resource-description">{{ description }}</p>
+          <div v-if="accessUrl || downloadUrl" class="resource-access-buttons">
+            <a
+              v-if="accessUrl"
+              :href="accessUrl"
+              class="access-button"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              Access online
+            </a>
+            <a
+              v-if="downloadUrl"
+              :href="downloadUrl"
+              class="access-button"
+              target="_blank"
+              rel="noopener noreferrer"
+              download
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </a>
+          </div>
+        </section>
 
         <section v-if="metadataRows.length > 0" class="metadata-table">
           <div v-for="row in metadataRows" :key="row.predicate" class="metadata-row">
@@ -106,8 +142,9 @@ const {
                       target="_blank"
                       rel="noopener noreferrer"
                       class="text-link"
-                      >{{ value.text }}</a
-                    >
+                      >
+                      {{ value.text }}
+                    </a>
                     <router-link
                       v-else-if="value.href"
                       :to="internalHref(value.href)"
@@ -178,8 +215,9 @@ const {
                         target="_blank"
                         rel="noopener noreferrer"
                         class="text-link"
-                        >{{ value.text }}</a
-                      >
+                        >
+                        {{ value.text }}
+                      </a>
                       <router-link
                         v-else-if="value.href"
                         :to="internalHref(value.href)"
@@ -247,32 +285,35 @@ const {
           <div class="raw-resize-handle" @mousedown.prevent="startRawResize" />
         </section>
 
-        <section v-for="section in childSections" :key="section.label" class="child-section">
+        <section v-for="section in childSections" :key="section.predicate" class="child-section">
           <h2 class="section-title">{{ section.label }}</h2>
           <div class="child-list">
-            <article v-for="uri in section.items" :key="uri" class="child-card">
-              <router-link :to="internalHref(uri)" class="child-card__title">
-                {{ childSummaries[uri]?.title ?? resourceLabel(uri) }}
-              </router-link>
-              <div v-if="childSummaries[uri]?.description" class="child-card__description">
-                {{ childSummaries[uri].description }}
+            <article v-for="item in section.items" :key="item" class="child-card">
+              <router-link :to="internalHref(item)" class="child-card__title">{{
+                childSummaries[item]?.title ?? resourceLabel(item)
+              }}</router-link>
+              <div v-if="childSummaries[item]?.description" class="child-card__description">
+                {{ childSummaries[item].description }}
               </div>
-              <div v-if="childSummaries[uri]?.theme" class="child-card__badge-row">
+
+              <div v-if="childSummaries[item]?.theme" class="child-card__badge-row">
                 <a
-                  :href="childSummaries[uri].theme"
+                  :href="childSummaries[item].theme"
                   class="child-card__badge"
                   target="_blank"
                   rel="noopener noreferrer"
-                >{{ childSummaries[uri].theme?.split('/').filter(Boolean).pop() }}</a>
+                >{{ childSummaries[item].theme?.split('/').filter(Boolean).pop() }}</a>
               </div>
-              <div v-if="childSummaries[uri]" class="child-card__meta">
-                <span v-if="childSummaries[uri].issued">
+
+              <div v-if="childSummaries[item]" class="child-card__meta">
+                <span v-if="childSummaries[item].issued">
                   <span class="child-card__meta-label">Issued</span>
-                  {{ childSummaries[uri].issued }}
+                  {{ childSummaries[item].issued }}
                 </span>
-                <span v-if="childSummaries[uri].modified">
+
+                <span v-if="childSummaries[item].modified">
                   <span class="child-card__meta-label">Modified</span>
-                  {{ childSummaries[uri].modified }}
+                  {{ childSummaries[item].modified }}
                 </span>
               </div>
             </article>

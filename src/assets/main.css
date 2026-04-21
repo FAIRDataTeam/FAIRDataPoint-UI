@@ -101,6 +101,32 @@ a:hover {
   font-size: var(--fdp-font-size-lg);
 }
 
+.resource-access-buttons {
+  display: flex;
+  gap: var(--fdp-space-3);
+  margin-top: var(--fdp-space-4);
+}
+
+.access-button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-2);
+  padding: 0.5rem 1.2rem;
+  border-radius: var(--fdp-radius-pill);
+  font-size: var(--fdp-font-size-sm);
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--fdp-color-link);
+  color: var(--fdp-color-surface);
+  border: 1px solid var(--fdp-color-link);
+}
+
+.access-button:hover {
+  background: var(--fdp-color-link-hover);
+  border-color: var(--fdp-color-link-hover);
+  color: var(--fdp-color-surface);
+}
+
 .breadcrumbs {
   width: 100%;
   background: var(--fdp-color-card);
