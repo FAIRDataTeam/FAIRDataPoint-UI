@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
 import { useRawFormat, formats } from '../composables/useRawFormat'
+import RdfGraph from '../components/RdfGraph.vue'
 import 'prismjs/themes/prism.css'
 
 const {
@@ -26,12 +27,17 @@ const {
 } = useResourceView()
 
 const showUnknown = ref(false)
+const showGraph = ref(false)
 
 const unknownStateByUri = new Map<string, boolean>()
+const graphStateByUri = new Map<string, boolean>()
 
 watch(resourceUri, (newUri, oldUri) => {
   unknownStateByUri.set(oldUri, showUnknown.value)
+  graphStateByUri.set(oldUri, showGraph.value)
+
   showUnknown.value = unknownStateByUri.get(newUri) ?? false
+  showGraph.value = graphStateByUri.get(newUri) ?? false
 })
 
 const {
@@ -273,7 +279,33 @@ const {
               >&#8599;</a
             >
           </span>
+          <button
+            type="button"
+            :class="['action-button', { 'action-button--active': showGraph }]"
+            :title="showGraph ? 'Close graph' : 'Show graph below'"
+            @click="showGraph = !showGraph"
+          >
+            graph
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              class="action-button__chevron"
+              :class="{ 'action-button__chevron--open': showGraph }"
+              aria-hidden="true"
+            >
+              <polyline points="6 9 12 15 18 9" />
+            </svg>
+          </button>
         </section>
+
+        <RdfGraph v-if="showGraph && currentNode" :graph="graph" />
 
         <section v-if="shownFormat" class="raw-section">
           <p v-if="rawLoading" class="raw-loading">Loading…</p>

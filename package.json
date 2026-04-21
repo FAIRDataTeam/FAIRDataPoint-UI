@@ -17,6 +17,8 @@
   "dependencies": {
     "n3": "^2.0.3",
     "prismjs": "^1.30.0",
+    "vis-data": "^8.0.3",
+    "vis-network": "^10.0.2",
     "vue": "^3.5.29",
     "vue-router": "^5.0.3"
   },

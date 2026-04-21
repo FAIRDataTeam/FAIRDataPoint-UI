@@ -1,15 +1,6 @@
 import { Parser as N3Parser } from 'n3'
 import type { Quad } from 'n3'
-import {
-  RDF_TYPE,
-  RDFS_LABEL,
-  FOAF_NAME,
-  DCT_TITLE,
-  DCT_IDENTIFIER,
-  XSD_DATE,
-  XSD_DATETIME,
-  prefixes,
-} from './vocabularies'
+import { DCT_TITLE, RDFS_LABEL, DCT_IDENTIFIER, FOAF_NAME, RDF_TYPE, prefixes, XSD_DATE, XSD_DATETIME } from './vocabularies'
 
 export type RdfValue = {
   '@id'?: string
@@ -35,10 +26,6 @@ export type FetchRdfResult = {
 
 function isRdfNodeArray(value: unknown): value is RdfNode[] {
   return Array.isArray(value)
-}
-
-export function hasType(node: RdfNode, type: string): boolean {
-  return Array.isArray(node['@type']) && node['@type'].includes(type)
 }
 
 export function flattenGraph(nodes: RdfNode[]): RdfNode[] {
@@ -97,40 +84,24 @@ export function flattenGraph(nodes: RdfNode[]): RdfNode[] {
   return [...mergedById.values(), ...anonymousNodes]
 }
 
+export function hasType(node: RdfNode, type: string): boolean {
+  return Array.isArray(node['@type']) && node['@type'].includes(type)
+}
+
 export function compactUri(uri: string): string {
   for (const [base, prefix] of Object.entries(prefixes)) {
     if (uri.startsWith(base)) {
       return `${prefix}:${uri.slice(base.length)}`
     }
   }
-  return uri
-}
 
-export function getIdValues(node: RdfNode | null, predicate: string): string[] {
-  if (!node) return []
-  const raw = node[predicate]
-  if (!Array.isArray(raw)) return []
-  return (raw as RdfValue[])
-    .filter((item) => typeof item['@id'] === 'string')
-    .map((item) => item['@id'] as string)
-}
-
-export function internalHref(uri: string): string {
-  const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-  const normalized = uri.replace(/\/$/, '')
-  if (normalized === base) return '/'
-  const prefix = `${base}/`
-  if (normalized.startsWith(prefix)) {
-    const parts = normalized.slice(prefix.length).split('/')
-    if (parts.length >= 2) return `/${parts[0]}/${parts[1]}`
-    return '/'
-  }
   return uri
 }
 
 function formatDate(isoString: string): string {
   const date = new Date(isoString)
   if (isNaN(date.getTime())) return isoString
+
   const day = String(date.getUTCDate()).padStart(2, '0')
   const month = String(date.getUTCMonth() + 1).padStart(2, '0')
   const year = date.getUTCFullYear()
@@ -146,17 +117,6 @@ export function formatLiteralValue(value: RdfValue): string | null {
   return value['@value']
 }
 
-export function uriLabel(uri: string, graphNode: RdfNode | null): string {
-  const title =
-    getFirstLiteral(graphNode, DCT_TITLE) ??
-    getFirstLiteral(graphNode, RDFS_LABEL) ??
-    getFirstLiteral(graphNode, FOAF_NAME) ??
-    getFirstLiteral(graphNode, DCT_IDENTIFIER)
-  if (title) return title
-  const lastSegment = uri.split('/').filter(Boolean).pop()
-  return lastSegment || uri
-}
-
 export function getFirstLiteral(node: RdfNode | null, predicate: string): string | null {
   if (!node) return null
 
@@ -169,6 +129,31 @@ export function getFirstLiteral(node: RdfNode | null, predicate: string): string
   }
 
   return null
+}
+
+export function getIdValues(node: RdfNode | null, predicate: string): string[] {
+  if (!node) return []
+
+  const raw = node[predicate]
+  if (!Array.isArray(raw)) return []
+
+  return raw
+    .map((item) => item as RdfValue)
+    .filter((item) => typeof item['@id'] === 'string')
+    .map((item) => item['@id'] as string)
+}
+
+export function uriLabel(uri: string, graphNode: RdfNode | null): string {
+  const title =
+    getFirstLiteral(graphNode, DCT_TITLE) ??
+    getFirstLiteral(graphNode, RDFS_LABEL) ??
+    getFirstLiteral(graphNode, FOAF_NAME) ??
+    getFirstLiteral(graphNode, DCT_IDENTIFIER)
+
+  if (title) return title
+
+  const lastSegment = uri.split('/').filter(Boolean).pop()
+  return lastSegment || uri
 }
 
 export function parseTurtle(turtle: string): RdfNode[] {
@@ -215,6 +200,91 @@ export function parseTurtle(turtle: string): RdfNode[] {
   return [...nodeMap.values()]
 }
 
+type VisNode = { id: string; label: string; color?: object; title?: string }
+type VisEdge = { id: string; from: string; to: string; label: string }
+
+export type GraphColors = {
+  subject: object
+  type: object
+  blank: object
+  external: object
+  literal: object
+}
+
+const GRAPH_SKIP = new Set(['@id', '@type', '@graph'])
+
+export function buildGraphData(
+  graph: RdfNode[],
+  colors: GraphColors,
+): { nodes: VisNode[]; edges: VisEdge[] } {
+  const nodes: VisNode[] = []
+  const edges: VisEdge[] = []
+  const nodeIds = new Set<string>()
+  let edgeId = 0
+
+  function ensureNode(id: string, color?: object) {
+    if (!nodeIds.has(id)) {
+      nodeIds.add(id)
+      nodes.push({ id, label: compactUri(id), color })
+    }
+  }
+
+  for (const node of graph) {
+    const subjectId = node['@id']
+    if (typeof subjectId !== 'string') continue
+
+    ensureNode(subjectId, colors.subject)
+
+    if (Array.isArray(node['@type'])) {
+      for (const typeUri of node['@type'] as string[]) {
+        ensureNode(typeUri, colors.type)
+        edges.push({ id: `e${edgeId++}`, from: subjectId, to: typeUri, label: 'a' })
+      }
+    }
+
+    for (const predicate of Object.keys(node)) {
+      if (GRAPH_SKIP.has(predicate)) continue
+      const values = node[predicate]
+      if (!Array.isArray(values)) continue
+
+      const predicateLabel = compactUri(predicate)
+
+      for (const raw of values as RdfValue[]) {
+        if (typeof raw['@id'] === 'string') {
+          const objectId = raw['@id']
+          ensureNode(objectId, objectId.startsWith('_:') ? colors.blank : colors.external)
+          edges.push({ id: `e${edgeId++}`, from: subjectId, to: objectId, label: predicateLabel })
+        } else if (typeof raw['@value'] === 'string') {
+          const litId = `_lit_${edgeId}`
+          const litText = raw['@value']
+          nodes.push({
+            id: litId,
+            label: litText.length > 60 ? litText.slice(0, 57) + '…' : litText,
+            title: litText,
+            color: colors.literal,
+          })
+          edges.push({ id: `e${edgeId++}`, from: subjectId, to: litId, label: predicateLabel })
+        }
+      }
+    }
+  }
+
+  return { nodes, edges }
+}
+
+export function internalHref(uri: string): string {
+  const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  const normalized = uri.replace(/\/$/, '')
+  if (normalized === base) return '/'
+  const prefix = `${base}/`
+  if (normalized.startsWith(prefix)) {
+    const parts = normalized.slice(prefix.length).split('/')
+    if (parts.length >= 2) return `/${parts[0]}/${parts[1]}`
+    return '/'
+  }
+  return uri
+}
+
 export async function fetchRdfRaw(uri: string, accept: string): Promise<string> {
   const response = await fetch(uri, { headers: { Accept: accept } })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
@@ -241,6 +311,7 @@ export async function fetchRdf(uri: string): Promise<FetchRdfResult> {
     return { nodes: data, format: 'json-ld', rawText: text }
   }
 
+  // No recognised Content-Type — try Turtle then JSON-LD
   try {
     return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
   } catch {
