@@ -75,13 +75,7 @@ type ShapeProperty = {
 
 export type { ChildSummary }
 
-const embeddedNodeSkipList = new Set([
-  '@id',
-  '@type',
-  '@graph',
-  SIO_IS_ABOUT,
-  SIO_IS_RELATED_TO,
-])
+const embeddedNodeSkipList = new Set(['@id', '@type', '@graph', SIO_IS_ABOUT, SIO_IS_RELATED_TO])
 
 // Predicates handled elsewhere in the UI — not shown in the metadata table
 const metadataSkipList = new Set([
@@ -317,7 +311,12 @@ export function useResourceView() {
     return props
   }
 
-  function buildRow(predicate: string, raw: unknown[], viewer?: string | null, nodeKind?: string | null): MetadataRow | null {
+  function buildRow(
+    predicate: string,
+    raw: unknown[],
+    viewer?: string | null,
+    nodeKind?: string | null,
+  ): MetadataRow | null {
     const literalValues = [
       ...new Set(
         raw
@@ -365,7 +364,10 @@ export function useResourceView() {
         label: predicateLabel(predicate),
         kind: 'link',
         values: linkValues.map((href) => ({
-          text: viewer === DASH_URI_VIEWER || (viewer == null && nodeKind === SHACL_IRI) ? href : resourceLabel(href),
+          text:
+            viewer === DASH_URI_VIEWER || (viewer == null && nodeKind === SHACL_IRI)
+              ? href
+              : resourceLabel(href),
           href,
           internal: isInternalUri(href),
         })),

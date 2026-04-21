@@ -13,11 +13,11 @@ const container = ref<HTMLDivElement | null>(null)
 let network: Network | null = null
 
 const colors: GraphColors = {
-  subject:  { background: '#dbeafe', border: '#005ea8' },
-  type:     { background: '#f0fdf4', border: '#16a34a' },
-  blank:    { background: '#fafafa', border: '#d9dde2' },
+  subject: { background: '#dbeafe', border: '#005ea8' },
+  type: { background: '#f0fdf4', border: '#16a34a' },
+  blank: { background: '#fafafa', border: '#d9dde2' },
   external: { background: '#ffffff', border: '#8b949e' },
-  literal:  { background: '#f3f3f3', border: '#d9dde2' },
+  literal: { background: '#f3f3f3', border: '#d9dde2' },
 }
 
 const options: Options = {
@@ -46,7 +46,11 @@ function init() {
   if (!container.value) return
   const { nodes, edges } = buildGraphData(props.graph, colors)
   network?.destroy()
-  network = new Network(container.value, { nodes: new DataSet(nodes), edges: new DataSet(edges) }, options)
+  network = new Network(
+    container.value,
+    { nodes: new DataSet(nodes), edges: new DataSet(edges) },
+    options,
+  )
 }
 
 watch(() => props.graph, init, { deep: false })

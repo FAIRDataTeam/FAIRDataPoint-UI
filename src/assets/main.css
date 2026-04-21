@@ -759,7 +759,9 @@ pre.raw-content code {
   font-size: var(--fdp-font-size-sm);
   font-weight: 600;
   text-decoration: none;
-  transition: background 0.15s, color 0.15s;
+  transition:
+    background 0.15s,
+    color 0.15s;
 }
 
 .header-login-btn:hover {
@@ -963,4 +965,3 @@ pre.raw-content code {
   opacity: 0.6;
   cursor: not-allowed;
 }
-

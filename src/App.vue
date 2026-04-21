@@ -33,8 +33,10 @@ async function openAbout() {
   try {
     const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
     const res = await fetch(`${base}/actuator/info`, { headers: { Accept: 'application/json' } })
-    if (res.ok) serverInfo.value = await res.json() as ServerInfo
-  } catch { /* show modal without server info */ }
+    if (res.ok) serverInfo.value = (await res.json()) as ServerInfo
+  } catch {
+    /* show modal without server info */
+  }
 }
 </script>
 
@@ -55,8 +57,20 @@ async function openAbout() {
 
         <form class="header-search" role="search" @submit.prevent="submitSearch">
           <button type="submit" class="header-search__icon" aria-label="Search">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </button>
           <input
@@ -73,8 +87,19 @@ async function openAbout() {
             aria-label="Clear search"
             @click="searchQuery = ''"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2.5"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
             </svg>
           </button>
         </form>
@@ -96,7 +121,9 @@ async function openAbout() {
             <div v-if="menuOpen" class="user-dropdown">
               <div class="user-dropdown__email">{{ userEmail }}</div>
               <hr class="user-dropdown__divider" />
-              <button type="button" class="user-dropdown__item" @click="handleLogout">Log out</button>
+              <button type="button" class="user-dropdown__item" @click="handleLogout">
+                Log out
+              </button>
             </div>
           </div>
         </nav>
@@ -119,12 +146,16 @@ async function openAbout() {
       <div class="modal" role="dialog" aria-modal="true" aria-labelledby="about-title">
         <div class="modal__header">
           <h2 id="about-title" class="modal__title">About</h2>
-          <button type="button" class="modal__close" aria-label="Close" @click="aboutOpen = false">×</button>
+          <button type="button" class="modal__close" aria-label="Close" @click="aboutOpen = false">
+            ×
+          </button>
         </div>
         <div class="modal__body">
           <table class="about-table">
             <thead>
-              <tr><th colspan="2">Server</th></tr>
+              <tr>
+                <th colspan="2">Server</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
@@ -133,11 +164,15 @@ async function openAbout() {
               </tr>
               <tr>
                 <td>Built at</td>
-                <td class="about-table__value">{{ serverInfo?.builtAt ? new Date(serverInfo.builtAt).toLocaleString() : '—' }}</td>
+                <td class="about-table__value">
+                  {{ serverInfo?.builtAt ? new Date(serverInfo.builtAt).toLocaleString() : '—' }}
+                </td>
               </tr>
             </tbody>
             <thead>
-              <tr><th colspan="2">Client</th></tr>
+              <tr>
+                <th colspan="2">Client</th>
+              </tr>
             </thead>
             <tbody>
               <tr>
