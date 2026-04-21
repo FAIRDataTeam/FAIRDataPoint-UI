@@ -1,0 +1,45 @@
+name: continuous integration checks
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  # prevent duplicate runs
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # https://nodejs.org/en/about/previous-releases#release-schedule
+        node: [24]
+
+    steps:
+      - # https://github.com/actions/checkout
+        name: Check out repository
+        uses: actions/checkout@v6
+
+      - # https://github.com/actions/setup-node
+        name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Install dependencies from package-lock.json
+        run: npm clean-install
+
+      - name: Check linter
+        run: npm run lint
+
+      - name: Check for proper formatting
+        run: npm run format-check
+
+      - name: Check if we can build
+        run: npm run build
