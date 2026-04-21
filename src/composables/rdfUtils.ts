@@ -160,8 +160,8 @@ export function getFirstLiteral(node: RdfNode | null, predicate: string): string
   if (!Array.isArray(raw)) return null
 
   for (const item of raw) {
-    const value = (item as RdfValue)['@value']
-    if (typeof value === 'string') return value
+    const text = formatLiteralValue(item as RdfValue)
+    if (text) return text
   }
 
   return null

@@ -20,6 +20,11 @@ import {
   DCT_IS_PART_OF,
   DCT_CONFORMS_TO,
   RDFS_LABEL,
+  DCT_ISSUED,
+  DCT_MODIFIED,
+  DCAT_THEME_TAXONOMY,
+  FDP_METADATA_ISSUED,
+  FDP_METADATA_MODIFIED,
   LDP_CONTAINS,
   LDP_DIRECT_CONTAINER,
   LDP_MEMBERSHIP_RESOURCE,
@@ -63,6 +68,9 @@ export type MetadataRow = {
 type ChildSummary = {
   title: string | null
   description: string | null
+  issued: string | null
+  modified: string | null
+  theme: string | null
 }
 
 type ParentSummary = {
@@ -370,6 +378,9 @@ export function useResourceView() {
           childSummaries.value[uri] = {
             title: getFirstLiteral(n, DCT_TITLE),
             description: getFirstLiteral(n, DCT_DESCRIPTION),
+            issued: getFirstLiteral(n, DCT_ISSUED) ?? getFirstLiteral(n, FDP_METADATA_ISSUED),
+            modified: getFirstLiteral(n, DCT_MODIFIED) ?? getFirstLiteral(n, FDP_METADATA_MODIFIED),
+            theme: getFirstLiteral(n, DCAT_THEME_TAXONOMY) ?? getIdValues(n, DCAT_THEME_TAXONOMY)[0] ?? null,
           }
         } catch {
           // ignore
@@ -470,6 +481,7 @@ export function useResourceView() {
     unknownMetadataRows,
     childSections,
     childSummaries,
+    resourceLabel,
     internalHref,
   }
 }

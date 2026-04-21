@@ -13,6 +13,7 @@ const {
   unknownMetadataRows,
   childSections,
   childSummaries,
+  resourceLabel,
   internalHref,
 } = useResourceView()
 
@@ -184,11 +185,29 @@ const showUnknown = ref(false)
           <div class="child-list">
             <article v-for="uri in section.items" :key="uri" class="child-card">
               <router-link :to="internalHref(uri)" class="child-card__title">
-                {{ childSummaries[uri]?.title ?? uri }}
+                {{ childSummaries[uri]?.title ?? resourceLabel(uri) }}
               </router-link>
-              <p v-if="childSummaries[uri]?.description" class="child-card__description">
+              <div v-if="childSummaries[uri]?.description" class="child-card__description">
                 {{ childSummaries[uri].description }}
-              </p>
+              </div>
+              <div v-if="childSummaries[uri]?.theme" class="child-card__badge-row">
+                <a
+                  :href="childSummaries[uri].theme"
+                  class="child-card__badge"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >{{ childSummaries[uri].theme?.split('/').filter(Boolean).pop() }}</a>
+              </div>
+              <div v-if="childSummaries[uri]" class="child-card__meta">
+                <span v-if="childSummaries[uri].issued">
+                  <span class="child-card__meta-label">Issued</span>
+                  {{ childSummaries[uri].issued }}
+                </span>
+                <span v-if="childSummaries[uri].modified">
+                  <span class="child-card__meta-label">Modified</span>
+                  {{ childSummaries[uri].modified }}
+                </span>
+              </div>
             </article>
           </div>
         </section>
