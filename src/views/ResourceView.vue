@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import 'prismjs/themes/prism.css'
 import { useResourceView } from '../composables/useResourceView'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import RdfGraph from '../components/RdfGraph.vue'
-import 'prismjs/themes/prism.css'
 
 const {
   loading,

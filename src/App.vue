@@ -19,6 +19,23 @@ function submitSearch() {
   if (!q) return
   void router.push({ name: 'search', query: { q } })
 }
+
+// About modal
+type ServerInfo = { name: string; version: string; builtAt: string }
+const aboutOpen = ref(false)
+const serverInfo = ref<ServerInfo | null>(null)
+const appVersion = __APP_VERSION__
+const appBuildAt = __APP_BUILD_AT__
+
+async function openAbout() {
+  aboutOpen.value = true
+  if (serverInfo.value) return
+  try {
+    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+    const res = await fetch(`${base}/actuator/info`, { headers: { Accept: 'application/json' } })
+    if (res.ok) serverInfo.value = await res.json() as ServerInfo
+  } catch { /* show modal without server info */ }
+}
 </script>
 
 <template>
@@ -89,5 +106,52 @@ function submitSearch() {
     <main class="app-main">
       <RouterView />
     </main>
+
+    <footer class="app-footer">
+      <div class="app-footer__inner">
+        <span class="app-footer__text">FAIR Data Point</span>
+        <span class="app-footer__sep">·</span>
+        <button type="button" class="app-footer__link" @click="openAbout">About</button>
+      </div>
+    </footer>
+
+    <div v-if="aboutOpen" class="modal-overlay" @click.self="aboutOpen = false">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="about-title">
+        <div class="modal__header">
+          <h2 id="about-title" class="modal__title">About</h2>
+          <button type="button" class="modal__close" aria-label="Close" @click="aboutOpen = false">×</button>
+        </div>
+        <div class="modal__body">
+          <table class="about-table">
+            <thead>
+              <tr><th colspan="2">Server</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Version</td>
+                <td class="about-table__value">{{ serverInfo?.version ?? '—' }}</td>
+              </tr>
+              <tr>
+                <td>Built at</td>
+                <td class="about-table__value">{{ serverInfo?.builtAt ? new Date(serverInfo.builtAt).toLocaleString() : '—' }}</td>
+              </tr>
+            </tbody>
+            <thead>
+              <tr><th colspan="2">Client</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Version</td>
+                <td class="about-table__value">{{ appVersion }}</td>
+              </tr>
+              <tr>
+                <td>Built at</td>
+                <td class="about-table__value">{{ new Date(appBuildAt).toLocaleString() }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

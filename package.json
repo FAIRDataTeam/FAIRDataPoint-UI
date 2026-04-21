@@ -1,6 +1,6 @@
 {
   "name": "fdp-client-v3",
-  "version": "0.0.0",
+  "version": "2.0.0-dev",
   "private": true,
   "type": "module",
   "scripts": {
