@@ -1,4 +1,4 @@
-name: continuous integration checks
+name: continuous integration checks and tests
 
 on:
   push:
@@ -41,5 +41,8 @@ jobs:
       - name: Check for proper formatting
         run: npm run format-check
 
-      - name: Check if we can build
+      - name: Check if build succeeds
         run: npm run build
+
+      - name: Run tests
+        run: npm run test
