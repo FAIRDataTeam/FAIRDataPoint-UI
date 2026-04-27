@@ -1,0 +1,248 @@
+[
+  {
+    "@id": "http://localhost/catalog/",
+    "@type": [
+      "http://www.w3.org/ns/ldp#DirectContainer"
+    ],
+    "http://purl.org/dc/terms/title": [
+      {
+        "@value": "Catalogs"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#membershipResource": [
+      {
+        "@id": "http://localhost"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#hasMemberRelation": [
+      {
+        "@id": "https://w3id.org/fdp/fdp-o#metadataCatalog"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#contains": [
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f"
+      }
+    ]
+  },
+  {
+    "@id": "http://localhost",
+    "http://purl.org/dc/terms/conformsTo": [
+      {
+        "@id": "http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c"
+      }
+    ],
+    "https://w3id.org/fdp/fdp-o#fdpSoftwareVersion": [
+      {
+        "@value": "FDP:v1.19.1~67ec393"
+      }
+    ],
+    "http://www.w3.org/ns/dcat#endpointURL": [
+      {
+        "@id": "http://localhost"
+      }
+    ],
+    "@graph": [
+      {
+        "@id": "http://localhost",
+        "http://purl.org/dc/terms/accessRights": [
+          {
+            "@id": "http://localhost#accessRights"
+          }
+        ],
+        "http://purl.org/dc/terms/conformsTo": [
+          {
+            "@id": "http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c"
+          }
+        ],
+        "http://purl.org/dc/terms/description": [
+          {
+            "@value": "Duis pellentesque, nunc a fringilla varius, magna dui porta quam, nec ultricies augue turpis sed velit."
+          }
+        ],
+        "http://purl.org/dc/terms/language": [
+          {
+            "@id": "http://id.loc.gov/vocabulary/iso639-1/en"
+          }
+        ],
+        "http://purl.org/dc/terms/license": [
+          {
+            "@id": "http://purl.org/NET/rdflicense/cc-zero1.0"
+          }
+        ],
+        "http://purl.org/dc/terms/publisher": [
+          {
+            "@id": "http://localhost#publisher"
+          }
+        ],
+        "http://purl.org/dc/terms/title": [
+          {
+            "@value": "My FAIR Data Point"
+          }
+        ],
+        "http://www.re3data.org/schema/3-0#repositoryIdentifier": [
+          {
+            "@id": "http://localhost#identifier"
+          }
+        ],
+        "http://www.w3.org/ns/dcat#endpointURL": [
+          {
+            "@id": "http://localhost"
+          }
+        ],
+        "http://www.w3.org/ns/dcat#version": [
+          {
+            "@value": "1.0"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#fdpSoftwareVersion": [
+          {
+            "@value": "FDP:v1.19.1~67ec393"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataCatalog": [
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f"
+          }
+        ],
+        "@type": [
+          "https://w3id.org/fdp/fdp-o#MetadataService",
+          "http://www.w3.org/ns/dcat#DataService",
+          "http://www.w3.org/ns/dcat#Resource",
+          "https://w3id.org/fdp/fdp-o#FAIRDataPoint"
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataIdentifier": [
+          {
+            "@id": "http://localhost#identifier"
+          }
+        ],
+        "http://www.w3.org/2000/01/rdf-schema#label": [
+          {
+            "@value": "My FAIR Data Point"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "http://localhost/metrics/445c0a70d1e214e545b261559e2842f4"
+          },
+          {
+            "@id": "http://localhost/metrics/5d27e854a9e78eb3f663331cd47cdc13"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataModified": [
+          {
+            "@value": "2026-04-23T12:39:06.394302314Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataIssued": [
+          {
+            "@value": "2026-04-23T12:31:46.89141577Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost#accessRights",
+        "@type": [
+          "http://purl.org/dc/terms/RightsStatement"
+        ],
+        "http://purl.org/dc/terms/description": [
+          {
+            "@value": "This resource has no access restriction"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c",
+        "http://www.w3.org/2000/01/rdf-schema#label": [
+          {
+            "@value": "FAIR Data Point Profile"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost#publisher",
+        "@type": [
+          "http://xmlns.com/foaf/0.1/Agent"
+        ],
+        "http://xmlns.com/foaf/0.1/name": [
+          {
+            "@value": "Default Publisher"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost#identifier",
+        "@type": [
+          "http://purl.org/spar/datacite/Identifier"
+        ],
+        "http://purl.org/dc/terms/identifier": [
+          {
+            "@value": "http://localhost"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/catalog/",
+        "@type": [
+          "http://www.w3.org/ns/ldp#DirectContainer"
+        ],
+        "http://purl.org/dc/terms/title": [
+          {
+            "@value": "Catalogs"
+          }
+        ],
+        "http://www.w3.org/ns/ldp#contains": [
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f"
+          }
+        ],
+        "http://www.w3.org/ns/ldp#hasMemberRelation": [
+          {
+            "@id": "https://w3id.org/fdp/fdp-o#metadataCatalog"
+          }
+        ],
+        "http://www.w3.org/ns/ldp#membershipResource": [
+          {
+            "@id": "http://localhost"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/metrics/445c0a70d1e214e545b261559e2842f4",
+        "http://semanticscience.org/resource/SIO_000332": [
+          {
+            "@id": "https://www.ietf.org/rfc/rfc3986.txt"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "https://www.ietf.org/rfc/rfc3986.txt"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/metrics/5d27e854a9e78eb3f663331cd47cdc13",
+        "http://semanticscience.org/resource/SIO_000332": [
+          {
+            "@id": "https://www.wikidata.org/wiki/Q8777"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "https://www.wikidata.org/wiki/Q8777"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "@id": "http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c",
+    "http://www.w3.org/2000/01/rdf-schema#label": [
+      {
+        "@value": "FAIR Data Point Profile"
+      }
+    ]
+  }
+]

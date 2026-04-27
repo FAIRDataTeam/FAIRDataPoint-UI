@@ -1,0 +1,204 @@
+[
+  {
+    "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f",
+    "http://www.w3.org/ns/dcat#themeTaxonomy": [
+      {
+        "@id": "http://example.org/theme/test"
+      }
+    ],
+    "http://purl.org/dc/terms/conformsTo": [
+      {
+        "@id": "http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b"
+      }
+    ],
+    "@graph": [
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f",
+        "http://purl.org/dc/terms/description": [
+          {
+            "@value": "For testing purposes."
+          }
+        ],
+        "http://purl.org/dc/terms/isPartOf": [
+          {
+            "@id": "http://localhost"
+          }
+        ],
+        "http://purl.org/dc/terms/language": [
+          {
+            "@id": "http://id.loc.gov/vocabulary/iso639-1/en"
+          }
+        ],
+        "http://purl.org/dc/terms/license": [
+          {
+            "@id": "http://purl.org/NET/rdflicense/cc-zero1.0"
+          }
+        ],
+        "http://purl.org/dc/terms/publisher": [
+          {
+            "@id": "_:9d5eb3f9b57542cc92690455ca3a5107171"
+          }
+        ],
+        "http://purl.org/dc/terms/title": [
+          {
+            "@value": "A catalog"
+          }
+        ],
+        "http://www.w3.org/ns/dcat#version": [
+          {
+            "@value": "1"
+          }
+        ],
+        "@type": [
+          "http://www.w3.org/ns/dcat#Resource",
+          "http://www.w3.org/ns/dcat#Catalog"
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataIdentifier": [
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#identifier"
+          }
+        ],
+        "http://www.w3.org/2000/01/rdf-schema#label": [
+          {
+            "@value": "A catalog"
+          }
+        ],
+        "http://purl.org/dc/terms/accessRights": [
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#accessRights"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/445c0a70d1e214e545b261559e2842f4"
+          },
+          {
+            "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/5d27e854a9e78eb3f663331cd47cdc13"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataIssued": [
+          {
+            "@value": "2026-04-23T12:35:49.591198422Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ],
+        "http://purl.org/dc/terms/issued": [
+          {
+            "@value": "2026-04-23T12:35:49.591198422Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ],
+        "http://purl.org/dc/terms/modified": [
+          {
+            "@value": "2026-04-23T12:35:49.591198422Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ],
+        "http://www.w3.org/ns/dcat#dataset": [
+          {
+            "@id": "http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad"
+          }
+        ],
+        "https://w3id.org/fdp/fdp-o#metadataModified": [
+          {
+            "@value": "2026-04-23T12:38:38.416708631Z",
+            "@type": "http://www.w3.org/2001/XMLSchema#dateTime"
+          }
+        ]
+      },
+      {
+        "@id": "_:9d5eb3f9b57542cc92690455ca3a5107171",
+        "@type": [
+          "http://xmlns.com/foaf/0.1/Agent"
+        ],
+        "http://xmlns.com/foaf/0.1/name": [
+          {
+            "@value": "Default Publisher"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#identifier",
+        "@type": [
+          "http://purl.org/spar/datacite/Identifier"
+        ],
+        "http://purl.org/dc/terms/identifier": [
+          {
+            "@value": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#accessRights",
+        "@type": [
+          "http://purl.org/dc/terms/RightsStatement"
+        ],
+        "http://purl.org/dc/terms/description": [
+          {
+            "@value": "This resource has no access restriction"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/445c0a70d1e214e545b261559e2842f4",
+        "http://semanticscience.org/resource/SIO_000332": [
+          {
+            "@id": "https://www.ietf.org/rfc/rfc3986.txt"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "https://www.ietf.org/rfc/rfc3986.txt"
+          }
+        ]
+      },
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/5d27e854a9e78eb3f663331cd47cdc13",
+        "http://semanticscience.org/resource/SIO_000332": [
+          {
+            "@id": "https://www.wikidata.org/wiki/Q8777"
+          }
+        ],
+        "http://semanticscience.org/resource/SIO_000628": [
+          {
+            "@id": "https://www.wikidata.org/wiki/Q8777"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "@id": "http://localhost/dataset/",
+    "@type": [
+      "http://www.w3.org/ns/ldp#DirectContainer"
+    ],
+    "http://purl.org/dc/terms/title": [
+      {
+        "@value": "Datasets"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#membershipResource": [
+      {
+        "@id": "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#hasMemberRelation": [
+      {
+        "@id": "http://www.w3.org/ns/dcat#dataset"
+      }
+    ],
+    "http://www.w3.org/ns/ldp#contains": [
+      {
+        "@id": "http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad"
+      }
+    ]
+  },
+  {
+    "@id": "http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b",
+    "http://www.w3.org/2000/01/rdf-schema#label": [
+      {
+        "@value": "Catalog Profile"
+      }
+    ]
+  }
+]
