@@ -1,0 +1,45 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#> .
+
+<http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4> a dcat:Resource,
+    dcat:Distribution;
+  dcterms:description "For testing purposes.";
+  dcterms:isPartOf <http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad>;
+  dcterms:language <http://id.loc.gov/vocabulary/iso639-1/en>;
+  dcterms:license <http://purl.org/NET/rdflicense/cc-zero1.0>;
+  dcterms:publisher [ a foaf:Agent;
+      foaf:name "Default Publisher"
+    ];
+  dcterms:title "One distribution";
+  dcat:mediaType "csv";
+  dcat:version "1";
+  <https://w3id.org/fdp/fdp-o#metadataIdentifier> <http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4#identifier>;
+  <http://www.w3.org/2000/01/rdf-schema#label> "One distribution";
+  dcterms:accessRights <http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4#accessRights>;
+  <http://semanticscience.org/resource/SIO_000628> <http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4/metrics/445c0a70d1e214e545b261559e2842f4>,
+    <http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4/metrics/5d27e854a9e78eb3f663331cd47cdc13>;
+  <https://w3id.org/fdp/fdp-o#metadataIssued> "2026-04-23T12:38:38.4117006Z"^^xsd:dateTime;
+  <https://w3id.org/fdp/fdp-o#metadataModified> "2026-04-23T12:38:38.4117006Z"^^xsd:dateTime;
+  dcterms:conformsTo <http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7> .
+
+<http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4#identifier> a
+    <http://purl.org/spar/datacite/Identifier>;
+  dcterms:identifier "http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4" .
+
+<http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4#accessRights>
+  a dcterms:RightsStatement;
+  dcterms:description "This resource has no access restriction" .
+
+<http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4/metrics/445c0a70d1e214e545b261559e2842f4>
+  <http://semanticscience.org/resource/SIO_000332> <https://www.ietf.org/rfc/rfc3986.txt>;
+  <http://semanticscience.org/resource/SIO_000628> <https://www.ietf.org/rfc/rfc3986.txt> .
+
+<http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4/metrics/5d27e854a9e78eb3f663331cd47cdc13>
+  <http://semanticscience.org/resource/SIO_000332> <https://www.wikidata.org/wiki/Q8777>;
+  <http://semanticscience.org/resource/SIO_000628> <https://www.wikidata.org/wiki/Q8777> .
+
+<http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7> <http://www.w3.org/2000/01/rdf-schema#label>
+    "Distribution Profile" .
