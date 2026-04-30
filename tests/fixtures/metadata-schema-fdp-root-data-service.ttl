@@ -1,0 +1,87 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#> .
+
+<http://fairdatapoint.org/DataServiceShape> a <http://www.w3.org/ns/shacl#NodeShape>;
+  <http://www.w3.org/ns/shacl#targetClass> dcat:DataService;
+  <http://www.w3.org/ns/shacl#property> [
+      <http://www.w3.org/ns/shacl#path> dcat:endpointURL;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#IRI>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://www.w3.org/ns/shacl#order> 20
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcat:endpointDescription;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#Literal>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextAreaEditor>;
+      <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LiteralViewer>;
+      <http://www.w3.org/ns/shacl#order> 21
+    ] .
+
+<http://fairdatapoint.org/ResourceShape> a <http://www.w3.org/ns/shacl#NodeShape>;
+  <http://www.w3.org/ns/shacl#targetClass> dcat:Resource;
+  <http://www.w3.org/ns/shacl#property> [
+      <http://www.w3.org/ns/shacl#path> dcterms:title;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#Literal>;
+      <http://www.w3.org/ns/shacl#minCount> 1;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextFieldEditor>;
+      <http://www.w3.org/ns/shacl#order> 1
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcterms:description;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#Literal>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextAreaEditor>;
+      <http://www.w3.org/ns/shacl#order> 2
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcterms:publisher;
+      <http://www.w3.org/ns/shacl#node> <http://fairdatapoint.org/AgentShape>;
+      <http://www.w3.org/ns/shacl#minCount> 1;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#BlankNodeEditor>;
+      <http://www.w3.org/ns/shacl#order> 3
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcat:version;
+      <http://www.w3.org/ns/shacl#name> "version";
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#Literal>;
+      <http://www.w3.org/ns/shacl#minCount> 1;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextFieldEditor>;
+      <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LiteralViewer>;
+      <http://www.w3.org/ns/shacl#order> 4
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcterms:language;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#IRI>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#URIEditor>;
+      <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LabelViewer>;
+      <http://www.w3.org/ns/shacl#defaultValue> <http://id.loc.gov/vocabulary/iso639-1/en>;
+      <http://www.w3.org/ns/shacl#order> 5
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcterms:license;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#IRI>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#URIEditor>;
+      <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LabelViewer>;
+      <http://www.w3.org/ns/shacl#defaultValue> <http://purl.org/NET/rdflicense/cc-zero1.0>;
+      <http://www.w3.org/ns/shacl#order> 6
+    ], [
+      <http://www.w3.org/ns/shacl#path> dcterms:rights;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#IRI>;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#URIEditor>;
+      <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LabelViewer>;
+      <http://www.w3.org/ns/shacl#order> 7
+    ] .
+
+<http://fairdatapoint.org/AgentShape> a <http://www.w3.org/ns/shacl#NodeShape>;
+  <http://www.w3.org/ns/shacl#targetClass> foaf:Agent;
+  <http://www.w3.org/ns/shacl#property> [
+      <http://www.w3.org/ns/shacl#path> foaf:name;
+      <http://www.w3.org/ns/shacl#nodeKind> <http://www.w3.org/ns/shacl#Literal>;
+      <http://www.w3.org/ns/shacl#minCount> 1;
+      <http://www.w3.org/ns/shacl#maxCount> 1;
+      <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextFieldEditor>
+    ] .
