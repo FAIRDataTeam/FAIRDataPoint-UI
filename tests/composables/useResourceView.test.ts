@@ -230,6 +230,15 @@ describe('useResourceView', () => {
       expect(description.value).toBe('For testing purposes.')
     })
 
+    it('exposes the distribution container as a child section', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(1)
+      expect(childSections.value[0].items).toEqual([
+        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
+      ])
+    })
+
     describe('metadata rows', () => {
       let rows: Awaited<ReturnType<typeof useResourceView>>['metadataRows']['value']
 
@@ -386,6 +395,15 @@ describe('useResourceView', () => {
       const { downloadUrl } = useResourceView()
       await flushPromises()
       expect(downloadUrl.value).toBeNull()
+    })
+
+    it('exposes the dataset container as a child section', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(1)
+      expect(childSections.value[0].items).toEqual([
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad',
+      ])
     })
 
     describe('metadata rows', () => {
@@ -550,6 +568,12 @@ describe('useResourceView', () => {
       const { description } = useResourceView()
       await flushPromises()
       expect(description.value).toBe('For testing purposes.')
+    })
+
+    it('has no child sections', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(0)
     })
 
     describe('metadata rows', () => {
