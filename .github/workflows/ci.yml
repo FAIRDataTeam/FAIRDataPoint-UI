@@ -44,5 +44,7 @@ jobs:
       - name: Check if build succeeds
         run: npm run build
 
-      - name: Run tests
+      - # this runs vitest in a non-interactive shell, so watch mode is disabled automatically (no need to add --run)
+        # https://vitest.dev/config/watch
+        name: Run tests
         run: npm run test
