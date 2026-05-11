@@ -65,6 +65,12 @@ describe('useResourceView', () => {
       )
     })
 
+    it('builds breadcrumbs containing only the root', async () => {
+      const { breadcrumbs } = useResourceView()
+      await flushPromises()
+      expect(breadcrumbs.value).toEqual([{ text: 'FAIR Data Point', uri: 'http://localhost/' }])
+    })
+
     describe('metadata rows', () => {
       let rows: Awaited<ReturnType<typeof useResourceView>>['metadataRows']['value']
 
@@ -230,6 +236,20 @@ describe('useResourceView', () => {
       expect(description.value).toBe('For testing purposes.')
     })
 
+    it('builds breadcrumbs as FDP root → catalog → dataset', async () => {
+      setupFetchFixtures({
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+      })
+      const { breadcrumbs } = useResourceView()
+      await flushPromises()
+      expect(breadcrumbs.value).toEqual([
+        { text: 'FAIR Data Point', uri: 'http://localhost/' },
+        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
+        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
+      ])
+    })
+
     it('exposes the distribution container as a child section', async () => {
       const { childSections } = useResourceView()
       await flushPromises()
@@ -383,6 +403,15 @@ describe('useResourceView', () => {
       const { description } = useResourceView()
       await flushPromises()
       expect(description.value).toBe('For testing purposes.')
+    })
+
+    it('builds breadcrumbs as FDP root → catalog', async () => {
+      const { breadcrumbs } = useResourceView()
+      await flushPromises()
+      expect(breadcrumbs.value).toEqual([
+        { text: 'FAIR Data Point', uri: 'http://localhost/' },
+        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
+      ])
     })
 
     it('returns null for accessUrl when not set', async () => {
@@ -568,6 +597,26 @@ describe('useResourceView', () => {
       const { description } = useResourceView()
       await flushPromises()
       expect(description.value).toBe('For testing purposes.')
+    })
+
+    it('builds breadcrumbs as FDP root → catalog → dataset → distribution', async () => {
+      setupFetchFixtures({
+        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
+          readFixture('distribution.ttl'),
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+      })
+      const { breadcrumbs } = useResourceView()
+      await flushPromises()
+      expect(breadcrumbs.value).toEqual([
+        { text: 'FAIR Data Point', uri: 'http://localhost/' },
+        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
+        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
+        {
+          text: 'One distribution',
+          uri: 'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
+        },
+      ])
     })
 
     it('has no child sections', async () => {
