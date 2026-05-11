@@ -214,176 +214,6 @@ describe('useResourceView', () => {
     })
   })
 
-  // dataset
-
-  describe('dataset', () => {
-    beforeEach(() => {
-      mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
-      setupFetchFixtures({
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
-      })
-    })
-
-    it('returns dct:title', async () => {
-      const { title } = useResourceView()
-      await flushPromises()
-      expect(title.value).toBe('A dataset')
-    })
-
-    it('returns dct:description', async () => {
-      const { description } = useResourceView()
-      await flushPromises()
-      expect(description.value).toBe('For testing purposes.')
-    })
-
-    it('builds breadcrumbs as FDP root → catalog → dataset', async () => {
-      setupFetchFixtures({
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
-      })
-      const { breadcrumbs } = useResourceView()
-      await flushPromises()
-      expect(breadcrumbs.value).toEqual([
-        { text: 'FAIR Data Point', uri: 'http://localhost/' },
-        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
-        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
-      ])
-    })
-
-    it('exposes the distribution container as a child section', async () => {
-      const { childSections } = useResourceView()
-      await flushPromises()
-      expect(childSections.value).toHaveLength(1)
-      expect(childSections.value[0].items).toEqual([
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
-      ])
-    })
-
-    describe('metadata rows', () => {
-      let rows: Awaited<ReturnType<typeof useResourceView>>['metadataRows']['value']
-
-      beforeEach(async () => {
-        const { metadataRows } = useResourceView()
-        await flushPromises()
-        rows = metadataRows.value
-      })
-
-      const find = (predicate: string) => rows.find((r) => r.predicate === predicate)
-
-      it('includes 10 rows', () => expect(rows).toHaveLength(10))
-
-      it('includes a conforms to row', () =>
-        expect(find('http://purl.org/dc/terms/conformsTo')).toMatchObject({
-          label: 'Conforms to',
-          kind: 'link',
-          values: [{ text: 'Dataset Profile' }],
-        }))
-
-      it('includes a metadata issued row', () =>
-        expect(find('https://w3id.org/fdp/fdp-o#metadataIssued')).toMatchObject({
-          label: 'Metadata issued',
-          kind: 'literal',
-          values: [{ text: '23-04-2026' }],
-        }))
-
-      it('includes a metadata modified row', () =>
-        expect(find('https://w3id.org/fdp/fdp-o#metadataModified')).toMatchObject({
-          label: 'Metadata modified',
-          kind: 'literal',
-          values: [{ text: '23-04-2026' }],
-        }))
-
-      it('includes a version row', () =>
-        expect(find('http://www.w3.org/ns/dcat#version')).toMatchObject({
-          label: 'Version',
-          kind: 'literal',
-          values: [{ text: '1' }],
-        }))
-
-      it('includes a language row', () =>
-        expect(find('http://purl.org/dc/terms/language')).toMatchObject({
-          label: 'Language',
-          kind: 'link',
-          values: [{ text: 'en' }],
-        }))
-
-      it('includes a license row', () =>
-        expect(find('http://purl.org/dc/terms/license')).toMatchObject({
-          label: 'License',
-          kind: 'link',
-          values: [{ text: 'cc-zero1.0' }],
-        }))
-
-      it('includes a publisher row', () =>
-        expect(find('http://purl.org/dc/terms/publisher')).toMatchObject({
-          label: 'Publisher',
-          kind: 'blank-node',
-        }))
-
-      it('includes a theme row', () =>
-        expect(find('http://www.w3.org/ns/dcat#theme')).toMatchObject({
-          label: 'Theme',
-          kind: 'link',
-          values: [{ text: 'test' }],
-        }))
-
-      it('includes a metadata identifier row', () =>
-        expect(find('https://w3id.org/fdp/fdp-o#metadataIdentifier')).toMatchObject({
-          label: 'Metadata identifier',
-          kind: 'link',
-        }))
-
-      it('includes an access rights row', () =>
-        expect(find('http://purl.org/dc/terms/accessRights')).toMatchObject({
-          label: 'Access rights',
-          kind: 'link',
-        }))
-    })
-
-    describe('with profile and shape', () => {
-      beforeEach(() => {
-        mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
-        setupFetchFixtures({
-          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad':
-            readFixture('dataset.ttl'),
-          'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604':
-            readFixture('profile-dataset.ttl'),
-          'http://localhost/metadata-schemas/866d7fb8-5982-4215-9c7c-18d0ed1bd5f3': readFixture(
-            'metadata-schema-dataset.ttl',
-          ),
-        })
-      })
-
-      it('populates metadataRows with only dash:viewer predicates in shacl:order', async () => {
-        const { metadataRows } = useResourceView()
-        await flushPromises()
-        await flushPromises()
-        expect(metadataRows.value.map((r) => r.predicate)).toEqual([
-          'http://www.w3.org/ns/dcat#version',
-          'http://purl.org/dc/terms/language',
-          'http://purl.org/dc/terms/license',
-          'http://www.w3.org/ns/dcat#theme',
-        ])
-      })
-
-      it('populates unknownMetadataRows with predicates that have no dash:viewer', async () => {
-        const { unknownMetadataRows } = useResourceView()
-        await flushPromises()
-        await flushPromises()
-        expect(unknownMetadataRows.value.map((r) => r.predicate).sort()).toEqual(
-          [
-            'http://purl.org/dc/terms/publisher',
-            'https://w3id.org/fdp/fdp-o#metadataIdentifier',
-            'http://purl.org/dc/terms/accessRights',
-            'https://w3id.org/fdp/fdp-o#metadataIssued',
-            'https://w3id.org/fdp/fdp-o#metadataModified',
-            'http://purl.org/dc/terms/conformsTo',
-          ].sort(),
-        )
-      })
-    })
-  })
-
   // catalog
   describe('catalog', () => {
     beforeEach(() => {
@@ -576,8 +406,176 @@ describe('useResourceView', () => {
     })
   })
 
-  // distribution
+  // dataset
+  describe('dataset', () => {
+    beforeEach(() => {
+      mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
+      setupFetchFixtures({
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
+      })
+    })
 
+    it('returns dct:title', async () => {
+      const { title } = useResourceView()
+      await flushPromises()
+      expect(title.value).toBe('A dataset')
+    })
+
+    it('returns dct:description', async () => {
+      const { description } = useResourceView()
+      await flushPromises()
+      expect(description.value).toBe('For testing purposes.')
+    })
+
+    it('builds breadcrumbs as FDP root → catalog → dataset', async () => {
+      setupFetchFixtures({
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+      })
+      const { breadcrumbs } = useResourceView()
+      await flushPromises()
+      expect(breadcrumbs.value).toEqual([
+        { text: 'FAIR Data Point', uri: 'http://localhost/' },
+        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
+        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
+      ])
+    })
+
+    it('exposes the distribution container as a child section', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(1)
+      expect(childSections.value[0].items).toEqual([
+        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
+      ])
+    })
+
+    describe('metadata rows', () => {
+      let rows: Awaited<ReturnType<typeof useResourceView>>['metadataRows']['value']
+
+      beforeEach(async () => {
+        const { metadataRows } = useResourceView()
+        await flushPromises()
+        rows = metadataRows.value
+      })
+
+      const find = (predicate: string) => rows.find((r) => r.predicate === predicate)
+
+      it('includes 10 rows', () => expect(rows).toHaveLength(10))
+
+      it('includes a conforms to row', () =>
+        expect(find('http://purl.org/dc/terms/conformsTo')).toMatchObject({
+          label: 'Conforms to',
+          kind: 'link',
+          values: [{ text: 'Dataset Profile' }],
+        }))
+
+      it('includes a metadata issued row', () =>
+        expect(find('https://w3id.org/fdp/fdp-o#metadataIssued')).toMatchObject({
+          label: 'Metadata issued',
+          kind: 'literal',
+          values: [{ text: '23-04-2026' }],
+        }))
+
+      it('includes a metadata modified row', () =>
+        expect(find('https://w3id.org/fdp/fdp-o#metadataModified')).toMatchObject({
+          label: 'Metadata modified',
+          kind: 'literal',
+          values: [{ text: '23-04-2026' }],
+        }))
+
+      it('includes a version row', () =>
+        expect(find('http://www.w3.org/ns/dcat#version')).toMatchObject({
+          label: 'Version',
+          kind: 'literal',
+          values: [{ text: '1' }],
+        }))
+
+      it('includes a language row', () =>
+        expect(find('http://purl.org/dc/terms/language')).toMatchObject({
+          label: 'Language',
+          kind: 'link',
+          values: [{ text: 'en' }],
+        }))
+
+      it('includes a license row', () =>
+        expect(find('http://purl.org/dc/terms/license')).toMatchObject({
+          label: 'License',
+          kind: 'link',
+          values: [{ text: 'cc-zero1.0' }],
+        }))
+
+      it('includes a publisher row', () =>
+        expect(find('http://purl.org/dc/terms/publisher')).toMatchObject({
+          label: 'Publisher',
+          kind: 'blank-node',
+        }))
+
+      it('includes a theme row', () =>
+        expect(find('http://www.w3.org/ns/dcat#theme')).toMatchObject({
+          label: 'Theme',
+          kind: 'link',
+          values: [{ text: 'test' }],
+        }))
+
+      it('includes a metadata identifier row', () =>
+        expect(find('https://w3id.org/fdp/fdp-o#metadataIdentifier')).toMatchObject({
+          label: 'Metadata identifier',
+          kind: 'link',
+        }))
+
+      it('includes an access rights row', () =>
+        expect(find('http://purl.org/dc/terms/accessRights')).toMatchObject({
+          label: 'Access rights',
+          kind: 'link',
+        }))
+    })
+
+    describe('with profile and shape', () => {
+      beforeEach(() => {
+        mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
+        setupFetchFixtures({
+          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad':
+            readFixture('dataset.ttl'),
+          'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604':
+            readFixture('profile-dataset.ttl'),
+          'http://localhost/metadata-schemas/866d7fb8-5982-4215-9c7c-18d0ed1bd5f3': readFixture(
+            'metadata-schema-dataset.ttl',
+          ),
+        })
+      })
+
+      it('populates metadataRows with only dash:viewer predicates in shacl:order', async () => {
+        const { metadataRows } = useResourceView()
+        await flushPromises()
+        await flushPromises()
+        expect(metadataRows.value.map((r) => r.predicate)).toEqual([
+          'http://www.w3.org/ns/dcat#version',
+          'http://purl.org/dc/terms/language',
+          'http://purl.org/dc/terms/license',
+          'http://www.w3.org/ns/dcat#theme',
+        ])
+      })
+
+      it('populates unknownMetadataRows with predicates that have no dash:viewer', async () => {
+        const { unknownMetadataRows } = useResourceView()
+        await flushPromises()
+        await flushPromises()
+        expect(unknownMetadataRows.value.map((r) => r.predicate).sort()).toEqual(
+          [
+            'http://purl.org/dc/terms/publisher',
+            'https://w3id.org/fdp/fdp-o#metadataIdentifier',
+            'http://purl.org/dc/terms/accessRights',
+            'https://w3id.org/fdp/fdp-o#metadataIssued',
+            'https://w3id.org/fdp/fdp-o#metadataModified',
+            'http://purl.org/dc/terms/conformsTo',
+          ].sort(),
+        )
+      })
+    })
+  })
+
+  // distribution
   describe('distribution', () => {
     beforeEach(() => {
       mockRoute({ resourceType: 'distribution', id: '28f248e7-a965-4739-9381-b66878845ea4' })
