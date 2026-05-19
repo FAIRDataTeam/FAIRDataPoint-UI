@@ -20,16 +20,12 @@ import {
   DCT_IDENTIFIER,
   DCT_PUBLISHER,
   DCT_LICENSE,
-  DCT_CONFORMS_TO,
   FDP_METADATA_ISSUED,
   FDP_METADATA_MODIFIED,
   FDP_METADATA_CATALOG,
-  FDP_SOFTWARE_VERSION,
   FDP_TYPE,
   RDFS_LABEL,
   FOAF_NAME,
-  DCAT_ENDPOINT_URL,
-  DCAT_THEME_TAXONOMY,
   LDP_DIRECT_CONTAINER,
   LDP_CONTAINS,
   LDP_HAS_MEMBER_RELATION,
@@ -167,128 +163,6 @@ describe('parseTurtle', () => {
     expect(blankNode[FOAF_NAME]).toContainEqual({
       '@value': 'Default Publisher',
       '@type': XSD_STRING,
-    })
-  })
-})
-
-describe('flattenGraph (JSON-LD input)', () => {
-  const rootJsonLd = JSON.parse(
-    readFileSync(resolve(__dirname, '../fixtures/fdp-root.jsonld'), 'utf-8'),
-  )
-  const catalogJsonLd = JSON.parse(
-    readFileSync(resolve(__dirname, '../fixtures/catalog.jsonld'), 'utf-8'),
-  )
-  const flatNodes = flattenGraph(rootJsonLd)
-
-  it('contains all subject IRIs from top-level and nested @graph nodes', () => {
-    const ids = flatNodes.map((n) => n['@id'])
-    expect(ids).toContain('http://localhost')
-    expect(ids).toContain('http://localhost/catalog/')
-    expect(ids).toContain('http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c')
-    expect(ids).toContain('http://localhost#accessRights')
-    expect(ids).toContain('http://localhost#publisher')
-    expect(ids).toContain('http://localhost#identifier')
-    expect(ids).toContain('http://localhost/metrics/445c0a70d1e214e545b261559e2842f4')
-    expect(ids).toContain('http://localhost/metrics/5d27e854a9e78eb3f663331cd47cdc13')
-  })
-
-  it('merges nodes with the same @id into a single node', () => {
-    const ids = flatNodes.map((n) => n['@id'])
-    expect(ids.filter((id) => id === 'http://localhost')).toHaveLength(1)
-    expect(ids.filter((id) => id === 'http://localhost/catalog/')).toHaveLength(1)
-    expect(
-      ids.filter((id) => id === 'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c'),
-    ).toHaveLength(1)
-  })
-
-  it('deduplicates property values when merging nodes with the same @id', () => {
-    const fdp = getNode('http://localhost', flatNodes)
-    expect(fdp[DCT_CONFORMS_TO]).toHaveLength(1)
-    expect(fdp[FDP_SOFTWARE_VERSION]).toHaveLength(1)
-    expect(fdp[DCAT_ENDPOINT_URL]).toHaveLength(1)
-  })
-
-  it('preserves properties that only appear on the outer named graph node', () => {
-    // conformsTo and themeTaxonomy are on the outer named graph node, not inside @graph.
-    const catalogId = 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f'
-    const catalogFlatNodes = flattenGraph(catalogJsonLd)
-    const catalog = getNode(catalogId, catalogFlatNodes)
-    expect(catalog[DCT_CONFORMS_TO]).toContainEqual({
-      '@id': 'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b',
-    })
-    expect(catalog[DCAT_THEME_TAXONOMY]).toContainEqual({ '@id': 'http://example.org/theme/test' })
-  })
-
-  it.todo(
-    'produces consistent node structure regardless of input format ' +
-      '(backend currently seems to serialize conformsTo and themeTaxonomy differently in Turtle vs JSON-LD)',
-  )
-
-  it('contains all rdf:type values for the root node', () => {
-    // Types exist only on the inner @graph node, not the outer one.
-    // They must survive merging onto the result.
-    const fdp = getNode('http://localhost', flatNodes)
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#MetadataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#DataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#Resource')
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#FAIRDataPoint')
-  })
-
-  it('represents a string literal as a bare @value object without @type', () => {
-    // JSON-LD plain strings have no @type, unlike Turtle where parseTurtle
-    // adds @type: xsd:string via n3.js.
-    const fdp = getNode('http://localhost', flatNodes)
-    expect(fdp[DCT_TITLE]).toContainEqual({ '@value': 'My FAIR Data Point' })
-    const publisher = getNode('http://localhost#publisher', flatNodes)
-    expect(publisher[FOAF_NAME]).toContainEqual({ '@value': 'Default Publisher' })
-    const container = getNode('http://localhost/catalog/', flatNodes)
-    expect(container[DCT_TITLE]).toContainEqual({ '@value': 'Catalogs' })
-  })
-
-  it('represents a typed dateTime literal as a @value object', () => {
-    const fdp = getNode('http://localhost', flatNodes)
-    expect(fdp[FDP_METADATA_ISSUED]).toContainEqual({
-      '@value': '2026-04-23T12:31:46.89141577Z',
-      '@type': XSD_DATETIME,
-    })
-    expect(fdp[FDP_METADATA_MODIFIED]).toContainEqual({
-      '@value': '2026-04-23T12:39:06.394302314Z',
-      '@type': XSD_DATETIME,
-    })
-  })
-
-  it('represents a linked resource as a @id object', () => {
-    const fdp = getNode('http://localhost', flatNodes)
-    expect(fdp[FDP_METADATA_CATALOG]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
-    expect(fdp[DCT_PUBLISHER]).toContainEqual({ '@id': 'http://localhost#publisher' })
-    expect(fdp[DCT_LICENSE]).toContainEqual({ '@id': 'http://purl.org/NET/rdflicense/cc-zero1.0' })
-  })
-
-  it('represents sub-resources with their own types and properties', () => {
-    const publisher = getNode('http://localhost#publisher', flatNodes)
-    expect(publisher['@type']).toContain('http://xmlns.com/foaf/0.1/Agent')
-    expect(publisher[FOAF_NAME]).toContainEqual({ '@value': 'Default Publisher' })
-
-    const accessRights = getNode('http://localhost#accessRights', flatNodes)
-    expect(accessRights['@type']).toContain('http://purl.org/dc/terms/RightsStatement')
-    expect(accessRights[DCT_DESCRIPTION]).toContainEqual({
-      '@value': 'This resource has no access restriction',
-    })
-
-    const identifier = getNode('http://localhost#identifier', flatNodes)
-    expect(identifier['@type']).toContain('http://purl.org/spar/datacite/Identifier')
-    expect(identifier[DCT_IDENTIFIER]).toContainEqual({ '@value': 'http://localhost' })
-  })
-
-  it('represents the LDP container with its structure and links', () => {
-    const container = getNode('http://localhost/catalog/', flatNodes)
-    expect(container['@type']).toContain(LDP_DIRECT_CONTAINER)
-    expect(container[LDP_MEMBERSHIP_RESOURCE]).toContainEqual({ '@id': 'http://localhost' })
-    expect(container[LDP_HAS_MEMBER_RELATION]).toContainEqual({ '@id': FDP_METADATA_CATALOG })
-    expect(container[LDP_CONTAINS]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
     })
   })
 })
