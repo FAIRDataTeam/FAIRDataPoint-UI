@@ -1,4 +1,4 @@
-name: continuous integration checks
+name: continuous integration checks and tests
 
 on:
   push:
@@ -41,5 +41,10 @@ jobs:
       - name: Check for proper formatting
         run: npm run format-check
 
-      - name: Check if we can build
+      - name: Check if build succeeds
         run: npm run build
+
+      - # this runs vitest in a non-interactive shell, so watch mode is disabled automatically (no need to add --run)
+        # https://vitest.dev/config/watch
+        name: Run tests
+        run: npm run test

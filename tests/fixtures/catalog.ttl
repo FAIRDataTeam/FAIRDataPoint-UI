@@ -1,0 +1,51 @@
+@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix dcat: <http://www.w3.org/ns/dcat#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix ldp: <http://www.w3.org/ns/ldp#> .
+
+<http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f> a dcat:Resource, dcat:Catalog;
+  dcterms:description "For testing purposes.";
+  dcterms:isPartOf <http://localhost>;
+  dcterms:language <http://id.loc.gov/vocabulary/iso639-1/en>;
+  dcterms:license <http://purl.org/NET/rdflicense/cc-zero1.0>;
+  dcterms:publisher [ a foaf:Agent;
+      foaf:name "Default Publisher"
+    ];
+  dcterms:title "A catalog";
+  dcat:version "1";
+  <https://w3id.org/fdp/fdp-o#metadataIdentifier> <http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#identifier>;
+  <http://www.w3.org/2000/01/rdf-schema#label> "A catalog";
+  dcterms:accessRights <http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#accessRights>;
+  <http://semanticscience.org/resource/SIO_000628> <http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/445c0a70d1e214e545b261559e2842f4>,
+    <http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/5d27e854a9e78eb3f663331cd47cdc13>;
+  <https://w3id.org/fdp/fdp-o#metadataIssued> "2026-04-23T12:35:49.591198422Z"^^xsd:dateTime;
+  dcterms:issued "2026-04-23T12:35:49.591198422Z"^^xsd:dateTime;
+  dcterms:modified "2026-04-23T12:35:49.591198422Z"^^xsd:dateTime;
+  dcat:dataset <http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad>;
+  <https://w3id.org/fdp/fdp-o#metadataModified> "2026-04-23T12:38:38.416708631Z"^^xsd:dateTime;
+  dcat:themeTaxonomy <http://example.org/theme/test>;
+  dcterms:conformsTo <http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b> .
+
+<http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#identifier> a <http://purl.org/spar/datacite/Identifier>;
+  dcterms:identifier "http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f" .
+
+<http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f#accessRights> a dcterms:RightsStatement;
+  dcterms:description "This resource has no access restriction" .
+
+<http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/445c0a70d1e214e545b261559e2842f4>
+  <http://semanticscience.org/resource/SIO_000332> <https://www.ietf.org/rfc/rfc3986.txt>;
+  <http://semanticscience.org/resource/SIO_000628> <https://www.ietf.org/rfc/rfc3986.txt> .
+
+<http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f/metrics/5d27e854a9e78eb3f663331cd47cdc13>
+  <http://semanticscience.org/resource/SIO_000332> <https://www.wikidata.org/wiki/Q8777>;
+  <http://semanticscience.org/resource/SIO_000628> <https://www.wikidata.org/wiki/Q8777> .
+
+<http://localhost/dataset/> a ldp:DirectContainer;
+  dcterms:title "Datasets";
+  ldp:membershipResource <http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f>;
+  ldp:hasMemberRelation dcat:dataset;
+  ldp:contains <http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad> .
+
+<http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b> <http://www.w3.org/2000/01/rdf-schema#label>
+    "Catalog Profile" .
