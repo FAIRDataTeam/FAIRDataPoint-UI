@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import {
-  flattenGraph,
   hasType,
   getFirstLiteral,
   getIdValues,
@@ -86,8 +85,7 @@ export function useRdfLoader() {
 
     try {
       const { nodes } = await fetchRdf(uri)
-      const childGraph = flattenGraph(nodes)
-      const node = selectPrimaryNode(childGraph, uri)
+      const node = selectPrimaryNode(nodes, uri)
       if (!node) return
       childSummaries.value[uri] = {
         uri,
@@ -111,8 +109,7 @@ export function useRdfLoader() {
 
     try {
       const { nodes } = await fetchRdf(uri)
-      const parentGraph = flattenGraph(nodes)
-      const node = selectPrimaryNode(parentGraph, uri)
+      const node = selectPrimaryNode(nodes, uri)
       if (!node) return
 
       const grandParentUri = getIdValues(node, DCT_IS_PART_OF)[0]
@@ -138,8 +135,7 @@ export function useRdfLoader() {
 
     try {
       const { nodes } = await fetchRdf(uri)
-      const shapeGraph = flattenGraph(nodes)
-      shapeGraphs.value[uri] = shapeGraph
+      shapeGraphs.value[uri] = nodes
     } catch {
       // ignore shape fetch failures
     }
@@ -150,11 +146,10 @@ export function useRdfLoader() {
 
     try {
       const { nodes } = await fetchRdf(uri)
-      const profileGraph = flattenGraph(nodes)
-      profileGraphs.value[uri] = profileGraph
+      profileGraphs.value[uri] = nodes
 
       // Follow prof:hasArtifact from each resource descriptor to get shape documents
-      const artifactUris = profileGraph.flatMap((node) => getIdValues(node, PROF_HAS_ARTIFACT))
+      const artifactUris = nodes.flatMap((node) => getIdValues(node, PROF_HAS_ARTIFACT))
 
       for (const artifactUri of artifactUris) {
         void loadShapeDocument(artifactUri)

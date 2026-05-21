@@ -1,7 +1,6 @@
 import { computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import {
-  flattenGraph,
   hasType,
   compactUri,
   formatLiteralValue,
@@ -75,13 +74,12 @@ type ShapeProperty = {
 
 export type { ChildSummary }
 
-const embeddedNodeSkipList = new Set(['@id', '@type', '@graph', SIO_IS_ABOUT, SIO_IS_RELATED_TO])
+const embeddedNodeSkipList = new Set(['@id', '@type', SIO_IS_ABOUT, SIO_IS_RELATED_TO])
 
 // Predicates handled elsewhere in the UI — not shown in the metadata table
 const metadataSkipList = new Set([
   '@id',
   '@type',
-  '@graph',
   // Shown in page header
   DCT_TITLE,
   DCT_DESCRIPTION,
@@ -132,7 +130,7 @@ export function useResourceView() {
     loadProfile,
   } = useRdfLoader()
 
-  const graph = computed(() => flattenGraph(rawGraph.value))
+  const graph = computed(() => rawGraph.value)
 
   function getNodeById(id: string): RdfNode | null {
     return graph.value.find((node) => node['@id'] === id) ?? null

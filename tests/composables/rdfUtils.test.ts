@@ -3,7 +3,6 @@ import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
 import {
   parseTurtle,
-  flattenGraph,
   hasType,
   compactUri,
   formatLiteralValue,
@@ -163,58 +162,6 @@ describe('parseTurtle', () => {
     expect(blankNode[FOAF_NAME]).toContainEqual({
       '@value': 'Default Publisher',
       '@type': XSD_STRING,
-    })
-  })
-})
-
-describe('flattenGraph (Turtle input)', () => {
-  const flatTtlNodes = flattenGraph(rootNodes)
-
-  it('contains all subject IRIs', () => {
-    const ids = flatTtlNodes.map((n) => n['@id'])
-    expect(ids).toContain('http://localhost')
-    expect(ids).toContain('http://localhost/catalog/')
-    expect(ids).toContain('http://localhost#publisher')
-    expect(ids).toContain('http://localhost#accessRights')
-    expect(ids).toContain('http://localhost#identifier')
-  })
-
-  it('contains all rdf:type values for the root node', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#MetadataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#DataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#Resource')
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#FAIRDataPoint')
-  })
-
-  it('represents a string literal as a typed @value object with @type xsd:string', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp[DCT_TITLE]).toContainEqual({ '@value': 'My FAIR Data Point', '@type': XSD_STRING })
-    const publisher = getNode('http://localhost#publisher', flatTtlNodes)
-    expect(publisher[FOAF_NAME]).toContainEqual({
-      '@value': 'Default Publisher',
-      '@type': XSD_STRING,
-    })
-  })
-
-  it('represents a linked resource as a @id object', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp[FDP_METADATA_CATALOG]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
-    expect(fdp[DCT_PUBLISHER]).toContainEqual({ '@id': 'http://localhost#publisher' })
-    expect(fdp[DCT_LICENSE]).toContainEqual({
-      '@id': 'http://purl.org/NET/rdflicense/cc-zero1.0',
-    })
-  })
-
-  it('represents the LDP container with its structure and links', () => {
-    const container = getNode('http://localhost/catalog/', flatTtlNodes)
-    expect(container['@type']).toContain(LDP_DIRECT_CONTAINER)
-    expect(container[LDP_MEMBERSHIP_RESOURCE]).toContainEqual({ '@id': 'http://localhost' })
-    expect(container[LDP_HAS_MEMBER_RELATION]).toContainEqual({ '@id': FDP_METADATA_CATALOG })
-    expect(container[LDP_CONTAINS]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
     })
   })
 })

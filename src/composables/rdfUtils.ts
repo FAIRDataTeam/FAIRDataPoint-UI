@@ -21,76 +21,15 @@ export type RdfValue = {
 export type RdfNode = {
   '@id'?: string
   '@type'?: string[]
-  '@graph'?: RdfNode[]
   [key: string]: unknown
 }
 
-export type RdfFormat = 'json-ld' | 'turtle' | 'unknown'
+export type RdfFormat = 'turtle' | 'unknown'
 
 export type FetchRdfResult = {
   nodes: RdfNode[]
   format: RdfFormat
   rawText: string
-}
-
-function isRdfNodeArray(value: unknown): value is RdfNode[] {
-  return Array.isArray(value)
-}
-
-export function flattenGraph(nodes: RdfNode[]): RdfNode[] {
-  const flattened: RdfNode[] = []
-
-  function visit(node: RdfNode) {
-    flattened.push(node)
-    if (Array.isArray(node['@graph'])) {
-      node['@graph'].forEach(visit)
-    }
-  }
-
-  nodes.forEach(visit)
-
-  const mergedById = new Map<string, RdfNode>()
-  const anonymousNodes: RdfNode[] = []
-
-  for (const node of flattened) {
-    const id = node['@id']
-
-    if (typeof id !== 'string') {
-      anonymousNodes.push(node)
-      continue
-    }
-
-    const existing = mergedById.get(id)
-
-    if (!existing) {
-      mergedById.set(id, { ...node })
-      continue
-    }
-
-    for (const [key, value] of Object.entries(node)) {
-      if (key === '@id' || key === '@graph') continue
-
-      if (key === '@type') {
-        const existingTypes = Array.isArray(existing['@type']) ? existing['@type'] : []
-        const newTypes = Array.isArray(value) ? value : []
-        existing['@type'] = [...new Set([...existingTypes, ...newTypes])]
-        continue
-      }
-
-      const existingValues = Array.isArray(existing[key]) ? (existing[key] as unknown[]) : []
-      const newValues = Array.isArray(value) ? value : []
-      const combined = [...existingValues, ...newValues]
-      const seen = new Set<string>()
-      existing[key] = combined.filter((v) => {
-        const serialized = JSON.stringify(v)
-        if (seen.has(serialized)) return false
-        seen.add(serialized)
-        return true
-      })
-    }
-  }
-
-  return [...mergedById.values(), ...anonymousNodes]
 }
 
 export function hasType(node: RdfNode, type: string): boolean {
@@ -220,7 +159,7 @@ export type GraphColors = {
   literal: object
 }
 
-const GRAPH_SKIP = new Set(['@id', '@type', '@graph'])
+const GRAPH_SKIP = new Set(['@id', '@type'])
 
 export function buildGraphData(
   graph: RdfNode[],
@@ -304,40 +243,13 @@ export async function fetchRdf(
   uri: string,
   headers?: Record<string, string>,
 ): Promise<FetchRdfResult> {
-  const accept = 'text/turtle, application/ld+json;q=0.9, */*;q=0.1'
-
   const response = await fetch(uri, {
-    headers: { Accept: accept, ...headers },
+    headers: { Accept: 'text/turtle', ...headers },
   })
 
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
-  const contentType = response.headers.get('content-type') ?? ''
   const text = await response.text()
 
-  if (contentType.includes('text/turtle') || contentType.includes('application/x-turtle')) {
-    return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
-  }
-
-  if (contentType.includes('application/ld+json')) {
-    const data: unknown = JSON.parse(text)
-    if (!isRdfNodeArray(data)) throw new Error('Expected a JSON-LD graph array')
-    return { nodes: data, format: 'json-ld', rawText: text }
-  }
-
-  // No recognised Content-Type — try Turtle then JSON-LD
-  try {
-    return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
-  } catch {
-    // not Turtle
-  }
-
-  try {
-    const data: unknown = JSON.parse(text)
-    if (isRdfNodeArray(data)) return { nodes: data, format: 'json-ld', rawText: text }
-  } catch {
-    // not JSON
-  }
-
-  throw new Error('Could not fetch RDF: server returned no supported format')
+  return { nodes: parseTurtle(text), format: 'turtle', rawText: text }
 }
