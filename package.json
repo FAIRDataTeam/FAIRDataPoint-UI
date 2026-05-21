@@ -19,33 +19,33 @@
   "dependencies": {
     "n3": "^2.0.3",
     "prismjs": "^1.30.0",
-    "vis-data": "^8.0.3",
-    "vis-network": "^10.0.2",
-    "vue": "^3.5.33",
-    "vue-router": "^5.0.6"
+    "vis-data": "^8.0.4",
+    "vis-network": "^10.1.0",
+    "vue": "^3.5.34",
+    "vue-router": "^5.0.7"
   },
   "devDependencies": {
     "@tsconfig/node24": "^24.0.4",
     "@types/n3": "^1.10.4",
-    "@types/node": "^25.6.0",
+    "@types/node": "^25.9.1",
     "@types/prismjs": "^1.26.6",
-    "@vitejs/plugin-vue": "^6.0.6",
-    "@vitest/coverage-v8": "^4.1.5",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "@vitest/coverage-v8": "^4.1.7",
     "@vue/eslint-config-typescript": "^14.7.0",
     "@vue/tsconfig": "^0.9.1",
-    "eslint": "^10.2.1",
+    "eslint": "^10.4.0",
     "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-oxlint": "~1.62.0",
-    "eslint-plugin-vue": "~10.9.0",
-    "jiti": "^2.6.1",
+    "eslint-plugin-oxlint": "~1.66.0",
+    "eslint-plugin-vue": "~10.9.1",
+    "jiti": "^2.7.0",
     "npm-run-all2": "^8.0.4",
-    "oxlint": "~1.62.0",
+    "oxlint": "~1.66.0",
     "prettier": "3.8.3",
     "typescript": "~6.0.3",
-    "vite": "^8.0.10",
-    "vite-plugin-vue-devtools": "^8.1.1",
+    "vite": "^8.0.14",
+    "vite-plugin-vue-devtools": "^8.1.2",
     "vitest": "^4.1.5",
-    "vue-tsc": "^3.2.7"
+    "vue-tsc": "^3.3.1"
   },
   "engines": {
     "node": ">=24"
