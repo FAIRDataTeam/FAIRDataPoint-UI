@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { internalHref } from '../composables/rdfUtils'
+import { internalHref } from '../composables/urlUtils'
+import { searchResources } from '../composables/fdpApi'
 
 type SearchResult = {
   uri: string
@@ -10,7 +11,6 @@ type SearchResult = {
   description: string | null
 }
 
-const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
 const route = useRoute()
 
 const results = ref<SearchResult[]>([])
@@ -34,13 +34,7 @@ async function search(q: string) {
   loading.value = true
   error.value = null
   try {
-    const response = await fetch(`${base}/search?page=0&size=20`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ query: q }),
-    })
-    if (!response.ok) throw new Error(`Search failed (HTTP ${response.status})`)
-    results.value = (await response.json()) as SearchResult[]
+    results.value = (await searchResources(q)) as SearchResult[]
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Search failed'
   } finally {

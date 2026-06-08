@@ -1,4 +1,5 @@
 import { ref, computed } from 'vue'
+import { fetchToken, setAuthToken } from './fdpApi'
 
 const SESSION_TOKEN_KEY = 'fdp_token'
 const SESSION_EMAIL_KEY = 'fdp_email'
@@ -7,6 +8,8 @@ const SESSION_EMAIL_KEY = 'fdp_email'
 const token = ref<string | null>(sessionStorage.getItem(SESSION_TOKEN_KEY))
 const userEmail = ref<string | null>(sessionStorage.getItem(SESSION_EMAIL_KEY))
 const isLoggedIn = computed(() => token.value !== null)
+
+setAuthToken(token.value)
 
 function userInitials(email: string | null): string {
   if (!email) return '?'
@@ -20,26 +23,12 @@ function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const baseUrl = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
-    const response = await fetch(`${baseUrl}/tokens`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    })
-
-    if (!response.ok) {
-      throw new Error(
-        response.status === 401
-          ? 'Invalid email or password'
-          : `Login failed (HTTP ${response.status})`,
-      )
-    }
-
-    const data = (await response.json()) as { token: string }
-    token.value = data.token
+    const newToken = await fetchToken(email, password)
+    token.value = newToken
     userEmail.value = email
-    sessionStorage.setItem(SESSION_TOKEN_KEY, data.token)
+    sessionStorage.setItem(SESSION_TOKEN_KEY, newToken)
     sessionStorage.setItem(SESSION_EMAIL_KEY, email)
+    setAuthToken(newToken)
   }
 
   function logout() {
@@ -47,6 +36,7 @@ export function useAuth() {
     userEmail.value = null
     sessionStorage.removeItem(SESSION_TOKEN_KEY)
     sessionStorage.removeItem(SESSION_EMAIL_KEY)
+    setAuthToken(null)
   }
 
   return {

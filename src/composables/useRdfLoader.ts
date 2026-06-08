@@ -1,24 +1,17 @@
 import { ref } from 'vue'
+import { Store } from 'n3'
 import {
-  hasType,
-  getFirstLiteral,
-  getIdValues,
-  fetchRdf,
-  type RdfNode,
-  type RdfFormat,
+  getTitle,
+  getDescription,
+  getParentUri,
+  getIssued,
+  getModified,
+  getTheme,
+  getArtifactUris,
+  resolveSubjectUri,
+  parseTurtle,
 } from './rdfUtils'
-import {
-  DCT_TITLE,
-  DCT_ISSUED,
-  DCT_MODIFIED,
-  DCT_IS_PART_OF,
-  DCAT_THEME_TAXONOMY,
-  FDP_METADATA_ISSUED,
-  FDP_METADATA_MODIFIED,
-  LDP_DIRECT_CONTAINER,
-  PROF_HAS_ARTIFACT,
-  DCT_DESCRIPTION,
-} from './vocabularies'
+import { fetchRdfText } from './fdpApi'
 
 export type ChildSummary = {
   uri: string
@@ -30,49 +23,25 @@ export type ChildSummary = {
   isPartOf?: string | null
 }
 
-export function isPrimaryDomainNode(node: RdfNode): boolean {
-  const id = node['@id']
-  if (typeof id !== 'string' || id.startsWith('_:')) return false
-  const types = Array.isArray(node['@type']) ? node['@type'] : []
-  return types.some((type) => type !== LDP_DIRECT_CONTAINER)
-}
-
-function selectPrimaryNode(nodes: RdfNode[], preferredUri?: string): RdfNode | null {
-  const exact = preferredUri ? nodes.find((node) => node['@id'] === preferredUri) : null
-
-  if (exact && !hasType(exact, LDP_DIRECT_CONTAINER)) return exact
-
-  const preferred = nodes.find((node) => isPrimaryDomainNode(node))
-  if (preferred) return preferred
-
-  if (exact) return exact
-
-  return nodes.find((node) => typeof node['@id'] === 'string') ?? null
-}
-
 export function useRdfLoader() {
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const rawGraph = ref<RdfNode[]>([])
-  const activeFormat = ref<RdfFormat | null>(null)
-  const activeRawText = ref<string | null>(null)
+  const quads = ref<Store>(new Store())
+  const rawTurtle = ref<string | null>(null)
   const childSummaries = ref<Record<string, ChildSummary>>({})
   const parentSummaries = ref<Record<string, ChildSummary>>({})
-  const profileGraphs = ref<Record<string, RdfNode[]>>({})
-  const shapeGraphs = ref<Record<string, RdfNode[]>>({})
+  const shapeGraphs = ref<Record<string, Store>>({})
 
   async function loadResource(uri: string) {
     loading.value = true
     error.value = null
-    rawGraph.value = []
-    activeFormat.value = null
-    activeRawText.value = null
+    quads.value = new Store()
+    rawTurtle.value = null
 
     try {
-      const { nodes, format, rawText } = await fetchRdf(uri)
-      rawGraph.value = nodes
-      activeFormat.value = format
-      activeRawText.value = rawText
+      const rawText = await fetchRdfText(uri)
+      quads.value = parseTurtle(rawText)
+      rawTurtle.value = rawText
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Unknown error'
     } finally {
@@ -80,53 +49,39 @@ export function useRdfLoader() {
     }
   }
 
-  async function loadChildSummary(uri: string) {
-    if (childSummaries.value[uri]) return
-
-    try {
-      const { nodes } = await fetchRdf(uri)
-      const node = selectPrimaryNode(nodes, uri)
-      if (!node) return
-      childSummaries.value[uri] = {
-        uri,
-        title: getFirstLiteral(node, DCT_TITLE),
-        description: getFirstLiteral(node, DCT_DESCRIPTION),
-        issued: getFirstLiteral(node, DCT_ISSUED) ?? getFirstLiteral(node, FDP_METADATA_ISSUED),
-        modified:
-          getFirstLiteral(node, DCT_MODIFIED) ?? getFirstLiteral(node, FDP_METADATA_MODIFIED),
-        theme:
-          getFirstLiteral(node, DCAT_THEME_TAXONOMY) ??
-          getIdValues(node, DCAT_THEME_TAXONOMY)[0] ??
-          null,
-      }
-    } catch {
-      // ignore child summary failures
-    }
-  }
-
   async function loadParentChain(uri: string): Promise<void> {
     if (parentSummaries.value[uri]) return
 
     try {
-      const { nodes } = await fetchRdf(uri)
-      const node = selectPrimaryNode(nodes, uri)
-      if (!node) return
+      const store = parseTurtle(await fetchRdfText(uri))
+      const subjectUri = resolveSubjectUri(store, uri)
+      if (!subjectUri) return
 
-      const grandParentUri = getIdValues(node, DCT_IS_PART_OF)[0]
+      const grandParentUri = getParentUri(store, subjectUri)
 
       parentSummaries.value[uri] = {
         uri,
-        title: getFirstLiteral(node, DCT_TITLE),
-        issued: null,
-        modified: null,
-        theme: null,
+        title: getTitle(store, subjectUri),
         isPartOf: grandParentUri ?? null,
       }
       if (grandParentUri) {
         await loadParentChain(grandParentUri)
       }
-    } catch {
-      // ignore parent chain failures
+    } catch (err) {
+      console.warn(`Failed to load parent chain for ${uri}`, err)
+    }
+  }
+
+  async function loadProfile(uri: string): Promise<void> {
+    if (shapeGraphs.value[uri]) return
+
+    try {
+      const store = parseTurtle(await fetchRdfText(uri))
+      for (const artifactUri of getArtifactUris(store)) {
+        void loadShapeDocument(artifactUri)
+      }
+    } catch (err) {
+      console.warn(`Failed to load profile ${uri}`, err)
     }
   }
 
@@ -134,37 +89,38 @@ export function useRdfLoader() {
     if (shapeGraphs.value[uri]) return
 
     try {
-      const { nodes } = await fetchRdf(uri)
-      shapeGraphs.value[uri] = nodes
-    } catch {
-      // ignore shape fetch failures
+      const store = parseTurtle(await fetchRdfText(uri))
+      shapeGraphs.value[uri] = store
+    } catch (err) {
+      console.warn(`Failed to load shape document ${uri}`, err)
     }
   }
 
-  async function loadProfile(uri: string): Promise<void> {
-    if (profileGraphs.value[uri]) return
+  async function loadChildSummary(uri: string) {
+    if (childSummaries.value[uri]) return
 
     try {
-      const { nodes } = await fetchRdf(uri)
-      profileGraphs.value[uri] = nodes
-
-      // Follow prof:hasArtifact from each resource descriptor to get shape documents
-      const artifactUris = nodes.flatMap((node) => getIdValues(node, PROF_HAS_ARTIFACT))
-
-      for (const artifactUri of artifactUris) {
-        void loadShapeDocument(artifactUri)
+      const store = parseTurtle(await fetchRdfText(uri))
+      const subjectUri = resolveSubjectUri(store, uri)
+      if (!subjectUri) return
+      childSummaries.value[uri] = {
+        uri,
+        title: getTitle(store, subjectUri),
+        description: getDescription(store, subjectUri),
+        issued: getIssued(store, subjectUri),
+        modified: getModified(store, subjectUri),
+        theme: getTheme(store, subjectUri),
       }
-    } catch {
-      // ignore profile fetch failures
+    } catch (err) {
+      console.warn(`Failed to load child summary for ${uri}`, err)
     }
   }
 
   return {
     loading,
     error,
-    rawGraph,
-    activeFormat,
-    activeRawText,
+    quads,
+    rawTurtle,
     childSummaries,
     parentSummaries,
     shapeGraphs,

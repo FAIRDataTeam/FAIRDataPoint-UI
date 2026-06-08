@@ -3,13 +3,9 @@ import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useRoute } from 'vue-router'
 import { useResourceView } from '../../src/composables/useResourceView'
-import { fetchRdf, parseTurtle } from '../../src/composables/rdfUtils'
+import { fetchRdfText } from '../../src/composables/fdpApi'
 
-// Mock fetchRdf withi rdfUtils.
-vi.mock('../../src/composables/rdfUtils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/composables/rdfUtils')>()
-  return { ...actual, fetchRdf: vi.fn() }
-})
+vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfText: vi.fn() }))
 
 // Mock useRoute.
 vi.mock('vue-router', () => ({
@@ -24,12 +20,11 @@ function mockRoute(params: Record<string, string | string[]> = {}) {
   vi.mocked(useRoute).mockReturnValue({ params } as unknown as ReturnType<typeof useRoute>)
 }
 
-// Sets up fetchRdf to parse Turtle fixture files keyed by URI.
 function setupFetchFixtures(fixtureMap: Record<string, string>) {
-  vi.mocked(fetchRdf).mockImplementation(async (uri) => {
+  vi.mocked(fetchRdfText).mockImplementation(async (uri: string) => {
     const content = fixtureMap[uri]
     if (!content) throw new Error(`No fixture for URI: ${uri}`)
-    return { nodes: parseTurtle(content), format: 'turtle' as const, rawText: content }
+    return content
   })
 }
 
