@@ -39,6 +39,16 @@ export async function searchResources(query: string): Promise<unknown[]> {
   return response.json() as Promise<unknown[]>
 }
 
+/** Fetches the currently authenticated user's profile. */
+export async function fetchCurrentUser(): Promise<unknown> {
+  const base = getBaseUrl()
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+  const response = await fetch(`${base}/users/current`, { headers })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
 /** Authenticates with the FDP and returns a JWT token. */
 export async function fetchToken(email: string, password: string): Promise<string> {
   const base = getBaseUrl()

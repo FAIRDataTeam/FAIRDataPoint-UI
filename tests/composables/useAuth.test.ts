@@ -28,15 +28,44 @@ describe('login', () => {
   })
 
   it('sets token, email, and isLoggedIn on success', async () => {
-    vi.stubGlobal('fetch', async () => ({
+    vi.stubGlobal('fetch', async (url: string) => ({
       ok: true,
-      json: async () => ({ token: 'efIobn394nvJJFJ30...' }),
+      json: async () =>
+        String(url).endsWith('/tokens')
+          ? { token: 'efIobn394nvJJFJ30...' }
+          : { uuid: '1', firstName: 'Albert', lastName: 'Einstein', email: 'user@example.com', role: 'USER' },
     }))
     const { login, token, userEmail, isLoggedIn } = useAuth()
     await login('user@example.com', 'secret')
     expect(token.value).toBe('efIobn394nvJJFJ30...')
     expect(userEmail.value).toBe('user@example.com')
     expect(isLoggedIn.value).toBe(true)
+  })
+
+  it('sets user and isAdmin after successful login', async () => {
+    vi.stubGlobal('fetch', async (url: string) => ({
+      ok: true,
+      json: async () =>
+        String(url).endsWith('/tokens')
+          ? { token: 'tok123' }
+          : { uuid: 'u1', firstName: 'Albert', lastName: 'Einstein', email: 'a@example.com', role: 'ADMIN' },
+    }))
+    const { login, user, isAdmin } = useAuth()
+    await login('a@example.com', 'secret')
+    expect(user.value).toMatchObject({ firstName: 'Albert', lastName: 'Einstein', role: 'ADMIN' })
+    expect(isAdmin.value).toBe(true)
+  })
+
+  it('clears session and rejects when /users/current fails', async () => {
+    vi.stubGlobal('fetch', async (url: string) => {
+      if (String(url).endsWith('/tokens')) return { ok: true, json: async () => ({ token: 'tok123' }) }
+      return { ok: false, status: 500 }
+    })
+    const { login, token, user, isLoggedIn } = useAuth()
+    await expect(login('a@example.com', 'secret')).rejects.toThrow()
+    expect(token.value).toBeNull()
+    expect(user.value).toBeNull()
+    expect(isLoggedIn.value).toBe(false)
   })
 
   it('throws "Invalid email or password" on 401', async () => {
@@ -52,17 +81,23 @@ describe('login', () => {
   })
 
   it('posts credentials to the tokens endpoint', async () => {
-    const mockFetch = vi.fn(async () => ({
+    const mockFetch = vi.fn(async (url: string) => ({
       ok: true,
-      json: async () => ({ token: 'efIobn394nvJJFJ30...' }),
+      json: async () =>
+        String(url).endsWith('/tokens')
+          ? { token: 'efIobn394nvJJFJ30...' }
+          : { uuid: '1', firstName: 'A', lastName: 'B', email: 'user@example.com', role: 'USER' },
     }))
     vi.stubGlobal('fetch', mockFetch)
     const { login } = useAuth()
     await login('user@example.com', 'secret')
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost/tokens', {
+    expect(mockFetch).toHaveBeenNthCalledWith(1, 'http://localhost/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'user@example.com', password: 'secret' }),
+    })
+    expect(mockFetch).toHaveBeenNthCalledWith(2, 'http://localhost/users/current', {
+      headers: { Accept: 'application/json', Authorization: 'Bearer efIobn394nvJJFJ30...' },
     })
   })
 })
@@ -82,9 +117,12 @@ describe('logout', () => {
   })
 
   it('clears token, email, and isLoggedIn', async () => {
-    vi.stubGlobal('fetch', async () => ({
+    vi.stubGlobal('fetch', async (url: string) => ({
       ok: true,
-      json: async () => ({ token: 'efIobn394nvJJFJ30...' }),
+      json: async () =>
+        String(url).endsWith('/tokens')
+          ? { token: 'efIobn394nvJJFJ30...' }
+          : { uuid: '1', firstName: 'A', lastName: 'B', email: 'user@example.com', role: 'USER' },
     }))
     const { login, logout, token, userEmail, isLoggedIn } = useAuth()
     await login('user@example.com', 'secret')

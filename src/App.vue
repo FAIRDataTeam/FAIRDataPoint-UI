@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 
-const { isLoggedIn, userEmail, userInitials, logout } = useAuth()
+const { isLoggedIn, userEmail, user, userInitials, logout } = useAuth()
 const router = useRouter()
 
 const menuOpen = ref(false)
@@ -12,6 +12,7 @@ const searchQuery = ref('')
 function handleLogout() {
   menuOpen.value = false
   logout()
+  void router.push('/')
 }
 
 function submitSearch() {
@@ -119,7 +120,9 @@ async function openAbout() {
             </button>
 
             <div v-if="menuOpen" class="user-dropdown">
-              <div class="user-dropdown__email">{{ userEmail }}</div>
+              <div class="user-dropdown__email">
+                {{ user ? `${user.firstName} ${user.lastName}` : userEmail }}
+              </div>
               <hr class="user-dropdown__divider" />
               <button type="button" class="user-dropdown__item" @click="handleLogout">
                 Log out

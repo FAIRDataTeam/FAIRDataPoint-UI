@@ -1,5 +1,13 @@
 import { ref, computed } from 'vue'
-import { fetchToken, setAuthToken } from './fdpApi'
+import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
+
+type User = {
+  uuid: string
+  firstName: string
+  lastName: string
+  email: string
+  role: string
+}
 
 const SESSION_TOKEN_KEY = 'fdp_token'
 const SESSION_EMAIL_KEY = 'fdp_email'
@@ -7,9 +15,26 @@ const SESSION_EMAIL_KEY = 'fdp_email'
 // Singleton auth state — shared across all components
 const token = ref<string | null>(sessionStorage.getItem(SESSION_TOKEN_KEY))
 const userEmail = ref<string | null>(sessionStorage.getItem(SESSION_EMAIL_KEY))
+const user = ref<User | null>(null)
 const isLoggedIn = computed(() => token.value !== null)
+const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
+
+function clearSession() {
+  token.value = null
+  userEmail.value = null
+  user.value = null
+  sessionStorage.removeItem(SESSION_TOKEN_KEY)
+  sessionStorage.removeItem(SESSION_EMAIL_KEY)
+  setAuthToken(null)
+}
+
+export const authReady: Promise<void> = token.value
+  ? fetchCurrentUser()
+      .then((u) => { user.value = u as User })
+      .catch(() => clearSession())
+  : Promise.resolve()
 
 function userInitials(email: string | null): string {
   if (!email) return '?'
@@ -24,25 +49,30 @@ function userInitials(email: string | null): string {
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
     const newToken = await fetchToken(email, password)
-    token.value = newToken
-    userEmail.value = email
-    sessionStorage.setItem(SESSION_TOKEN_KEY, newToken)
-    sessionStorage.setItem(SESSION_EMAIL_KEY, email)
     setAuthToken(newToken)
+    try {
+      const currentUser = (await fetchCurrentUser()) as User
+      token.value = newToken
+      userEmail.value = email
+      user.value = currentUser
+      sessionStorage.setItem(SESSION_TOKEN_KEY, newToken)
+      sessionStorage.setItem(SESSION_EMAIL_KEY, email)
+    } catch (err) {
+      clearSession()
+      throw err
+    }
   }
 
   function logout() {
-    token.value = null
-    userEmail.value = null
-    sessionStorage.removeItem(SESSION_TOKEN_KEY)
-    sessionStorage.removeItem(SESSION_EMAIL_KEY)
-    setAuthToken(null)
+    clearSession()
   }
 
   return {
     token,
     userEmail,
+    user,
     isLoggedIn,
+    isAdmin,
     userInitials,
     login,
     logout,

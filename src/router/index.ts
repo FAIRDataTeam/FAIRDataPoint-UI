@@ -2,8 +2,18 @@ import { createRouter, createWebHistory } from 'vue-router'
 import ResourceView from '@/views/ResourceView.vue'
 import LoginView from '@/views/LoginView.vue'
 import SearchView from '@/views/SearchView.vue'
+import NotAllowedView from '@/views/NotAllowedView.vue'
+import UsersView from '@/views/UsersView.vue'
+import { useAuth } from '@/composables/useAuth'
 
-export default createRouter({
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    requiresAdmin?: boolean
+  }
+}
+
+const router = createRouter({
   history: createWebHistory(),
   routes: [
     {
@@ -26,5 +36,30 @@ export default createRouter({
       name: 'search',
       component: SearchView,
     },
+    {
+      path: '/not-allowed',
+      name: 'not-allowed',
+      component: NotAllowedView,
+    },
+    {
+      path: '/users',
+      name: 'users',
+      component: UsersView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
+      path: '/users/:id',
+      name: 'user-detail',
+      component: UsersView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
   ],
 })
+
+router.beforeEach((to) => {
+  const { isLoggedIn, isAdmin } = useAuth()
+  if (to.meta.requiresAuth && !isLoggedIn.value) return '/login'
+  if (to.meta.requiresAdmin && !isAdmin.value) return '/not-allowed'
+})
+
+export default router
