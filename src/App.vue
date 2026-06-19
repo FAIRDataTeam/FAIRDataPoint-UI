@@ -2,18 +2,12 @@
 import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
+import UserMenu from './components/UserMenu.vue'
 
-const { isLoggedIn, userEmail, user, userInitials, logout } = useAuth()
+const { isLoggedIn } = useAuth()
 const router = useRouter()
 
-const menuOpen = ref(false)
 const searchQuery = ref('')
-
-function handleLogout() {
-  menuOpen.value = false
-  logout()
-  void router.push('/')
-}
 
 function submitSearch() {
   const q = searchQuery.value.trim()
@@ -108,27 +102,7 @@ async function openAbout() {
         <nav class="app-header__nav">
           <RouterLink v-if="!isLoggedIn" to="/login" class="header-login-btn">Log in</RouterLink>
 
-          <div v-else class="user-menu">
-            <button
-              type="button"
-              class="user-avatar"
-              :aria-expanded="menuOpen"
-              aria-haspopup="true"
-              @click="menuOpen = !menuOpen"
-            >
-              {{ userInitials(userEmail) }}
-            </button>
-
-            <div v-if="menuOpen" class="user-dropdown">
-              <div class="user-dropdown__email">
-                {{ user ? `${user.firstName} ${user.lastName}` : userEmail }}
-              </div>
-              <hr class="user-dropdown__divider" />
-              <button type="button" class="user-dropdown__item" @click="handleLogout">
-                Log out
-              </button>
-            </div>
-          </div>
+          <UserMenu v-else />
         </nav>
       </div>
     </header>

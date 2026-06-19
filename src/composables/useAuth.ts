@@ -1,7 +1,8 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
 
-type User = {
+// Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
+export type User = {
   uuid: string
   firstName: string
   lastName: string
@@ -32,11 +33,23 @@ function clearSession() {
 
 export const authReady: Promise<void> = token.value
   ? fetchCurrentUser()
-      .then((u) => { user.value = u as User })
+      .then((u) => {
+        user.value = u as User
+      })
       .catch(() => clearSession())
   : Promise.resolve()
 
-function userInitials(email: string | null): string {
+export function avatarColor(email: string): string {
+  const hash = [...email].reduce((acc, c) => acc + 43 * c.charCodeAt(0), 0)
+  const h1 = hash % 360
+  const l1 = 85 + (hash % 11)
+  const hash2 = hash + 60
+  const h2 = hash2 % 360
+  const l2 = 85 + (hash2 % 11)
+  return `linear-gradient(45deg, hsl(${h1}, 100%, ${l1}%), hsl(${h2}, 100%, ${l2}%))`
+}
+
+export function userInitials(email: string | null): string {
   if (!email) return '?'
   const name = email.split('@')[0] ?? ''
   const parts = name.split(/[.\-_]/)

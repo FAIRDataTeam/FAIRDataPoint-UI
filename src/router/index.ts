@@ -4,6 +4,7 @@ import LoginView from '@/views/LoginView.vue'
 import SearchView from '@/views/SearchView.vue'
 import NotAllowedView from '@/views/NotAllowedView.vue'
 import UsersView from '@/views/UsersView.vue'
+import UserFormView from '@/views/UserFormView.vue'
 import { useAuth } from '@/composables/useAuth'
 
 declare module 'vue-router' {
@@ -48,9 +49,15 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/users/create',
+      name: 'user-create',
+      component: UserFormView,
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/users/:id',
       name: 'user-detail',
-      component: UsersView,
+      component: UserFormView,
       meta: { requiresAuth: true, requiresAdmin: true },
     },
   ],
