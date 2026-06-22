@@ -21,6 +21,7 @@ const colors: GraphColors = {
 }
 
 const options: Options = {
+  // Fixed seed keeps the layout stable across re-renders.
   layout: { randomSeed: 42 },
   physics: {
     solver: 'forceAtlas2Based',

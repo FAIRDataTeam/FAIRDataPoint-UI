@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useRoute } from 'vue-router'
 import { useResourceView } from '../../src/composables/useResourceView'
-import { fetchRdfText } from '../../src/composables/fdpApi'
+import { fetchRdfTurtle } from '../../src/composables/fdpApi'
 
-vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfText: vi.fn() }))
+vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfTurtle: vi.fn() }))
 
 // Mock useRoute.
 vi.mock('vue-router', () => ({
@@ -21,7 +21,7 @@ function mockRoute(params: Record<string, string | string[]> = {}) {
 }
 
 function setupFetchFixtures(fixtureMap: Record<string, string>) {
-  vi.mocked(fetchRdfText).mockImplementation(async (uri: string) => {
+  vi.mocked(fetchRdfTurtle).mockImplementation(async (uri: string) => {
     const content = fixtureMap[uri]
     if (!content) throw new Error(`No fixture for URI: ${uri}`)
     return content

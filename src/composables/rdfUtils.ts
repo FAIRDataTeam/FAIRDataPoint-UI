@@ -127,6 +127,7 @@ export function getNodeRefs(store: Store, subjectUri: string, predicate: string)
 }
 
 export function uriLabel(store: Store, uri: string): string {
+  // Try the three most common label predicates in order of preference.
   const title =
     getFirstLiteral(store, uri, DCT_TITLE) ??
     getFirstLiteral(store, uri, RDFS_LABEL) ??
@@ -134,6 +135,7 @@ export function uriLabel(store: Store, uri: string): string {
 
   if (title) return title
 
+  // No label found; fall back to the last URI path segment.
   const lastSegment = uri.split('/').filter(Boolean).pop()
   return lastSegment || uri
 }
@@ -152,6 +154,10 @@ function subjectUriCandidates(preferredUri: string): string[] {
   }
 }
 
+// FDP responses are inconsistent about trailing slashes on resource subjects, so both
+// variants are tried to find the one that actually exists in the store.
+// resolveSubjectUri(store, 'http://localhost/') -> 'http://localhost'  (if the store has triples for 'http://localhost')
+// resolveSubjectUri(store, 'http://localhost')  -> 'http://localhost/' (if the store has triples for 'http://localhost/')
 export function resolveSubjectUri(store: Store, preferredUri: string): string | null {
   return (
     subjectUriCandidates(preferredUri).find(

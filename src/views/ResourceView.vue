@@ -28,6 +28,7 @@ const {
 const showUnknown = ref(false)
 const showGraph = ref(false)
 
+// Persist per-URI panel state so navigating back restores the open/closed state.
 const unknownStateByUri = new Map<string, boolean>()
 const graphStateByUri = new Map<string, boolean>()
 

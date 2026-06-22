@@ -14,12 +14,15 @@ import {
   uriLabel,
 } from './rdfUtils'
 import { useRdfLoader, type ChildSummary } from './useRdfLoader'
+import { getBaseUrl } from './urlUtils'
 
 export type { ChildSummary }
 
+// Derives all display data for ResourceView from the current route: resolves the resource URI,
+// delegates fetching to useRdfLoader, and exposes computed title, breadcrumbs, metadata rows, and child sections.
 export function useResourceView() {
   const route = useRoute()
-  const fdpBaseUri = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  const fdpBaseUri = getBaseUrl()
 
   const fdpUri = `${fdpBaseUri}/`
 
@@ -92,6 +95,7 @@ export function useResourceView() {
   watch(
     childSections,
     (sections) => {
+      // Deduplicate: the same URI can appear more than once in ldp:contains (seen in fixtures).
       const uris = [...new Set(sections.flatMap((section) => section.items))]
       uris.forEach((uri) => {
         void loadChildSummary(uri)
@@ -105,6 +109,7 @@ export function useResourceView() {
     (uri) => {
       if (!uri) return
       const parentUri = getParentUri(quads.value, uri)
+      // Stop at the FDP root, which is already loaded as the main resource.
       if (parentUri && parentUri !== fdpUri) {
         void loadParentChain(parentUri)
       }

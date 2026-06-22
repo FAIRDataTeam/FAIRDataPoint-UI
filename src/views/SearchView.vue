@@ -18,6 +18,8 @@ const loading = ref(false)
 const error = ref<string | null>(null)
 const query = computed(() => (route.query.q as string) ?? '')
 
+// Every FDP resource is also typed as dcat:Resource (the common superclass), so that type
+// is skipped to show the more specific label (e.g. 'Dataset', 'Catalog', 'Distribution').
 function resourceTypeLabel(types: string[]): string {
   for (const t of types) {
     const local = t.split(/[/#]/).pop() ?? ''

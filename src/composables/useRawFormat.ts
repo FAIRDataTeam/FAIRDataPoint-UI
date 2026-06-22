@@ -14,6 +14,8 @@ type FormatId = (typeof formats)[number]['id']
 
 export { formats, type FormatId }
 
+// Manages the raw-format panel: toggling between Turtle and JSON-LD, syntax highlighting, and resizing.
+// rawTurtle is passed in because it is already loaded by the parent; JSON-LD is fetched on demand.
 export function useRawFormat(resourceUri: Ref<string>, rawTurtle: Ref<string | null>) {
   const shownFormat = ref<FormatId | null>(null)
   const extraRawText = ref<Record<FormatId, string | null>>({ turtle: null, 'json-ld': null })
