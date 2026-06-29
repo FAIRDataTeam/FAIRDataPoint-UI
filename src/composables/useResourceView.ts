@@ -97,9 +97,11 @@ export function useResourceView() {
   watch(
     childSections,
     (sections) => {
-      sections.flatMap((section) => section.items).forEach((uri) => {
-        void loadChildSummary(uri)
-      })
+      sections
+        .flatMap((section) => section.items)
+        .forEach((uri) => {
+          void loadChildSummary(uri)
+        })
     },
     { immediate: true },
   )
