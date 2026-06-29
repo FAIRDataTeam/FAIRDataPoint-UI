@@ -95,9 +95,7 @@ export function useResourceView() {
   watch(
     childSections,
     (sections) => {
-      // Deduplicate: the same URI can appear more than once in ldp:contains (seen in fixtures).
-      const uris = [...new Set(sections.flatMap((section) => section.items))]
-      uris.forEach((uri) => {
+      sections.flatMap((section) => section.items).forEach((uri) => {
         void loadChildSummary(uri)
       })
     },

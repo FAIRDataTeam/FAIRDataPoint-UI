@@ -66,6 +66,15 @@ describe('useResourceView', () => {
       expect(breadcrumbs.value).toEqual([{ text: 'FAIR Data Point', uri: 'http://localhost/' }])
     })
 
+    it('exposes the catalog container as a child section with one item despite duplicate ldp:contains', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(1)
+      expect(childSections.value[0].items).toEqual([
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+      ])
+    })
+
     describe('metadata rows', () => {
       let rows: Awaited<ReturnType<typeof useResourceView>>['metadataRows']['value']
 
