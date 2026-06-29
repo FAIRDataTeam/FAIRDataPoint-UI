@@ -23,9 +23,11 @@ export type ChildSummary = {
   isPartOf?: string | null
 }
 
-// Handles all RDF fetching for a resource view: the primary resource, its parent chain for
-// breadcrumbs, its profile and SHACL shape documents for metadata rendering, and
-// summaries of child resources for the child listing.
+/**
+ * Handles all RDF fetching for a resource view: the primary resource, its parent chain for
+ * breadcrumbs, its profile and SHACL shape documents for metadata rendering, and
+ * summaries of child resources for the child listing.
+ */
 export function useRdfLoader() {
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -35,7 +37,7 @@ export function useRdfLoader() {
   const parentSummaries = ref<Record<string, ChildSummary>>({})
   const shapeGraphs = ref<Record<string, Store>>({})
 
-  // Fetches and parses the primary resource, populating quads and rawTurtle.
+  /** Fetches and parses the primary resource, populating quads and rawTurtle. */
   async function loadResource(uri: string) {
     loading.value = true
     error.value = null
@@ -53,8 +55,10 @@ export function useRdfLoader() {
     }
   }
 
-  // Recursively walks dct:isPartOf links upward, storing title and parent URI for each
-  // ancestor in parentSummaries, used to build the breadcrumb trail.
+  /**
+   * Recursively walks dct:isPartOf links upward, storing title and parent URI for each
+   * ancestor in parentSummaries, used to build the breadcrumb trail.
+   */
   async function loadParentChain(uri: string): Promise<void> {
     if (parentSummaries.value[uri]) return
 
@@ -78,7 +82,7 @@ export function useRdfLoader() {
     }
   }
 
-  // Fetches a profile and calls loadShapeDocument for each of its SHACL artifacts.
+  /** Fetches a profile and calls loadShapeDocument for each of its SHACL artifacts. */
   async function loadProfile(uri: string): Promise<void> {
     if (shapeGraphs.value[uri]) return
 
@@ -92,7 +96,7 @@ export function useRdfLoader() {
     }
   }
 
-  // Fetches and parses a SHACL shape document into shapeGraphs, used for property ordering and rendering hints.
+  /** Fetches and parses a SHACL shape document into shapeGraphs, used for property ordering and rendering hints. */
   async function loadShapeDocument(uri: string): Promise<void> {
     if (shapeGraphs.value[uri]) return
 
@@ -104,7 +108,7 @@ export function useRdfLoader() {
     }
   }
 
-  // Fetches a child resource and stores a display summary (title, description, dates, theme) in childSummaries.
+  /** Fetches a child resource and stores a display summary (title, description, dates, theme) in childSummaries. */
   async function loadChildSummary(uri: string) {
     if (childSummaries.value[uri]) return
 

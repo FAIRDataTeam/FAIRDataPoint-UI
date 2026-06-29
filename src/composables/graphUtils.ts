@@ -13,7 +13,7 @@ export type GraphColors = {
 type VisNode = { id: string; label: string; color?: object; title?: string }
 type VisEdge = { id: string; from: string; to: string; label: string }
 
-// Converts an RDF quad store into vis-network node/edge data for graph visualization.
+/** Converts an RDF quad store into vis-network node/edge data for graph visualization. */
 export function buildGraphData(
   store: Store,
   colors: GraphColors,

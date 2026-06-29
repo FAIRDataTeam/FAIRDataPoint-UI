@@ -115,8 +115,9 @@ const labelMap: Record<string, string> = {
   [RE3DATA_REPOSITORY_IDENTIFIER]: 'Repository identifier',
 }
 
-// Predicates shown first in the metadata table, in this order.
-// All other predicates on the node are shown after, sorted alphabetically.
+/** Predicates shown first in the metadata table, in this order.
+ * All other predicates on the node are shown after, sorted alphabetically.
+ */
 export const metadataPredicatePriority: string[] = [
   DCT_CONFORMS_TO,
   PROF_IS_PROFILE_OF,

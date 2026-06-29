@@ -18,8 +18,10 @@ import { getBaseUrl } from './urlUtils'
 
 export type { ChildSummary }
 
-// Derives all display data for ResourceView from the current route: resolves the resource URI,
-// delegates fetching to useRdfLoader, and exposes computed title, breadcrumbs, metadata rows, and child sections.
+/**
+ * Derives all display data for ResourceView from the current route: resolves the resource URI,
+ * delegates fetching to useRdfLoader, and exposes computed title, breadcrumbs, metadata rows, and child sections.
+ */
 export function useResourceView() {
   const route = useRoute()
   const fdpBaseUri = getBaseUrl()

@@ -2,12 +2,12 @@ import { getBaseUrl } from './urlUtils'
 
 let authToken: string | null = null
 
-// Stores the JWT token to be included in subsequent requests as a Bearer header.
+/** Stores the JWT token to be included in subsequent requests as a Bearer header. */
 export function setAuthToken(token: string | null): void {
   authToken = token
 }
 
-// Low-level fetch for any RDF resource; callers specify the Accept header.
+/** Low-level fetch for any RDF resource; callers specify the Accept header. */
 export async function fetchRdf(uri: string, accept: string): Promise<string> {
   const headers: Record<string, string> = { Accept: accept }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
@@ -16,12 +16,12 @@ export async function fetchRdf(uri: string, accept: string): Promise<string> {
   return response.text()
 }
 
-// Fetches an RDF resource as Turtle, the only format used by this client.
+/** Fetches an RDF resource as Turtle, the only format used by this client. */
 export async function fetchRdfTurtle(uri: string): Promise<string> {
   return fetchRdf(uri, 'text/turtle')
 }
 
-// Searches resources via the FDP full-text search endpoint.
+/** Searches resources via the FDP full-text search endpoint. */
 // TODO: currently limited to the first 20 results; consider pagination or a larger page size.
 export async function searchResources(query: string): Promise<unknown[]> {
   const base = getBaseUrl()
@@ -39,7 +39,7 @@ export async function searchResources(query: string): Promise<unknown[]> {
   return response.json() as Promise<unknown[]>
 }
 
-// Authenticates with the FDP and returns a JWT token.
+/** Authenticates with the FDP and returns a JWT token. */
 export async function fetchToken(email: string, password: string): Promise<string> {
   const base = getBaseUrl()
   const response = await fetch(`${base}/tokens`, {

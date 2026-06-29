@@ -154,10 +154,14 @@ function subjectUriCandidates(preferredUri: string): string[] {
   }
 }
 
-// FDP responses are inconsistent about trailing slashes on resource subjects, so both
-// variants are tried to find the one that actually exists in the store.
-// resolveSubjectUri(store, 'http://localhost/') -> 'http://localhost'  (if the store has triples for 'http://localhost')
-// resolveSubjectUri(store, 'http://localhost')  -> 'http://localhost/' (if the store has triples for 'http://localhost/')
+/**
+ * FDP responses are inconsistent about trailing slashes on resource subjects, so both
+ * variants are tried to find the one that actually exists in the store.
+ * @example resolveSubjectUri(store, 'http://localhost/')
+ * // -> 'http://localhost'  (if the store has triples for 'http://localhost')
+ * @example resolveSubjectUri(store, 'http://localhost')
+ * // -> 'http://localhost/' (if the store has triples for 'http://localhost/')
+ */
 export function resolveSubjectUri(store: Store, preferredUri: string): string | null {
   return (
     subjectUriCandidates(preferredUri).find(

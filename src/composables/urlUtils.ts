@@ -1,26 +1,30 @@
-// getBaseUrl() -> 'http://localhost'  (when VITE_FDP_BASE_URL = 'http://localhost/')
+/** @example getBaseUrl() // -> 'http://localhost'  (when VITE_FDP_BASE_URL = 'http://localhost/') */
 export function getBaseUrl(): string {
   return import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
 }
 
-// RDF metadata can contain links to other resources on this FDP instance.
-// Internal links are handled by the Vue router; external links open in a new tab.
-// String prefix matching is used instead of URL object comparison: it is simpler and handles
-// all real cases correctly, since the base URL is a known configuration value (not arbitrary user input).
-// isInternalUri('http://localhost/catalog/1') -> true
-// isInternalUri('https://example.com/foo')   -> false
+/**
+ * RDF metadata can contain links to other resources on this FDP instance.
+ * Internal links are handled by the Vue router; external links open in a new tab.
+ * String prefix matching is used instead of URL object comparison: it is simpler and handles
+ * all real cases correctly, since the base URL is a known configuration value (not arbitrary user input).
+ * @example isInternalUri('http://localhost/catalog/1') // -> true
+ * @example isInternalUri('https://example.com/foo')   // -> false
+ */
 export function isInternalUri(uri: string): boolean {
   const base = getBaseUrl()
   const normalized = uri.replace(/\/$/, '')
   return normalized === base || normalized.startsWith(`${base}/`)
 }
 
-// Converts a full FDP URI to a router path.
-// FDP resource URLs follow the pattern {base}/{resourceType}/{id}, so only the
-// first two segments are kept; deeper paths are not addressable by the router.
-// internalHref('http://localhost/catalog/1') -> '/catalog/1'
-// internalHref('http://localhost')           -> '/'
-// internalHref('https://example.com/foo')   -> 'https://example.com/foo'
+/**
+ * Converts a full FDP URI to a router path.
+ * FDP resource URLs follow the pattern {base}/{resourceType}/{id}, so only the
+ * first two segments are kept; deeper paths are not addressable by the router.
+ * @example internalHref('http://localhost/catalog/1') // -> '/catalog/1'
+ * @example internalHref('http://localhost')           // -> '/'
+ * @example internalHref('https://example.com/foo')   // -> 'https://example.com/foo'
+ */
 export function internalHref(uri: string): string {
   if (!isInternalUri(uri)) return uri
   const base = getBaseUrl()
