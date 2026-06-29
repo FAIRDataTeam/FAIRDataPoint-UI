@@ -80,6 +80,7 @@ function formatDate(isoString: string): string {
   return `${day}-${month}-${year}`
 }
 
+/** Returns the literal value as a string; date and datetime values are converted to DD-MM-YYYY. */
 export function formatLiteralValue(literal: Literal): string {
   const datatype = literal.datatype.value
   if (datatype === XSD_DATETIME || datatype === XSD_DATE) {
@@ -88,6 +89,7 @@ export function formatLiteralValue(literal: Literal): string {
   return literal.value
 }
 
+/** Returns true if the subject has the given RDF type in the store. */
 export function hasType(store: Store, subjectUri: string, type: string): boolean {
   return (
     store.countQuads(
@@ -99,6 +101,12 @@ export function hasType(store: Store, subjectUri: string, type: string): boolean
   )
 }
 
+/**
+ * Shortens a full URI to a prefixed form using known vocabulary prefixes;
+ * returns the URI unchanged if no prefix matches.
+ * @example compactUri('http://purl.org/dc/terms/title') // -> 'dct:title'
+ * @example compactUri('https://example.com/unknown')   // -> 'https://example.com/unknown'
+ */
 export function compactUri(uri: string): string {
   for (const [base, prefix] of Object.entries(prefixes)) {
     if (uri.startsWith(base)) {
@@ -108,6 +116,7 @@ export function compactUri(uri: string): string {
   return uri
 }
 
+/** Returns the first literal value for a subject/predicate pair. */
 export function getFirstLiteral(
   store: Store,
   subjectUri: string,
@@ -119,6 +128,10 @@ export function getFirstLiteral(
   return obj ? formatLiteralValue(obj as Literal) : null
 }
 
+/**
+ * Returns all named node and blank node objects for a subject/predicate pair as strings;
+ * named nodes as URIs, blank nodes as '_:id'.
+ */
 export function getNodeRefs(store: Store, subjectUri: string, predicate: string): string[] {
   return store
     .getObjects(DataFactory.namedNode(subjectUri), DataFactory.namedNode(predicate), null)
@@ -126,6 +139,10 @@ export function getNodeRefs(store: Store, subjectUri: string, predicate: string)
     .map((obj) => (obj.termType === 'BlankNode' ? `_:${obj.value}` : obj.value))
 }
 
+/**
+ * Returns a human-readable label for a URI, checking dct:title, rdfs:label, and foaf:name;
+ * falls back to the last URI path segment.
+ */
 export function uriLabel(store: Store, uri: string): string {
   // Try the three most common label predicates in order of preference.
   const title =
@@ -140,6 +157,7 @@ export function uriLabel(store: Store, uri: string): string {
   return lastSegment || uri
 }
 
+/** Parses a Turtle string into an N3 Store. */
 export function parseTurtle(turtle: string): Store {
   return new Store(new Parser().parse(turtle))
 }
@@ -172,6 +190,7 @@ export function resolveSubjectUri(store: Store, preferredUri: string): string | 
 
 // --- Domain getters ---
 
+/** Returns the dct:title of a subject, falling back to rdfs:label. */
 export function getTitle(store: Store, subjectUri: string | null): string | null {
   if (!subjectUri) return null
   // Profile resources use rdfs:label instead of dct:title
@@ -180,29 +199,35 @@ export function getTitle(store: Store, subjectUri: string | null): string | null
   )
 }
 
+/** Returns the dct:description of a subject. */
 export function getDescription(store: Store, subjectUri: string | null): string | null {
   if (!subjectUri) return null
   return getFirstLiteral(store, subjectUri, DCT_DESCRIPTION)
 }
 
+/** Returns the dcat:accessURL of a subject. */
 export function getAccessUrl(store: Store, subjectUri: string | null): string | null {
   if (!subjectUri) return null
   return getNodeRefs(store, subjectUri, DCAT_ACCESS_URL)[0] ?? null
 }
 
+/** Returns the dcat:downloadURL of a subject. */
 export function getDownloadUrl(store: Store, subjectUri: string | null): string | null {
   if (!subjectUri) return null
   return getNodeRefs(store, subjectUri, DCAT_DOWNLOAD_URL)[0] ?? null
 }
 
+/** Returns the dct:isPartOf URI of a subject. */
 export function getParentUri(store: Store, subjectUri: string): string | null {
   return getNodeRefs(store, subjectUri, DCT_IS_PART_OF)[0] ?? null
 }
 
+/** Returns the dct:conformsTo URI of a subject (its profile). */
 export function getConformsTo(store: Store, subjectUri: string): string | null {
   return getNodeRefs(store, subjectUri, DCT_CONFORMS_TO)[0] ?? null
 }
 
+/** Returns the issued date, checking dct:issued then fdp-o:metadataIssued. */
 export function getIssued(store: Store, subjectUri: string): string | null {
   return (
     getFirstLiteral(store, subjectUri, DCT_ISSUED) ??
@@ -210,6 +235,7 @@ export function getIssued(store: Store, subjectUri: string): string | null {
   )
 }
 
+/** Returns the modified date, checking dct:modified then fdp-o:metadataModified. */
 export function getModified(store: Store, subjectUri: string): string | null {
   return (
     getFirstLiteral(store, subjectUri, DCT_MODIFIED) ??
@@ -217,10 +243,15 @@ export function getModified(store: Store, subjectUri: string): string | null {
   )
 }
 
+/** Returns the first dcat:themeTaxonomy URI of a subject. */
 export function getTheme(store: Store, subjectUri: string): string | null {
   return getNodeRefs(store, subjectUri, DCAT_THEME_TAXONOMY)[0] ?? null
 }
 
+/**
+ * Returns all prof:hasArtifact URIs from the store
+ * (used to collect SHACL shape documents from a profile).
+ */
 export function getArtifactUris(store: Store): string[] {
   return store
     .getObjects(null, DataFactory.namedNode(PROF_HAS_ARTIFACT), null)
@@ -228,6 +259,11 @@ export function getArtifactUris(store: Store): string[] {
     .map((o) => o.value)
 }
 
+/**
+ * Returns child sections for a resource: each LDP DirectContainer linked via
+ * ldp:membershipResource becomes a section with its member relation predicate,
+ * a human-readable label, and the list of ldp:contains URIs.
+ */
 export function getChildSections(
   store: Store,
   subjectUri: string | null,
@@ -252,6 +288,12 @@ export function getChildSections(
 
 // --- Breadcrumbs ---
 
+/**
+ * Builds the breadcrumb trail from the FDP root to the current resource.
+ * The root label is taken from the store if present, otherwise falls back to 'FAIR Data Point'.
+ * Intermediate ancestors are resolved from parentSummaries (pre-loaded dct:isPartOf chain).
+ * The current resource is appended last, unless it is the FDP root itself.
+ */
 export function getBreadcrumbs(
   store: Store,
   subjectUri: string | null,
@@ -296,6 +338,7 @@ export function getBreadcrumbs(
 
 // --- SHACL/DASH shape properties ---
 
+/** Like getFirstLiteral but takes an N3 Term as subject; used when iterating SHACL shape nodes. */
 function getObjectLiteral(store: Store, subject: Term, predicate: string): string | null {
   const obj = store
     .getObjects(subject, DataFactory.namedNode(predicate), null)
@@ -303,6 +346,7 @@ function getObjectLiteral(store: Store, subject: Term, predicate: string): strin
   return obj ? formatLiteralValue(obj as Literal) : null
 }
 
+/** Like getNodeRefs but takes an N3 Term as subject and returns only the first named node value. */
 function getObjectNamedNode(store: Store, subject: Term, predicate: string): string | null {
   return (
     store
@@ -311,6 +355,11 @@ function getObjectNamedNode(store: Store, subject: Term, predicate: string): str
   )
 }
 
+/**
+ * Reads a SHACL property shape node into a ShapeProperty struct.
+ * Returns null if the node has no shacl:path.
+ * shacl:order defaults to MAX_SAFE_INTEGER when absent, so unordered properties sort last.
+ */
 function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | null {
   const path = getObjectNamedNode(shapeGraph, propTerm, SHACL_PATH)
   if (!path) return null
@@ -324,6 +373,12 @@ function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | n
   return { path, label, order, viewer, nodeKind }
 }
 
+/**
+ * Builds a map of shacl:path -> ShapeProperty for the current resource's RDF types.
+ * Searches all provided shape graphs for NodeShapes whose shacl:targetClass matches one of
+ * the resource's types. When multiple shapes define the same path, the lower shacl:order wins;
+ * missing fields are filled from the superseded entry.
+ */
 function getShapePropertyMap(
   resourceStore: Store,
   subjectUri: string | null,
@@ -374,7 +429,9 @@ function getShapePropertyMap(
 
 const embeddedNodeSkipList = new Set([RDF_TYPE, SIO_IS_ABOUT, SIO_IS_RELATED_TO])
 
-// Predicates handled elsewhere in the UI — not shown in the metadata table
+// Predicates excluded from the metadata table: those with dedicated UI sections
+// (title, description, access/download URLs), navigation predicates (breadcrumbs,
+// child sections), LDP container structure, and FDP-internal SIO provenance.
 const metadataSkipList = new Set([
   RDF_TYPE,
   DCT_TITLE,
@@ -390,7 +447,10 @@ const metadataSkipList = new Set([
   SIO_IS_RELATED_TO,
 ])
 
-// Only one level deep: nested blank-node objects are not resolved.
+/**
+ * Resolves a blank node to its predicate/value pairs for display.
+ * Only one level deep; nested blank-node objects are not resolved.
+ */
 function resolveBlankNode(store: Store, id: string): BlankNodeProperty[] {
   if (!id.startsWith('_:')) return []
   const subject = DataFactory.blankNode(id.slice(2))
@@ -435,6 +495,11 @@ function resolveBlankNode(store: Store, id: string): BlankNodeProperty[] {
   return props
 }
 
+/**
+ * Builds a MetadataRow for a given predicate, classifying it as literal, blank-node, or link.
+ * The viewer and nodeKind hints (from SHACL) control how link text is rendered.
+ * Returns null if the predicate has no objects in the store.
+ */
 function buildRow(
   store: Store,
   subjectUri: string,
@@ -508,6 +573,11 @@ function hasDashViewer(shape: ShapeProperty | undefined): shape is ShapeProperty
   return shape?.viewer != null
 }
 
+/**
+ * Returns the predicates for a resource that should appear in the metadata table:
+ * excludes predicates in metadataSkipList (handled elsewhere in the UI) and child
+ * container predicates.
+ */
 function getFilteredPredicates(store: Store, uri: string): string[] {
   const childPredicates = new Set(getChildSections(store, uri).map((s) => s.predicate))
   return store
@@ -530,6 +600,11 @@ function buildRows(
     .filter((r): r is MetadataRow => r !== null)
 }
 
+/**
+ * Partitions a resource's predicates into ordered metadata rows (guided by SHACL shape)
+ * and unknown rows (predicates with no dash:viewer). When no shape is loaded, all predicates
+ * go into rows ordered by metadataPredicatePriority, and unknownRows is empty.
+ */
 export function getMetadataRows(
   store: Store,
   subjectUri: string | null,
