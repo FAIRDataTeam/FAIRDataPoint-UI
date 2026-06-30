@@ -1,7 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
-import type { RdfFormat } from './rdfUtils'
-import { fetchRdfRaw } from './rdfUtils'
+import { fetchRdf } from './fdpApi'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-turtle'
 import 'prismjs/components/prism-json'
@@ -15,11 +14,11 @@ type FormatId = (typeof formats)[number]['id']
 
 export { formats, type FormatId }
 
-export function useRawFormat(
-  resourceUri: Ref<string>,
-  activeFormat: Ref<RdfFormat | null>,
-  activeRawText: Ref<string | null>,
-) {
+/**
+ * Manages the raw-format panel: toggling between Turtle and JSON-LD, syntax highlighting, and resizing.
+ * rawTurtle is passed in because it is already loaded by the parent; JSON-LD is fetched on demand.
+ */
+export function useRawFormat(resourceUri: Ref<string>, rawTurtle: Ref<string | null>) {
   const shownFormat = ref<FormatId | null>(null)
   const extraRawText = ref<Record<FormatId, string | null>>({ turtle: null, 'json-ld': null })
   const rawLoading = ref(false)
@@ -29,7 +28,7 @@ export function useRawFormat(
   const extraRawTextByUri = new Map<string, Record<FormatId, string | null>>()
 
   function rawTextFor(id: FormatId): string | null {
-    if (id === activeFormat.value) return activeRawText.value
+    if (id === 'turtle') return rawTurtle.value
     return extraRawText.value[id]
   }
 
@@ -52,7 +51,7 @@ export function useRawFormat(
     if (rawTextFor(id) !== null) return
     rawLoading.value = true
     try {
-      extraRawText.value[id] = await fetchRdfRaw(resourceUri.value, accept)
+      extraRawText.value[id] = await fetchRdf(resourceUri.value, accept)
     } catch {
       extraRawText.value[id] = 'Failed to load.'
     } finally {
@@ -77,6 +76,7 @@ export function useRawFormat(
     window.addEventListener('mouseup', onUp)
   }
 
+  // Persist per-URI view state (active format + fetched text) so navigating back restores the panel.
   watch(resourceUri, (newUri, oldUri) => {
     shownFormatByUri.set(oldUri, shownFormat.value)
     extraRawTextByUri.set(oldUri, { ...extraRawText.value })

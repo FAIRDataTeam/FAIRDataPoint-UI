@@ -2,11 +2,11 @@
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { Network, type Options } from 'vis-network'
 import { DataSet } from 'vis-data'
-import type { RdfNode, GraphColors } from '../composables/rdfUtils'
-import { buildGraphData } from '../composables/rdfUtils'
+import type { Store } from 'n3'
+import { buildGraphData, type GraphColors } from '../composables/graphUtils'
 
 const props = defineProps<{
-  graph: RdfNode[]
+  graph: Store
 }>()
 
 const container = ref<HTMLDivElement | null>(null)
@@ -21,6 +21,7 @@ const colors: GraphColors = {
 }
 
 const options: Options = {
+  // Fixed seed keeps the layout stable across re-renders.
   layout: { randomSeed: 42 },
   physics: {
     solver: 'forceAtlas2Based',

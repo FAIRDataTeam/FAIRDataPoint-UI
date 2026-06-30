@@ -3,13 +3,9 @@ import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useRoute } from 'vue-router'
 import { useResourceView } from '../../src/composables/useResourceView'
-import { fetchRdf, parseTurtle } from '../../src/composables/rdfUtils'
+import { fetchRdfTurtle } from '../../src/composables/fdpApi'
 
-// Mock fetchRdf withi rdfUtils.
-vi.mock('../../src/composables/rdfUtils', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../src/composables/rdfUtils')>()
-  return { ...actual, fetchRdf: vi.fn() }
-})
+vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfTurtle: vi.fn() }))
 
 // Mock useRoute.
 vi.mock('vue-router', () => ({
@@ -24,12 +20,11 @@ function mockRoute(params: Record<string, string | string[]> = {}) {
   vi.mocked(useRoute).mockReturnValue({ params } as unknown as ReturnType<typeof useRoute>)
 }
 
-// Sets up fetchRdf to parse Turtle fixture files keyed by URI.
 function setupFetchFixtures(fixtureMap: Record<string, string>) {
-  vi.mocked(fetchRdf).mockImplementation(async (uri) => {
+  vi.mocked(fetchRdfTurtle).mockImplementation(async (uri: string) => {
     const content = fixtureMap[uri]
     if (!content) throw new Error(`No fixture for URI: ${uri}`)
-    return { nodes: parseTurtle(content), format: 'turtle' as const, rawText: content }
+    return content
   })
 }
 
@@ -69,6 +64,15 @@ describe('useResourceView', () => {
       const { breadcrumbs } = useResourceView()
       await flushPromises()
       expect(breadcrumbs.value).toEqual([{ text: 'FAIR Data Point', uri: 'http://localhost/' }])
+    })
+
+    it('exposes the catalog container as a child section with one item despite duplicate ldp:contains', async () => {
+      const { childSections } = useResourceView()
+      await flushPromises()
+      expect(childSections.value).toHaveLength(1)
+      expect(childSections.value[0].items).toEqual([
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+      ])
     })
 
     describe('metadata rows', () => {

@@ -1,23 +1,21 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll } from 'vitest'
+import { DataFactory } from 'n3'
+import type { Store } from 'n3'
 import {
   parseTurtle,
-  flattenGraph,
   hasType,
   compactUri,
   formatLiteralValue,
   getFirstLiteral,
-  getIdValues,
+  resolveSubjectUri,
+  getNodeRefs,
   uriLabel,
-  internalHref,
-  type RdfNode,
-  type RdfValue,
 } from '../../src/composables/rdfUtils'
 import {
   DCT_TITLE,
   DCT_DESCRIPTION,
-  DCT_IDENTIFIER,
   DCT_PUBLISHER,
   DCT_LICENSE,
   FDP_METADATA_ISSUED,
@@ -36,213 +34,169 @@ import {
 
 const XSD_STRING = 'http://www.w3.org/2001/XMLSchema#string'
 
-const rootNodes = parseTurtle(readFileSync(resolve(__dirname, '../fixtures/fdp-root.ttl'), 'utf-8'))
+let rootStore: Store
+let catalogStore: Store
 
-type IdRef = { '@id': string }
-
-const getNode = (id: string, nodes = rootNodes) => {
-  const node = nodes.find((n) => n['@id'] === id)
-  expect(node).toBeDefined()
-  return node!
-}
+beforeAll(() => {
+  rootStore = parseTurtle(readFileSync(resolve(__dirname, '../fixtures/fdp-root.ttl'), 'utf-8'))
+  catalogStore = parseTurtle(readFileSync(resolve(__dirname, '../fixtures/catalog.ttl'), 'utf-8'))
+})
 
 describe('parseTurtle', () => {
-  const catalogNodes = parseTurtle(
-    readFileSync(resolve(__dirname, '../fixtures/catalog.ttl'), 'utf-8'),
-  )
-
-  it('returns an empty array for empty input', () => {
-    expect(parseTurtle('')).toEqual([])
+  it('returns an empty Store for empty input', () => {
+    expect(parseTurtle('').size).toBe(0)
   })
 
   it('throws on invalid Turtle', () => {
     expect(() => parseTurtle('this is not valid turtle @@')).toThrow()
   })
 
-  it('contains all top-level subject IRIs', () => {
-    const ids = rootNodes.map((n) => n['@id'])
-    expect(ids).toContain('http://localhost')
-    expect(ids).toContain('http://localhost/catalog/')
-    expect(ids).toContain('http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c')
-    expect(ids).toContain('http://localhost#accessRights')
-    expect(ids).toContain('http://localhost#publisher')
-    expect(ids).toContain('http://localhost#identifier')
-    expect(ids).toContain('http://localhost/metrics/445c0a70d1e214e545b261559e2842f4')
-    expect(ids).toContain('http://localhost/metrics/5d27e854a9e78eb3f663331cd47cdc13')
+  it('contains all top-level named subject IRIs', () => {
+    const uris = rootStore
+      .getSubjects(null, null, null)
+      .filter((s) => s.termType === 'NamedNode')
+      .map((s) => s.value)
+    expect(uris).toContain('http://localhost')
+    expect(uris).toContain('http://localhost/catalog/')
+    expect(uris).toContain('http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c')
+    expect(uris).toContain('http://localhost#accessRights')
+    expect(uris).toContain('http://localhost#publisher')
+    expect(uris).toContain('http://localhost#identifier')
+    expect(uris).toContain('http://localhost/metrics/445c0a70d1e214e545b261559e2842f4')
+    expect(uris).toContain('http://localhost/metrics/5d27e854a9e78eb3f663331cd47cdc13')
   })
 
-  it('contains all rdf:type values for the root node', () => {
-    const fdp = getNode('http://localhost')
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#MetadataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#DataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#Resource')
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#FAIRDataPoint')
+  it('makes rdf:type values queryable for the root node', () => {
+    expect(
+      hasType(rootStore, 'http://localhost', 'https://w3id.org/fdp/fdp-o#MetadataService'),
+    ).toBe(true)
+    expect(hasType(rootStore, 'http://localhost', 'http://www.w3.org/ns/dcat#DataService')).toBe(
+      true,
+    )
+    expect(hasType(rootStore, 'http://localhost', 'http://www.w3.org/ns/dcat#Resource')).toBe(true)
+    expect(hasType(rootStore, 'http://localhost', 'https://w3id.org/fdp/fdp-o#FAIRDataPoint')).toBe(
+      true,
+    )
   })
 
-  it('represents a string literal as a typed @value object', () => {
-    const fdp = getNode('http://localhost')
-    expect(fdp[DCT_TITLE]).toContainEqual({ '@value': 'My FAIR Data Point', '@type': XSD_STRING })
-    const publisher = getNode('http://localhost#publisher')
-    expect(publisher[FOAF_NAME]).toContainEqual({
-      '@value': 'Default Publisher',
-      '@type': XSD_STRING,
-    })
-    const container = getNode('http://localhost/catalog/')
-    expect(container[DCT_TITLE]).toContainEqual({ '@value': 'Catalogs', '@type': XSD_STRING })
+  it('makes string literals queryable', () => {
+    expect(getFirstLiteral(rootStore, 'http://localhost', DCT_TITLE)).toBe('My FAIR Data Point')
+    expect(getFirstLiteral(rootStore, 'http://localhost#publisher', FOAF_NAME)).toBe(
+      'Default Publisher',
+    )
+    expect(getFirstLiteral(rootStore, 'http://localhost/catalog/', DCT_TITLE)).toBe('Catalogs')
   })
 
-  it('represents a typed dateTime literal as a @value object', () => {
-    const fdp = getNode('http://localhost')
-    expect(fdp[FDP_METADATA_ISSUED]).toContainEqual({
-      '@value': '2026-04-23T12:31:46.89141577Z',
-      '@type': XSD_DATETIME,
-    })
-    expect(fdp[FDP_METADATA_MODIFIED]).toContainEqual({
-      '@value': '2026-04-23T12:39:06.394302314Z',
-      '@type': XSD_DATETIME,
-    })
+  it('makes dateTime literals queryable (formatted as DD-MM-YYYY)', () => {
+    expect(getFirstLiteral(rootStore, 'http://localhost', FDP_METADATA_ISSUED)).toBe('23-04-2026')
+    expect(getFirstLiteral(rootStore, 'http://localhost', FDP_METADATA_MODIFIED)).toBe('23-04-2026')
   })
 
-  it('represents a linked resource as a @id object', () => {
-    const fdp = getNode('http://localhost')
-    expect(fdp[FDP_METADATA_CATALOG]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
-    expect(fdp[DCT_PUBLISHER]).toContainEqual({ '@id': 'http://localhost#publisher' })
-    expect(fdp[DCT_LICENSE]).toContainEqual({ '@id': 'http://purl.org/NET/rdflicense/cc-zero1.0' })
+  it('makes named node links queryable', () => {
+    expect(getNodeRefs(rootStore, 'http://localhost', FDP_METADATA_CATALOG)).toContain(
+      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+    )
+    expect(getNodeRefs(rootStore, 'http://localhost', DCT_PUBLISHER)).toContain(
+      'http://localhost#publisher',
+    )
+    expect(getNodeRefs(rootStore, 'http://localhost', DCT_LICENSE)).toContain(
+      'http://purl.org/NET/rdflicense/cc-zero1.0',
+    )
   })
 
   it('represents sub-resources with their own types and properties', () => {
-    const publisher = getNode('http://localhost#publisher')
-    expect(publisher['@type']).toContain('http://xmlns.com/foaf/0.1/Agent')
-
-    const accessRights = getNode('http://localhost#accessRights')
-    expect(accessRights['@type']).toContain('http://purl.org/dc/terms/RightsStatement')
-    expect(accessRights[DCT_DESCRIPTION]).toContainEqual({
-      '@value': 'This resource has no access restriction',
-      '@type': XSD_STRING,
-    })
-
-    const identifier = getNode('http://localhost#identifier')
-    expect(identifier['@type']).toContain('http://purl.org/spar/datacite/Identifier')
-    expect(identifier[DCT_IDENTIFIER]).toContainEqual({
-      '@value': 'http://localhost',
-      '@type': XSD_STRING,
-    })
+    expect(
+      hasType(rootStore, 'http://localhost#publisher', 'http://xmlns.com/foaf/0.1/Agent'),
+    ).toBe(true)
+    expect(
+      hasType(
+        rootStore,
+        'http://localhost#accessRights',
+        'http://purl.org/dc/terms/RightsStatement',
+      ),
+    ).toBe(true)
+    expect(getFirstLiteral(rootStore, 'http://localhost#accessRights', DCT_DESCRIPTION)).toBe(
+      'This resource has no access restriction',
+    )
   })
 
   it('represents the LDP container with its structure and links', () => {
-    const container = getNode('http://localhost/catalog/')
-    expect(container['@type']).toContain(LDP_DIRECT_CONTAINER)
-    expect(container[LDP_MEMBERSHIP_RESOURCE]).toContainEqual({ '@id': 'http://localhost' })
-    expect(container[LDP_HAS_MEMBER_RELATION]).toContainEqual({ '@id': FDP_METADATA_CATALOG })
-    expect(container[LDP_CONTAINS]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
-  })
-
-  it('represents a blank node reference as a @id object with a _: prefixed identifier', () => {
-    // catalog.ttl uses inline blank node syntax [] for publisher
-    const catalog = getNode(
-      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-      catalogNodes,
+    expect(hasType(rootStore, 'http://localhost/catalog/', LDP_DIRECT_CONTAINER)).toBe(true)
+    expect(getNodeRefs(rootStore, 'http://localhost/catalog/', LDP_MEMBERSHIP_RESOURCE)).toContain(
+      'http://localhost',
     )
-    const publisherRef = (catalog[DCT_PUBLISHER] as IdRef[])[0]
-    expect(publisherRef).toHaveProperty('@id')
-    expect(publisherRef['@id']).toMatch(/^_:/)
-  })
-
-  it('represents a blank node with its own type and properties', () => {
-    const catalog = getNode(
-      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-      catalogNodes,
+    expect(getNodeRefs(rootStore, 'http://localhost/catalog/', LDP_HAS_MEMBER_RELATION)).toContain(
+      FDP_METADATA_CATALOG,
     )
-    const publisherRef = (catalog[DCT_PUBLISHER] as IdRef[])[0]
-    const blankNode = getNode(publisherRef['@id'], catalogNodes)
-    expect(blankNode['@type']).toContain('http://xmlns.com/foaf/0.1/Agent')
-    expect(blankNode[FOAF_NAME]).toContainEqual({
-      '@value': 'Default Publisher',
-      '@type': XSD_STRING,
-    })
-  })
-})
-
-describe('flattenGraph (Turtle input)', () => {
-  const flatTtlNodes = flattenGraph(rootNodes)
-
-  it('contains all subject IRIs', () => {
-    const ids = flatTtlNodes.map((n) => n['@id'])
-    expect(ids).toContain('http://localhost')
-    expect(ids).toContain('http://localhost/catalog/')
-    expect(ids).toContain('http://localhost#publisher')
-    expect(ids).toContain('http://localhost#accessRights')
-    expect(ids).toContain('http://localhost#identifier')
+    expect(getNodeRefs(rootStore, 'http://localhost/catalog/', LDP_CONTAINS)).toContain(
+      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+    )
   })
 
-  it('contains all rdf:type values for the root node', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#MetadataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#DataService')
-    expect(fdp['@type']).toContain('http://www.w3.org/ns/dcat#Resource')
-    expect(fdp['@type']).toContain('https://w3id.org/fdp/fdp-o#FAIRDataPoint')
+  it('returns blank node IDs prefixed with _: for blank node object values', () => {
+    const publisherRefs = getNodeRefs(
+      catalogStore,
+      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+      DCT_PUBLISHER,
+    )
+    expect(publisherRefs).toHaveLength(1)
+    expect(publisherRefs[0]).toMatch(/^_:/)
   })
 
-  it('represents a string literal as a typed @value object with @type xsd:string', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp[DCT_TITLE]).toContainEqual({ '@value': 'My FAIR Data Point', '@type': XSD_STRING })
-    const publisher = getNode('http://localhost#publisher', flatTtlNodes)
-    expect(publisher[FOAF_NAME]).toContainEqual({
-      '@value': 'Default Publisher',
-      '@type': XSD_STRING,
-    })
-  })
+  it('stores blank node triples queryable by their term', () => {
+    const catalog = DataFactory.namedNode(
+      'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
+    )
+    const publisherTerms = catalogStore.getObjects(
+      catalog,
+      DataFactory.namedNode(DCT_PUBLISHER),
+      null,
+    )
+    expect(publisherTerms).toHaveLength(1)
+    expect(publisherTerms[0].termType).toBe('BlankNode')
 
-  it('represents a linked resource as a @id object', () => {
-    const fdp = getNode('http://localhost', flatTtlNodes)
-    expect(fdp[FDP_METADATA_CATALOG]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
-    expect(fdp[DCT_PUBLISHER]).toContainEqual({ '@id': 'http://localhost#publisher' })
-    expect(fdp[DCT_LICENSE]).toContainEqual({
-      '@id': 'http://purl.org/NET/rdflicense/cc-zero1.0',
-    })
-  })
-
-  it('represents the LDP container with its structure and links', () => {
-    const container = getNode('http://localhost/catalog/', flatTtlNodes)
-    expect(container['@type']).toContain(LDP_DIRECT_CONTAINER)
-    expect(container[LDP_MEMBERSHIP_RESOURCE]).toContainEqual({ '@id': 'http://localhost' })
-    expect(container[LDP_HAS_MEMBER_RELATION]).toContainEqual({ '@id': FDP_METADATA_CATALOG })
-    expect(container[LDP_CONTAINS]).toContainEqual({
-      '@id': 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-    })
+    const foafName = catalogStore
+      .getObjects(publisherTerms[0], DataFactory.namedNode(FOAF_NAME), null)
+      .find((o) => o.termType === 'Literal')
+    expect(foafName?.value).toBe('Default Publisher')
   })
 })
 
 describe('hasType', () => {
-  it('returns true when the node has the given type among multiple types', () => {
-    const node = { '@id': 'http://ex/a', '@type': [FDP_TYPE, LDP_DIRECT_CONTAINER] }
-    expect(hasType(node, FDP_TYPE)).toBe(true)
+  it('returns true when the subject has the given type among multiple types', () => {
+    const store = parseTurtle(`<http://ex/a> a <${FDP_TYPE}>, <${LDP_DIRECT_CONTAINER}> .`)
+    expect(hasType(store, 'http://ex/a', FDP_TYPE)).toBe(true)
   })
 
-  it('returns false when the node does not have the given type', () => {
-    const node = { '@id': 'http://ex/a', '@type': [LDP_DIRECT_CONTAINER] }
-    expect(hasType(node, FDP_TYPE)).toBe(false)
+  it('returns false when the subject does not have the given type', () => {
+    const store = parseTurtle(`<http://ex/a> a <${LDP_DIRECT_CONTAINER}> .`)
+    expect(hasType(store, 'http://ex/a', FDP_TYPE)).toBe(false)
   })
 
-  it('returns false when the node has no @type', () => {
-    const node = { '@id': 'http://ex/a' }
-    expect(hasType(node, FDP_TYPE)).toBe(false)
+  it('returns false when the subject has no rdf:type', () => {
+    const store = parseTurtle(`<http://ex/a> <${DCT_TITLE}> "test" .`)
+    expect(hasType(store, 'http://ex/a', FDP_TYPE)).toBe(false)
   })
 
-  it('returns false when @type is an empty array', () => {
-    const node = { '@id': 'http://ex/a', '@type': [] }
-    expect(hasType(node, FDP_TYPE)).toBe(false)
+  it('returns false for a URI not present in the store', () => {
+    const store = parseTurtle(`<http://ex/b> a <${FDP_TYPE}> .`)
+    expect(hasType(store, 'http://ex/a', FDP_TYPE)).toBe(false)
+  })
+})
+
+describe('resolveSubjectUri', () => {
+  it('matches the preferred URI without a trailing slash when the store subject omits it', () => {
+    expect(resolveSubjectUri(rootStore, 'http://localhost/')).toBe('http://localhost')
   })
 
-  it('returns false when @type is not an array', () => {
-    const node = { '@id': 'http://ex/a', '@type': 'http://ex/TypeA' } as unknown as RdfNode
-    expect(hasType(node, FDP_TYPE)).toBe(false)
+  it('matches the preferred URI with a trailing slash when the store subject includes it', () => {
+    const store = parseTurtle(`<http://ex/root/> a <${FDP_TYPE}> .`)
+    expect(resolveSubjectUri(store, 'http://ex/root')).toBe('http://ex/root/')
+  })
+
+  it('returns null when neither preferred URI variant is a subject', () => {
+    const store = parseTurtle(`<http://ex/other> a <${FDP_TYPE}> .`)
+    expect(resolveSubjectUri(store, 'http://ex/root')).toBeNull()
   })
 })
 
@@ -268,146 +222,112 @@ describe('compactUri', () => {
 
 describe('formatLiteralValue', () => {
   it('returns the string value for a typed xsd:string literal', () => {
-    expect(formatLiteralValue({ '@value': 'My FAIR Data Point', '@type': XSD_STRING })).toBe(
-      'My FAIR Data Point',
-    )
+    const lit = DataFactory.literal('My FAIR Data Point', DataFactory.namedNode(XSD_STRING))
+    expect(formatLiteralValue(lit)).toBe('My FAIR Data Point')
   })
 
-  it('returns the string value for a bare literal without @type', () => {
-    expect(formatLiteralValue({ '@value': 'My FAIR Data Point' })).toBe('My FAIR Data Point')
+  it('returns the string value for a plain literal (xsd:string default)', () => {
+    const lit = DataFactory.literal('My FAIR Data Point')
+    expect(formatLiteralValue(lit)).toBe('My FAIR Data Point')
   })
 
   it('formats an xsd:dateTime value as DD-MM-YYYY', () => {
-    expect(
-      formatLiteralValue({ '@value': '2026-04-23T12:31:46.89141577Z', '@type': XSD_DATETIME }),
-    ).toBe('23-04-2026')
+    const lit = DataFactory.literal(
+      '2026-04-23T12:31:46.89141577Z',
+      DataFactory.namedNode(XSD_DATETIME),
+    )
+    expect(formatLiteralValue(lit)).toBe('23-04-2026')
   })
 
   it('formats an xsd:date value as DD-MM-YYYY', () => {
-    expect(formatLiteralValue({ '@value': '2026-04-23', '@type': XSD_DATE })).toBe('23-04-2026')
-  })
-
-  it('returns null for a linked resource reference with no @value', () => {
-    expect(formatLiteralValue({ '@id': 'http://localhost#publisher' })).toBeNull()
-  })
-
-  it('returns null when @value is not a string', () => {
-    expect(formatLiteralValue({ '@value': 42 } as unknown as RdfValue)).toBeNull()
+    const lit = DataFactory.literal('2026-04-23', DataFactory.namedNode(XSD_DATE))
+    expect(formatLiteralValue(lit)).toBe('23-04-2026')
   })
 })
 
 describe('getFirstLiteral', () => {
   it('returns the first literal value for a given predicate', () => {
-    const node = { [DCT_TITLE]: [{ '@value': 'Hello', '@type': XSD_STRING }] }
-    expect(getFirstLiteral(node, DCT_TITLE)).toBe('Hello')
+    const store = parseTurtle(`<http://ex/a> <${DCT_TITLE}> "Hello" .`)
+    expect(getFirstLiteral(store, 'http://ex/a', DCT_TITLE)).toBe('Hello')
   })
 
-  it('returns null when node is null', () => {
-    expect(getFirstLiteral(null, DCT_TITLE)).toBeNull()
+  it('returns null when the predicate is not present', () => {
+    const store = parseTurtle(`<http://ex/a> a <http://ex/Type> .`)
+    expect(getFirstLiteral(store, 'http://ex/a', DCT_TITLE)).toBeNull()
   })
 
-  it('returns null when the predicate is not present on the node', () => {
-    const node = { '@id': 'http://ex/a' }
-    expect(getFirstLiteral(node, DCT_TITLE)).toBeNull()
+  it('returns null for a URI not in the store', () => {
+    const store = parseTurtle(`<http://ex/b> <${DCT_TITLE}> "Hello" .`)
+    expect(getFirstLiteral(store, 'http://ex/a', DCT_TITLE)).toBeNull()
   })
 
-  it('skips non-literal values and returns the first literal', () => {
-    const node = {
-      [DCT_TITLE]: [{ '@id': 'http://ex/link' }, { '@value': 'Hello', '@type': XSD_STRING }],
-    }
-    expect(getFirstLiteral(node, DCT_TITLE)).toBe('Hello')
+  it('skips named node values and returns the first literal', () => {
+    const store = parseTurtle(
+      `<http://ex/a> <${DCT_TITLE}> <http://ex/link> ; <${DCT_TITLE}> "Hello" .`,
+    )
+    expect(getFirstLiteral(store, 'http://ex/a', DCT_TITLE)).toBe('Hello')
   })
 
-  it('returns null when no literal values are present', () => {
-    const node = { [DCT_TITLE]: [{ '@id': 'http://ex/link' }] }
-    expect(getFirstLiteral(node, DCT_TITLE)).toBeNull()
+  it('returns null when only named node values are present', () => {
+    const store = parseTurtle(`<http://ex/a> <${DCT_TITLE}> <http://ex/link> .`)
+    expect(getFirstLiteral(store, 'http://ex/a', DCT_TITLE)).toBeNull()
   })
 })
 
-describe('getIdValues', () => {
-  it('returns the @id values for a given predicate', () => {
-    const node = { [DCT_PUBLISHER]: [{ '@id': 'http://ex/publisher' }] }
-    expect(getIdValues(node, DCT_PUBLISHER)).toEqual(['http://ex/publisher'])
+describe('getNodeRefs', () => {
+  it('returns the named node values for a given predicate', () => {
+    const store = parseTurtle(`<http://ex/a> <${DCT_PUBLISHER}> <http://ex/publisher> .`)
+    expect(getNodeRefs(store, 'http://ex/a', DCT_PUBLISHER)).toEqual(['http://ex/publisher'])
   })
 
-  it('returns an empty array when node is null', () => {
-    expect(getIdValues(null, DCT_PUBLISHER)).toEqual([])
+  it('returns an empty array when the predicate is not present', () => {
+    const store = parseTurtle(`<http://ex/a> a <http://ex/Type> .`)
+    expect(getNodeRefs(store, 'http://ex/a', DCT_PUBLISHER)).toEqual([])
   })
 
-  it('returns an empty array when the predicate is not present on the node', () => {
-    const node = { '@id': 'http://ex/a' }
-    expect(getIdValues(node, DCT_PUBLISHER)).toEqual([])
+  it('returns an empty array for a URI not in the store', () => {
+    const store = parseTurtle(`<http://ex/b> <${DCT_PUBLISHER}> <http://ex/publisher> .`)
+    expect(getNodeRefs(store, 'http://ex/a', DCT_PUBLISHER)).toEqual([])
   })
 
-  it('skips literal values and returns only @id strings', () => {
-    const node = {
-      [DCT_PUBLISHER]: [
-        { '@value': 'not a link', '@type': XSD_STRING },
-        { '@id': 'http://ex/publisher' },
-      ],
-    }
-    expect(getIdValues(node, DCT_PUBLISHER)).toEqual(['http://ex/publisher'])
+  it('skips literal values and returns only named node IRIs', () => {
+    const store = parseTurtle(
+      `<http://ex/a> <${DCT_PUBLISHER}> "not a link" ; <${DCT_PUBLISHER}> <http://ex/publisher> .`,
+    )
+    expect(getNodeRefs(store, 'http://ex/a', DCT_PUBLISHER)).toEqual(['http://ex/publisher'])
   })
 
-  it('returns an empty array when no @id values are present', () => {
-    const node = { [DCT_PUBLISHER]: [{ '@value': 'not a link', '@type': XSD_STRING }] }
-    expect(getIdValues(node, DCT_PUBLISHER)).toEqual([])
+  it('returns blank node IDs prefixed with _:', () => {
+    const store = parseTurtle(`<http://ex/a> <${DCT_PUBLISHER}> [] .`)
+    const ids = getNodeRefs(store, 'http://ex/a', DCT_PUBLISHER)
+    expect(ids).toHaveLength(1)
+    expect(ids[0]).toMatch(/^_:/)
   })
 })
 
 describe('uriLabel', () => {
-  it('returns dct:title when node has one', () => {
-    const node = { [DCT_TITLE]: [{ '@value': 'My Catalog' }] }
-    expect(uriLabel('http://ex/catalog', node)).toBe('My Catalog')
+  it('returns dct:title when available', () => {
+    const store = parseTurtle(`<http://ex/catalog> <${DCT_TITLE}> "My Catalog" .`)
+    expect(uriLabel(store, 'http://ex/catalog')).toBe('My Catalog')
   })
 
-  it('returns rdfs:label when node has no dct:title', () => {
-    const node = { [RDFS_LABEL]: [{ '@value': 'My Label' }] }
-    expect(uriLabel('http://ex/catalog', node)).toBe('My Label')
+  it('returns rdfs:label when dct:title is not present', () => {
+    const store = parseTurtle(`<http://ex/catalog> <${RDFS_LABEL}> "My Label" .`)
+    expect(uriLabel(store, 'http://ex/catalog')).toBe('My Label')
   })
 
-  it('returns foaf:name when node has no title or label', () => {
-    const node = { [FOAF_NAME]: [{ '@value': 'Default Publisher' }] }
-    expect(uriLabel('http://ex/publisher', node)).toBe('Default Publisher')
+  it('returns foaf:name when no title or label is present', () => {
+    const store = parseTurtle(`<http://ex/pub> <${FOAF_NAME}> "Default Publisher" .`)
+    expect(uriLabel(store, 'http://ex/pub')).toBe('Default Publisher')
   })
 
-  it('falls back to the last URI path segment when node has no known label predicate', () => {
-    // 'http://ex/some/resource' -> 'resource'
-    expect(uriLabel('http://ex/some/resource', { '@id': 'http://ex/some/resource' })).toBe(
-      'resource',
-    )
+  it('falls back to the last URI path segment when the store has no label for the URI', () => {
+    const store = parseTurtle('')
+    expect(uriLabel(store, 'http://ex/some/resource')).toBe('resource')
   })
 
-  it('falls back to the last URI path segment when node is null', () => {
-    expect(uriLabel('http://ex/some/resource', null)).toBe('resource')
-  })
-})
-
-describe('internalHref', () => {
-  beforeAll(() => vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost'))
-  afterAll(() => vi.unstubAllEnvs())
-
-  it('returns / for the base URL', () => {
-    expect(internalHref('http://localhost')).toBe('/')
-  })
-
-  it('returns / for the base URL with a trailing slash', () => {
-    expect(internalHref('http://localhost/')).toBe('/')
-  })
-
-  it('returns the two-segment path for a resource URL', () => {
-    // 'http://localhost/catalog/some-id' -> '/catalog/some-id'
-    expect(internalHref('http://localhost/catalog/some-id')).toBe('/catalog/some-id')
-  })
-
-  it('returns / for a one-segment URL under the base', () => {
-    // Only one path segment after the base, not enough to identify a resource.
-    expect(internalHref('http://localhost/catalog')).toBe('/')
-  })
-
-  it('returns the URI unchanged for an external URL', () => {
-    expect(internalHref('https://external.example.org/resource')).toBe(
-      'https://external.example.org/resource',
-    )
+  it('falls back to the last URI path segment for an unrelated store', () => {
+    const store = parseTurtle(`<http://ex/other> <${DCT_TITLE}> "Other" .`)
+    expect(uriLabel(store, 'http://ex/some/resource')).toBe('resource')
   })
 })
