@@ -2,14 +2,17 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, createUser, updateUser, updateUserPassword } from '../composables/fdpApi'
-import type { User } from '../composables/useAuth'
+import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
 
 const route = useRoute()
 const router = useRouter()
+const { updateCurrentUser } = useAuth()
 
 const isCreate = computed(() => route.name === 'user-create')
+const isSelf = computed(() => route.name === 'user-profile')
+const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
 
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -34,18 +37,20 @@ const passwordSuccess = ref<string | null>(null)
 const passwordSubmitted = ref(false)
 
 const savedName = ref('')
+const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
 async function loadUser() {
   loading.value = true
   loadError.value = null
   try {
-    const u = (await fetchUser(route.params.id as string)) as User
+    const u = (await fetchUser(userId.value)) as User
     firstName.value = u.firstName
     lastName.value = u.lastName
     email.value = u.email
     role.value = u.role
     savedName.value = `${u.firstName} ${u.lastName}`
+    savedUuid.value = u.uuid
   } catch (err) {
     loadError.value = err instanceof Error ? err.message : 'Unable to load user.'
   } finally {
@@ -95,13 +100,22 @@ async function submitProfile() {
   profileSuccess.value = null
   profileSaving.value = true
   try {
-    await updateUser(route.params.id as string, {
+    await updateUser(userId.value, {
       firstName: firstName.value,
       lastName: lastName.value,
       email: email.value,
       role: role.value,
     })
     savedName.value = `${firstName.value} ${lastName.value}`
+    if (isSelf.value) {
+      updateCurrentUser({
+        uuid: savedUuid.value,
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+        role: role.value,
+      })
+    }
     profileSuccess.value = 'User profile was successfully updated!'
   } catch (err) {
     profileError.value = err instanceof Error ? err.message : 'Unable to update profile.'
@@ -117,7 +131,7 @@ async function submitPassword() {
   passwordSuccess.value = null
   passwordSaving.value = true
   try {
-    await updateUserPassword(route.params.id as string, newPassword.value)
+    await updateUserPassword(userId.value, newPassword.value)
     newPassword.value = ''
     passwordConfirm.value = ''
     passwordSubmitted.value = false
@@ -130,12 +144,12 @@ async function submitPassword() {
 }
 
 onMounted(() => {
-  if (!isCreate.value) loadUser()
+  if (!isCreate.value) void loadUser()
 })
 </script>
 
 <template>
-  <nav class="breadcrumbs" aria-label="Breadcrumb">
+  <nav v-if="!isSelf" class="breadcrumbs" aria-label="Breadcrumb">
     <div class="breadcrumbs__inner">
       <RouterLink to="/users" class="breadcrumb-link">Users</RouterLink>
       <span class="breadcrumb-sep">/</span>
@@ -196,6 +210,7 @@ onMounted(() => {
             v-model:email="email"
             v-model:role="role"
             :submitted="profileSubmitted"
+            :hide-role="isSelf"
           />
 
           <button type="submit" class="user-form__btn" :disabled="profileSaving">

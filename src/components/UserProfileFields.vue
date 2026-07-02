@@ -6,7 +6,7 @@ const lastName = defineModel<string>('lastName', { required: true })
 const email = defineModel<string>('email', { required: true })
 const role = defineModel<string>('role', { required: true })
 
-defineProps<{ submitted: boolean }>()
+defineProps<{ submitted: boolean; hideRole?: boolean }>()
 </script>
 
 <template>
@@ -39,7 +39,7 @@ defineProps<{ submitted: boolean }>()
       This is not a valid email.
     </p>
   </div>
-  <div class="user-form__group">
+  <div v-if="!hideRole" class="user-form__group">
     <label for="uf-role">Role</label>
     <select id="uf-role" v-model="role">
       <option value="USER">USER</option>

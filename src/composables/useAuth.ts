@@ -31,6 +31,7 @@ function clearSession() {
   setAuthToken(null)
 }
 
+/** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
 export const authReady: Promise<void> = token.value
   ? fetchCurrentUser()
       .then((u) => {
@@ -39,6 +40,10 @@ export const authReady: Promise<void> = token.value
       .catch(() => clearSession())
   : Promise.resolve()
 
+/**
+ * Derives a deterministic two-tone gradient from an email, used as an avatar background.
+ * Ported from the hash formula in the Vue2 client's Avatar component (fixed at full saturation).
+ */
 export function avatarColor(email: string): string {
   const hash = [...email].reduce((acc, c) => acc + 43 * c.charCodeAt(0), 0)
   const h1 = hash % 360
@@ -49,6 +54,7 @@ export function avatarColor(email: string): string {
   return `linear-gradient(45deg, hsl(${h1}, 100%, ${l1}%), hsl(${h2}, 100%, ${l2}%))`
 }
 
+/** Derives up to two initials from an email address for display in the avatar. */
 export function userInitials(email: string | null): string {
   if (!email) return '?'
   const name = email.split('@')[0] ?? ''
@@ -80,14 +86,21 @@ export function useAuth() {
     clearSession()
   }
 
+  /** Updates the cached current user after a self-service profile edit. */
+  function updateCurrentUser(updated: User) {
+    user.value = updated
+    userEmail.value = updated.email
+    sessionStorage.setItem(SESSION_EMAIL_KEY, updated.email)
+  }
+
   return {
     token,
     userEmail,
     user,
     isLoggedIn,
     isAdmin,
-    userInitials,
     login,
     logout,
+    updateCurrentUser,
   }
 }

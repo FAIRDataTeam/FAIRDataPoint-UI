@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { useAuth } from '../../src/composables/useAuth'
+import { useAuth, userInitials } from '../../src/composables/useAuth'
 
 vi.hoisted(() => {
   const store: Record<string, string> = {}
@@ -33,7 +33,13 @@ describe('login', () => {
       json: async () =>
         String(url).endsWith('/tokens')
           ? { token: 'efIobn394nvJJFJ30...' }
-          : { uuid: '1', firstName: 'Albert', lastName: 'Einstein', email: 'user@example.com', role: 'USER' },
+          : {
+              uuid: '1',
+              firstName: 'Albert',
+              lastName: 'Einstein',
+              email: 'user@example.com',
+              role: 'USER',
+            },
     }))
     const { login, token, userEmail, isLoggedIn } = useAuth()
     await login('user@example.com', 'secret')
@@ -48,7 +54,13 @@ describe('login', () => {
       json: async () =>
         String(url).endsWith('/tokens')
           ? { token: 'tok123' }
-          : { uuid: 'u1', firstName: 'Albert', lastName: 'Einstein', email: 'a@example.com', role: 'ADMIN' },
+          : {
+              uuid: 'u1',
+              firstName: 'Albert',
+              lastName: 'Einstein',
+              email: 'a@example.com',
+              role: 'ADMIN',
+            },
     }))
     const { login, user, isAdmin } = useAuth()
     await login('a@example.com', 'secret')
@@ -58,7 +70,8 @@ describe('login', () => {
 
   it('clears session and rejects when /users/current fails', async () => {
     vi.stubGlobal('fetch', async (url: string) => {
-      if (String(url).endsWith('/tokens')) return { ok: true, json: async () => ({ token: 'tok123' }) }
+      if (String(url).endsWith('/tokens'))
+        return { ok: true, json: async () => ({ token: 'tok123' }) }
       return { ok: false, status: 500 }
     })
     const { login, token, user, isLoggedIn } = useAuth()
@@ -105,7 +118,6 @@ describe('login', () => {
 // logout
 
 describe('logout', () => {
-
   beforeEach(() => {
     vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost')
   })
@@ -133,11 +145,30 @@ describe('logout', () => {
   })
 })
 
+// updateCurrentUser
+
+describe('updateCurrentUser', () => {
+  afterEach(() => {
+    useAuth().logout()
+  })
+
+  it('updates user and userEmail', () => {
+    const { updateCurrentUser, user, userEmail } = useAuth()
+    updateCurrentUser({
+      uuid: 'u1',
+      firstName: 'Nikola',
+      lastName: 'Tesla',
+      email: 'nikola.tesla@example.com',
+      role: 'USER',
+    })
+    expect(user.value).toMatchObject({ firstName: 'Nikola', lastName: 'Tesla' })
+    expect(userEmail.value).toBe('nikola.tesla@example.com')
+  })
+})
+
 // userInitials
 
 describe('userInitials', () => {
-  const { userInitials } = useAuth()
-
   it('returns "?" for null', () => {
     expect(userInitials(null)).toBe('?')
   })

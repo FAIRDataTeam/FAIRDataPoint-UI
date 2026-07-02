@@ -55,6 +55,12 @@ const router = createRouter({
       meta: { requiresAuth: true, requiresAdmin: true },
     },
     {
+      path: '/users/current',
+      name: 'user-profile',
+      component: UserFormView,
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/users/:id',
       name: 'user-detail',
       component: UserFormView,

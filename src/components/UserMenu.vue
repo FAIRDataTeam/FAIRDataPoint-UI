@@ -3,6 +3,7 @@ import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
 import { useAuth, avatarColor, userInitials } from '../composables/useAuth'
 import IconUsers from '../assets/icons/users.svg?component'
+import IconUserEdit from '../assets/icons/user-edit.svg?component'
 import IconLogOut from '../assets/icons/log-out.svg?component'
 import IconChevronDown from '../assets/icons/chevron-down.svg?component'
 
@@ -71,6 +72,10 @@ onUnmounted(() => {
       <div class="user-dropdown__section-header">
         {{ user ? `${user.firstName} ${user.lastName}` : userEmail }}
       </div>
+      <RouterLink to="/users/current" class="user-dropdown__item" @click="menuOpen = false">
+        <IconUserEdit />
+        Edit profile
+      </RouterLink>
       <button type="button" class="user-dropdown__item" @click="handleLogout">
         <IconLogOut />
         Log out
