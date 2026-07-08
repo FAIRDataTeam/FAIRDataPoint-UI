@@ -10,10 +10,15 @@ const users = ref<User[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
 
+/** Two-letter initials shown in the list avatar, e.g. "Albert Einstein" -> "AE". */
 function nameInitials(user: User): string {
   return ((user.firstName[0] ?? '') + (user.lastName[0] ?? '')).toUpperCase()
 }
 
+/**
+ * Fetches all users from the API and sorts them alphabetically by full name,
+ * e.g. "Albert Einstein" before "Nikola Tesla".
+ * */
 async function loadUsers() {
   loading.value = true
   error.value = null
@@ -29,6 +34,7 @@ async function loadUsers() {
   }
 }
 
+/** Deletes a user (after confirmation) and refreshes the list. */
 async function handleDelete(user: User) {
   if (!window.confirm(`Are you sure you want to delete ${user.firstName} ${user.lastName}?`)) return
   try {

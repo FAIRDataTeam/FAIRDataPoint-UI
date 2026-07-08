@@ -10,6 +10,9 @@ const route = useRoute()
 const router = useRouter()
 const { updateCurrentUser } = useAuth()
 
+// This view handles three routes: creating a new user (admin only), an admin
+// editing another user's profile (/users/:id), and a user editing their own
+// profile (/users/current, isSelf), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
 const isSelf = computed(() => route.name === 'user-profile')
 const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
@@ -40,6 +43,7 @@ const savedName = ref('')
 const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
+/** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
   loading.value = true
   loadError.value = null
@@ -58,6 +62,7 @@ async function loadUser() {
   }
 }
 
+/** Validates the form and creates a new user via the API (admin only). */
 async function submitCreate() {
   profileSubmitted.value = true
   if (
@@ -87,6 +92,11 @@ async function submitCreate() {
   }
 }
 
+/**
+ * Validates the form and saves profile changes via the API. When editing your
+ * own profile, also updates useAuth's cached user so the header reflects the
+ * change without a page reload.
+ */
 async function submitProfile() {
   profileSubmitted.value = true
   if (
@@ -124,6 +134,7 @@ async function submitProfile() {
   }
 }
 
+/** Validates and submits a new password for the viewed/edited user via the API. */
 async function submitPassword() {
   passwordSubmitted.value = true
   if (!newPassword.value || newPassword.value !== passwordConfirm.value) return
