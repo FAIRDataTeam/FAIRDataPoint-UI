@@ -4,7 +4,7 @@
 # Stage 1: Build the Vue.js Application
 # =========================================
 # Use a lightweight DHI Node.js image for building
-FROM dhi.io/node:24-alpine3.22-dev AS builder
+FROM dhi.io/node:24.18.0-alpine3.24-dev@sha256:be2d2424a15059dfce410220ab4ec2eedcb7c044c8117f4cddcc2fa7a4b968fb AS builder
 
 # Set the working directory inside the container
 WORKDIR /app
@@ -25,7 +25,7 @@ RUN npm run build
 # Stage 2: Prepare Nginx to Serve Static Files
 # =========================================
 
-FROM dhi.io/nginx:1.28.0-alpine3.21-dev AS runner
+FROM dhi.io/nginx:1.30.3-alpine3.24@sha256:96d1aa0daa861c5dea1122135ca740861ae0afd910d111c48844cd114103cf0c AS runner
 
 # Copy custom Nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
