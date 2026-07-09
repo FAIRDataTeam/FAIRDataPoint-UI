@@ -18,7 +18,10 @@ RUN --mount=type=cache,target=/root/.npm npm ci
 # Copy the rest of the application source code into the container
 COPY . .
 
-# Build the Vue.js application
+# Build the Vue.js application.
+# As can be seen in package.json, this runs the type checker and then builds the app using Vite.
+# The resulting files end up in /app/dist (i.e. WORKDIR/dist) by default.
+# https://vite.dev/guide/build#building-for-production
 RUN npm run build
 
 # =========================================
