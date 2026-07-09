@@ -1,4 +1,6 @@
-# This Dockerfile is an adaptation of the example from https://docs.docker.com/guides/vuejs/
+# This Dockerfile is an adaptation of the example from https://docs.docker.com/guides/vuejs/.
+# The file uses hardened base images, so, before building, we need to authenticate with dhi.io:
+#   docker login dhi.io
 
 # =========================================
 # Stage 1: Build the Vue.js Application
