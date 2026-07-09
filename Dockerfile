@@ -33,7 +33,7 @@ RUN npm run build
 FROM dhi.io/nginx:1.30.3-alpine3.24@sha256:96d1aa0daa861c5dea1122135ca740861ae0afd910d111c48844cd114103cf0c AS runner
 
 # Copy custom Nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+COPY docker.nginx.conf /etc/nginx/nginx.conf
 
 # Copy the static build output from the build stage to Nginx's default HTML serving directory
 COPY --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html
