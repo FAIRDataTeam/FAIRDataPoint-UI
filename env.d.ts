@@ -2,4 +2,4 @@
 /// <reference types="vite-svg-loader" />
 
 declare const __APP_VERSION__: string
-declare const __APP_BUILD_AT__: string
+declare const __APP_BUILT_AT__: string
