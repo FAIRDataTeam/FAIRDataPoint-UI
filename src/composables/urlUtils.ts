@@ -1,6 +1,8 @@
+import { getRuntimeConfig } from '@/config.ts'
+
 /** @example getBaseUrl() // -> 'http://localhost'  (when VITE_FDP_BASE_URL = 'http://localhost/') */
 export function getBaseUrl(): string {
-  return import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  return getRuntimeConfig().fdpBaseUrl.replace(/\/$/, '')
 }
 
 /**
