@@ -20,7 +20,7 @@ type ServerInfo = { name: string; version: string; builtAt: string }
 const aboutOpen = ref(false)
 const serverInfo = ref<ServerInfo | null>(null)
 const appVersion = __APP_VERSION__
-const appBuildAt = __APP_BUILD_AT__
+const appBuiltAt = __APP_BUILT_AT__
 
 async function openAbout() {
   aboutOpen.value = true
@@ -158,7 +158,7 @@ async function openAbout() {
               </tr>
               <tr>
                 <td>Built at</td>
-                <td class="about-table__value">{{ new Date(appBuildAt).toLocaleString() }}</td>
+                <td class="about-table__value">{{ new Date(appBuiltAt).toLocaleString() }}</td>
               </tr>
             </tbody>
           </table>
