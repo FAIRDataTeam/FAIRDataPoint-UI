@@ -1,6 +1,6 @@
 import { getRuntimeConfig } from '@/config.ts'
 
-/** @example getBaseUrl() // -> 'http://localhost'  (when VITE_FDP_BASE_URL = 'http://localhost/') */
+/** @example getBaseUrl() // -> 'http://localhost'  (when fdpBaseUrl = 'http://localhost/') */
 export function getBaseUrl(): string {
   return getRuntimeConfig().fdpBaseUrl.replace(/\/$/, '')
 }
@@ -11,7 +11,7 @@ export function getBaseUrl(): string {
  * String prefix matching is used instead of URL object comparison: it is simpler and handles
  * all real cases correctly, since the base URL is a known configuration value (not arbitrary user input).
  * @example isInternalUri('http://localhost/catalog/1') // -> true
- * @example isInternalUri('https://example.com/foo')   // -> false
+ * @example isInternalUri('https://example.com/foo') // -> false
  */
 export function isInternalUri(uri: string): boolean {
   const base = getBaseUrl()

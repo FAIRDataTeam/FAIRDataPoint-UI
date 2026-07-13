@@ -30,12 +30,7 @@ function setupFetchFixtures(fixtureMap: Record<string, string>) {
 
 // Tests
 describe('useResourceView', () => {
-  beforeEach(() => {
-    vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost')
-  })
-
   afterEach(() => {
-    vi.unstubAllEnvs()
     vi.clearAllMocks()
   })
 
