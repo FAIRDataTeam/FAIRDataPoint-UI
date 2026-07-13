@@ -13,11 +13,13 @@
  * This allows users to override the runtime configuration using a Docker bind mount, if necessary.
  */
 
-const CONFIG_FILE_PATH = '/public/config.json'
+// Files from /public are served at root, so /public/config.json becomes /config.json
+// https://vite.dev/guide/assets#the-public-directory
+const CONFIG_FILE_PATH = '/config.json'
 
 // The config is loaded from JSON file asynchronously, so we need to await loadRuntimeConfig() once,
 // and then use getRuntimeConfig() whenever it is needed.
-let runtimeConfig: RuntimeConfig
+let runtimeConfig: RuntimeConfig | undefined
 
 /**
  * Defines the runtime configuration for the application.
@@ -40,6 +42,9 @@ export async function loadRuntimeConfig(): Promise<void> {
   runtimeConfig = (await response.json()) as RuntimeConfig
 }
 
+/**
+ * Gets the singleton runtime config
+ */
 export function getRuntimeConfig(): RuntimeConfig {
   if (!runtimeConfig) {
     throw new Error('Runtime configuration not loaded. Call loadRuntimeConfig first.')
