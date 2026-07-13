@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
@@ -17,5 +18,9 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __APP_BUILT_AT__: JSON.stringify(new Date().toISOString()),
+  },
+  test: {
+    // Setup files run before each test file, in the same process (unlike globalSetup)
+    setupFiles: ['./tests/vitest.setup.ts'],
   },
 })
