@@ -14,6 +14,9 @@ vi.mock('vue-router', () => ({
 
 const readFixture = (name: string) => readFileSync(resolve(__dirname, '../fixtures', name), 'utf-8')
 
+// Empty content for fetches, so useRdfLoader's loaders no-op instead of warning.
+const EMPTY_TTL = '# no data'
+
 const flushPromises = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 function mockRoute(params: Record<string, string | string[]> = {}) {
@@ -43,7 +46,11 @@ describe('useResourceView', () => {
   describe('FDP root', () => {
     beforeEach(() => {
       mockRoute({})
-      setupFetchFixtures({ 'http://localhost/': readFixture('fdp-root.ttl') })
+      setupFetchFixtures({
+        'http://localhost/': readFixture('fdp-root.ttl'),
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
+        'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c': EMPTY_TTL,
+      })
     })
 
     it('returns dct:title', async () => {
@@ -172,6 +179,7 @@ describe('useResourceView', () => {
         mockRoute({})
         setupFetchFixtures({
           'http://localhost/': readFixture('fdp-root.ttl'),
+          'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
           'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c':
             readFixture('profile-fdp-root.ttl'),
           'http://localhost/metadata-schemas/a92958ab-a414-47e6-8e17-68ba96ba3a2b': readFixture(
@@ -224,6 +232,9 @@ describe('useResourceView', () => {
       mockRoute({ resourceType: 'catalog', id: '37691d1d-94b4-4376-80a9-e49cab8e676f' })
       setupFetchFixtures({
         'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+        'http://localhost': EMPTY_TTL,
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
+        'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b': EMPTY_TTL,
       })
     })
 
@@ -370,6 +381,8 @@ describe('useResourceView', () => {
         setupFetchFixtures({
           'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f':
             readFixture('catalog.ttl'),
+          'http://localhost': EMPTY_TTL,
+          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
           'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b':
             readFixture('profile-catalog.ttl'),
           'http://localhost/metadata-schemas/2aa7ba63-d27a-4c0e-bfa6-3a4e250f4660': readFixture(
@@ -416,6 +429,9 @@ describe('useResourceView', () => {
       mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
       setupFetchFixtures({
         'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
+        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
+        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
+        'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604': EMPTY_TTL,
       })
     })
 
@@ -435,6 +451,9 @@ describe('useResourceView', () => {
       setupFetchFixtures({
         'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
         'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+        'http://localhost': EMPTY_TTL,
+        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
+        'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604': EMPTY_TTL,
       })
       const { breadcrumbs } = useResourceView()
       await flushPromises()
@@ -541,6 +560,8 @@ describe('useResourceView', () => {
         setupFetchFixtures({
           'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad':
             readFixture('dataset.ttl'),
+          'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
+          'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
           'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604':
             readFixture('profile-dataset.ttl'),
           'http://localhost/metadata-schemas/866d7fb8-5982-4215-9c7c-18d0ed1bd5f3': readFixture(
@@ -586,6 +607,8 @@ describe('useResourceView', () => {
       setupFetchFixtures({
         'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
           readFixture('distribution.ttl'),
+        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
+        'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': EMPTY_TTL,
       })
     })
 
@@ -607,6 +630,8 @@ describe('useResourceView', () => {
           readFixture('distribution.ttl'),
         'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
         'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
+        'http://localhost': EMPTY_TTL,
+        'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': EMPTY_TTL,
       })
       const { breadcrumbs } = useResourceView()
       await flushPromises()
@@ -714,6 +739,7 @@ describe('useResourceView', () => {
         setupFetchFixtures({
           'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
             readFixture('distribution.ttl'),
+          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
           'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': readFixture(
             'profile-distribution.ttl',
           ),
