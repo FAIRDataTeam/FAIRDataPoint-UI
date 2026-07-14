@@ -1,0 +1,23 @@
+name: Publish to Docker Hub
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+  release:
+    types:
+      - created
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # todo: add verify job calling reusable version of the ci.yml workflow
+  publish:
+    uses: FAIRDataTeam/github-workflows/.github/workflows/docker-publish.yml@v3
+    secrets: inherit
+    with:
+      file: './Dockerfile'
+      push: ${{ github.event_name == 'push' || github.event_name == 'release' }}
