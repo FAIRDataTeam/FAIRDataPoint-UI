@@ -41,8 +41,9 @@ COPY --chown=nginx:nginx --from=builder /app/dist /usr/share/nginx/html
 # Use a built-in non-root user for security best practices
 USER nginx
 
-# Expose port 8080 to allow HTTP traffic
-# Note: The default Nginx container now listens on port 8080 instead of 80
+# Inform which port the app inside the container is expected to listen on.
+# This does not actually make the port accessible from the host or web.
+# Note: docker.nginx.conf actually configures the Nginx app to listen on port 8080 instead of the default port 80.
 EXPOSE 8080
 
 # Start Nginx directly with custom config
