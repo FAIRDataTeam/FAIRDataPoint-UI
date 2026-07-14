@@ -1,8 +1,8 @@
-import { getRuntimeConfig } from '@/config'
+import { getClientConfig } from '@/config'
 
 /** @example getBaseUrl() // -> 'http://localhost'  (when fdpBaseUrl = 'http://localhost/') */
 export function getBaseUrl(): string {
-  return getRuntimeConfig().fdpBaseUrl.replace(/\/$/, '')
+  return getClientConfig().fdpBaseUrl.replace(/\/$/, '')
 }
 
 /**

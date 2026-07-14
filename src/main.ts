@@ -4,13 +4,13 @@ import router from './router'
 import { authReady } from './composables/useAuth'
 
 import './assets/main.css'
-import { loadRuntimeConfig } from '@/config'
+import { loadClientConfig } from '@/config'
 
 const app = createApp(App)
 
 // Load runtime configuration from a JSON file.
-// Afterwards, we can use getRuntimeConfig() to access the result at any time.
-await loadRuntimeConfig()
+// Afterwards, we can use getClientConfig() to access the result at any time.
+await loadClientConfig()
 
 authReady.then(() => {
   app.use(router)

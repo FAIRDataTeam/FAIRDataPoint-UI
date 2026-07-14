@@ -9,7 +9,7 @@
  * Users only run the final image from the second stage, which does not contain any build steps.
  * This implies that any kind of runtime customization must be done in a static file.
  * For this reason, we define our runtime configuration settings in a JSON file,
- * which is loaded before the app is created in `main.ts` with the help of `loadRuntimeConfig`.
+ * which is loaded before the app is created in `main.ts` with the help of `loadClientConfig`.
  * This allows users to override the runtime configuration using a Docker bind mount, if necessary.
  */
 
@@ -17,37 +17,37 @@
 // https://vite.dev/guide/assets#the-public-directory
 const CONFIG_FILE_PATH = '/config.json'
 
-// The config is loaded from JSON file asynchronously, so we need to await loadRuntimeConfig() once,
-// and then use getRuntimeConfig() whenever it is needed.
-let runtimeConfig: RuntimeConfig | undefined
+// The config is loaded from JSON file asynchronously, so we need to await loadClientConfig() once,
+// and then use getClientConfig() whenever it is needed.
+let clientConfig: ClientConfig | undefined
 
 /**
  * Defines the runtime configuration for the application.
  */
-export interface RuntimeConfig {
+export interface ClientConfig {
   fdpBaseUrl: string
 }
 
 /**
  * Loads runtime configuration from a JSON file located at `CONFIG_FILE_PATH`.
- * Do this once, then use `getRuntimeConfig` whenever the result is needed.
+ * Do this once, then call `getClientConfig()` whenever the result is needed.
  */
-export async function loadRuntimeConfig(): Promise<void> {
+export async function loadClientConfig(): Promise<void> {
   // Read the config file
   const response: Response = await fetch(CONFIG_FILE_PATH)
   if (!response.ok) {
     throw new Error(`Failed to load runtime configuration from file: ${CONFIG_FILE_PATH}`)
   }
   // Parse JSON and update the config object
-  runtimeConfig = (await response.json()) as RuntimeConfig
+  clientConfig = (await response.json()) as ClientConfig
 }
 
 /**
- * Gets the singleton runtime config
+ * Gets the runtime config (a module-level singleton)
  */
-export function getRuntimeConfig(): RuntimeConfig {
-  if (!runtimeConfig) {
-    throw new Error('Runtime configuration not loaded. Call loadRuntimeConfig first.')
+export function getClientConfig(): ClientConfig {
+  if (!clientConfig) {
+    throw new Error('Runtime configuration not loaded. Call loadClientConfig first.')
   }
-  return runtimeConfig
+  return clientConfig
 }
