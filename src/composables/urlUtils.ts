@@ -1,4 +1,4 @@
-import { getRuntimeConfig } from '@/config.ts'
+import { getRuntimeConfig } from '@/config'
 
 /** @example getBaseUrl() // -> 'http://localhost'  (when fdpBaseUrl = 'http://localhost/') */
 export function getBaseUrl(): string {
