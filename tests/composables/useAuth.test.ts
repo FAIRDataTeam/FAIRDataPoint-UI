@@ -99,12 +99,12 @@ describe('login', () => {
     vi.stubGlobal('fetch', mockFetch)
     const { login } = useAuth()
     await login('user@example.com', 'secret')
-    expect(mockFetch).toHaveBeenNthCalledWith(1, 'http://localhost/tokens', {
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost/tokens', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email: 'user@example.com', password: 'secret' }),
     })
-    expect(mockFetch).toHaveBeenNthCalledWith(2, 'http://localhost/users/current', {
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost/users/current', {
       headers: { Accept: 'application/json', Authorization: 'Bearer efIobn394nvJJFJ30...' },
     })
   })

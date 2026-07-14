@@ -21,6 +21,15 @@ export async function fetchRdfTurtle(uri: string): Promise<string> {
   return fetchRdf(uri, 'text/turtle')
 }
 
+/** Fetches an OpenAPI document as JSON from the given URL. */
+export async function fetchApiDocs(uri: string): Promise<unknown> {
+  const headers: Record<string, string> = { Accept: 'application/json' }
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
+  const response = await fetch(uri, { headers })
+  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  return response.json()
+}
+
 /** Searches resources via the FDP full-text search endpoint. */
 // TODO: currently limited to the first 20 results; consider pagination or a larger page size.
 export async function searchResources(query: string): Promise<unknown[]> {
@@ -147,10 +156,14 @@ export async function fetchCurrentUser(): Promise<unknown> {
 }
 
 /** Authenticates with the FDP and returns a JWT token. */
-export async function fetchToken(email: string, password: string): Promise<string> {
-  const base = getBaseUrl()
-  const response = await fetch(`${base}/tokens`, {
-    method: 'POST',
+export async function fetchToken(
+  email: string,
+  password: string,
+  url: string,
+  method: string,
+): Promise<string> {
+  const response = await fetch(url, {
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
