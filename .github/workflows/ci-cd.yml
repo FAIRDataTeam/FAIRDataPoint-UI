@@ -57,6 +57,9 @@ jobs:
     # skip this job for pull request updates (it *will* run on review submission, push to master, and release creation)
     if: ${{ github.event_name != 'pull_request' }}
     needs: check
+    # The docker-publish.yml workflow expects the following GitHub actions settings:
+    #   Environment variables: DOCKER_HUB_NAMESPACE, DOCKER_IMAGE_NAME, DOCKER_HUB_USERNAME
+    #   Environment secrets: DOCKER_HUB_PASSWORD
     uses: FAIRDataTeam/github-workflows/.github/workflows/docker-publish.yml@v3
     secrets: inherit
     with:
