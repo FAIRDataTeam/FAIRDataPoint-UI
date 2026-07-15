@@ -3,24 +3,24 @@
 
 version: 2
 updates:
-  - package-ecosystem: "npm"
-    directory: "/"
+  - package-ecosystem: 'npm'
+    directory: '/'
     schedule:
-      interval: "weekly"
-    target-branch: "master"
+      interval: 'weekly'
+    target-branch: 'master'
     labels:
-      - "dependencies"
+      - 'dependencies'
     # Group minor updates and patch updates and create separate PRs for updates that do not match any grouping rule.
     groups:
       minor-updates:
         applies-to: version-updates
         update-types:
-          - "minor"
-          - "patch"
-  - package-ecosystem: "github-actions"
-    directory: "/"
+          - 'minor'
+          - 'patch'
+  - package-ecosystem: 'github-actions'
+    directory: '/'
     schedule:
-      interval: "weekly"
-    target-branch: "master"
+      interval: 'weekly'
+    target-branch: 'master'
     labels:
-      - "dependencies"
+      - 'dependencies'
