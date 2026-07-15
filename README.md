@@ -30,11 +30,11 @@ Here's how to install project dependencies and run the development server, provi
 
    ```bash
    npm run dev
-   ``` 
+   ```
 
    To specify a custom port, we can use the `--port` argument.
-   For example: 
-   
+   For example:
+
    ```bash
    npm run dev -- --port 8000
    ```
@@ -54,9 +54,10 @@ If such a file exists, it is picked up automatically by the Vite development ser
 For example, you could use this to point the client to an actual FDP on the web, as follows:
 
 #### public/config.local.json
+
 ```json
 {
-    "apiEndpointUrl": "https://app.fairdatapoint.org"
+  "apiEndpointUrl": "https://app.fairdatapoint.org"
 }
 ```
 
