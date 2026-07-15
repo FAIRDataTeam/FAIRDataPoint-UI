@@ -1,11 +1,15 @@
-name: continuous integration checks and tests
+name: continuous integration and deployment
 
 on:
   push:
     branches:
       - master
   pull_request:
+  pull_request_review:
+    types: [submitted]
   workflow_dispatch:
+  release:
+    types: [created]
 
 concurrency:
   # prevent duplicate runs
@@ -13,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
 
     strategy:
@@ -48,3 +52,14 @@ jobs:
         # https://vitest.dev/config/watch
         name: Run tests
         run: npm run test
+
+  publish:
+    # skip this job for pull request updates (it *will* run on review submission, push to master, and release creation)
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: check
+    uses: FAIRDataTeam/github-workflows/.github/workflows/docker-publish.yml@v3
+    secrets: inherit
+    with:
+      file: './Dockerfile'
+      # only publish to docker hub when triggered by push to master branch or release creation
+      push: ${{ github.event_name == 'push' || github.event_name == 'release' }}
