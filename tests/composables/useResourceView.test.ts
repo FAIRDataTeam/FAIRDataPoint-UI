@@ -17,6 +17,17 @@ const readFixture = (name: string) => readFileSync(resolve(__dirname, '../fixtur
 // Empty content for fetches, so useRdfLoader's loaders no-op instead of warning.
 const EMPTY_TTL = '# no data'
 
+const ROOT_URI = 'http://localhost/'
+// catalog/dataset/distribution's dct:isPartOf points to the root without the trailing slash
+const ROOT_URI_NO_TRAILING_SLASH = 'http://localhost'
+const ROOT_PROFILE_URI = 'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c'
+const CATALOG_URI = 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f'
+const CATALOG_PROFILE_URI = 'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b'
+const DATASET_URI = 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad'
+const DATASET_PROFILE_URI = 'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604'
+const DISTRIBUTION_URI = 'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4'
+const DISTRIBUTION_PROFILE_URI = 'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7'
+
 const flushPromises = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 function mockRoute(params: Record<string, string | string[]> = {}) {
@@ -34,7 +45,7 @@ function setupFetchFixtures(fixtureMap: Record<string, string>) {
 // Tests
 describe('useResourceView', () => {
   beforeEach(() => {
-    vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost')
+    vi.stubEnv('VITE_FDP_BASE_URL', ROOT_URI_NO_TRAILING_SLASH)
   })
 
   afterEach(() => {
@@ -47,9 +58,9 @@ describe('useResourceView', () => {
     beforeEach(() => {
       mockRoute({})
       setupFetchFixtures({
-        'http://localhost/': readFixture('fdp-root.ttl'),
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
-        'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c': EMPTY_TTL,
+        [ROOT_URI]: readFixture('fdp-root.ttl'),
+        [CATALOG_URI]: EMPTY_TTL,
+        [ROOT_PROFILE_URI]: EMPTY_TTL,
       })
     })
 
@@ -70,16 +81,14 @@ describe('useResourceView', () => {
     it('builds breadcrumbs containing only the root', async () => {
       const { breadcrumbs } = useResourceView()
       await flushPromises()
-      expect(breadcrumbs.value).toEqual([{ text: 'FAIR Data Point', uri: 'http://localhost/' }])
+      expect(breadcrumbs.value).toEqual([{ text: 'FAIR Data Point', uri: ROOT_URI }])
     })
 
     it('exposes the catalog container as a child section with one item despite duplicate ldp:contains', async () => {
       const { childSections } = useResourceView()
       await flushPromises()
       expect(childSections.value).toHaveLength(1)
-      expect(childSections.value[0].items).toEqual([
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f',
-      ])
+      expect(childSections.value[0].items).toEqual([CATALOG_URI])
     })
 
     describe('metadata rows', () => {
@@ -178,10 +187,9 @@ describe('useResourceView', () => {
       beforeEach(() => {
         mockRoute({})
         setupFetchFixtures({
-          'http://localhost/': readFixture('fdp-root.ttl'),
-          'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
-          'http://localhost/profile/77aaad6a-0136-4c6e-88b9-07ffccd0ee4c':
-            readFixture('profile-fdp-root.ttl'),
+          [ROOT_URI]: readFixture('fdp-root.ttl'),
+          [CATALOG_URI]: EMPTY_TTL,
+          [ROOT_PROFILE_URI]: readFixture('profile-fdp-root.ttl'),
           'http://localhost/metadata-schemas/a92958ab-a414-47e6-8e17-68ba96ba3a2b': readFixture(
             'metadata-schema-fdp-root.ttl',
           ),
@@ -231,10 +239,10 @@ describe('useResourceView', () => {
     beforeEach(() => {
       mockRoute({ resourceType: 'catalog', id: '37691d1d-94b4-4376-80a9-e49cab8e676f' })
       setupFetchFixtures({
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
-        'http://localhost': EMPTY_TTL,
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
-        'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b': EMPTY_TTL,
+        [CATALOG_URI]: readFixture('catalog.ttl'),
+        [ROOT_URI_NO_TRAILING_SLASH]: EMPTY_TTL,
+        [DATASET_URI]: EMPTY_TTL,
+        [CATALOG_PROFILE_URI]: EMPTY_TTL,
       })
     })
 
@@ -254,8 +262,8 @@ describe('useResourceView', () => {
       const { breadcrumbs } = useResourceView()
       await flushPromises()
       expect(breadcrumbs.value).toEqual([
-        { text: 'FAIR Data Point', uri: 'http://localhost/' },
-        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
+        { text: 'FAIR Data Point', uri: ROOT_URI },
+        { text: 'A catalog', uri: CATALOG_URI },
       ])
     })
 
@@ -275,9 +283,7 @@ describe('useResourceView', () => {
       const { childSections } = useResourceView()
       await flushPromises()
       expect(childSections.value).toHaveLength(1)
-      expect(childSections.value[0].items).toEqual([
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad',
-      ])
+      expect(childSections.value[0].items).toEqual([DATASET_URI])
     })
 
     describe('metadata rows', () => {
@@ -379,12 +385,10 @@ describe('useResourceView', () => {
       beforeEach(() => {
         mockRoute({ resourceType: 'catalog', id: '37691d1d-94b4-4376-80a9-e49cab8e676f' })
         setupFetchFixtures({
-          'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f':
-            readFixture('catalog.ttl'),
-          'http://localhost': EMPTY_TTL,
-          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
-          'http://localhost/profile/a0949e72-4466-4d53-8900-9436d1049a4b':
-            readFixture('profile-catalog.ttl'),
+          [CATALOG_URI]: readFixture('catalog.ttl'),
+          [ROOT_URI_NO_TRAILING_SLASH]: EMPTY_TTL,
+          [DATASET_URI]: EMPTY_TTL,
+          [CATALOG_PROFILE_URI]: readFixture('profile-catalog.ttl'),
           'http://localhost/metadata-schemas/2aa7ba63-d27a-4c0e-bfa6-3a4e250f4660': readFixture(
             'metadata-schema-catalog.ttl',
           ),
@@ -428,10 +432,10 @@ describe('useResourceView', () => {
     beforeEach(() => {
       mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
       setupFetchFixtures({
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
-        'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604': EMPTY_TTL,
+        [DATASET_URI]: readFixture('dataset.ttl'),
+        [CATALOG_URI]: EMPTY_TTL,
+        [DISTRIBUTION_URI]: EMPTY_TTL,
+        [DATASET_PROFILE_URI]: EMPTY_TTL,
       })
     })
 
@@ -449,18 +453,18 @@ describe('useResourceView', () => {
 
     it('builds breadcrumbs as FDP root → catalog → dataset', async () => {
       setupFetchFixtures({
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
-        'http://localhost': EMPTY_TTL,
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
-        'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604': EMPTY_TTL,
+        [DATASET_URI]: readFixture('dataset.ttl'),
+        [CATALOG_URI]: readFixture('catalog.ttl'),
+        [ROOT_URI_NO_TRAILING_SLASH]: EMPTY_TTL,
+        [DISTRIBUTION_URI]: EMPTY_TTL,
+        [DATASET_PROFILE_URI]: EMPTY_TTL,
       })
       const { breadcrumbs } = useResourceView()
       await flushPromises()
       expect(breadcrumbs.value).toEqual([
-        { text: 'FAIR Data Point', uri: 'http://localhost/' },
-        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
-        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
+        { text: 'FAIR Data Point', uri: ROOT_URI },
+        { text: 'A catalog', uri: CATALOG_URI },
+        { text: 'A dataset', uri: DATASET_URI },
       ])
     })
 
@@ -468,9 +472,7 @@ describe('useResourceView', () => {
       const { childSections } = useResourceView()
       await flushPromises()
       expect(childSections.value).toHaveLength(1)
-      expect(childSections.value[0].items).toEqual([
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
-      ])
+      expect(childSections.value[0].items).toEqual([DISTRIBUTION_URI])
     })
 
     describe('metadata rows', () => {
@@ -558,12 +560,10 @@ describe('useResourceView', () => {
       beforeEach(() => {
         mockRoute({ resourceType: 'dataset', id: 'dfb63246-106a-4388-9b81-ed42ccb3f0ad' })
         setupFetchFixtures({
-          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad':
-            readFixture('dataset.ttl'),
-          'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': EMPTY_TTL,
-          'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4': EMPTY_TTL,
-          'http://localhost/profile/2f08228e-1789-40f8-84cd-28e3288c3604':
-            readFixture('profile-dataset.ttl'),
+          [DATASET_URI]: readFixture('dataset.ttl'),
+          [CATALOG_URI]: EMPTY_TTL,
+          [DISTRIBUTION_URI]: EMPTY_TTL,
+          [DATASET_PROFILE_URI]: readFixture('profile-dataset.ttl'),
           'http://localhost/metadata-schemas/866d7fb8-5982-4215-9c7c-18d0ed1bd5f3': readFixture(
             'metadata-schema-dataset.ttl',
           ),
@@ -605,10 +605,9 @@ describe('useResourceView', () => {
     beforeEach(() => {
       mockRoute({ resourceType: 'distribution', id: '28f248e7-a965-4739-9381-b66878845ea4' })
       setupFetchFixtures({
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
-          readFixture('distribution.ttl'),
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
-        'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': EMPTY_TTL,
+        [DISTRIBUTION_URI]: readFixture('distribution.ttl'),
+        [DATASET_URI]: EMPTY_TTL,
+        [DISTRIBUTION_PROFILE_URI]: EMPTY_TTL,
       })
     })
 
@@ -626,22 +625,21 @@ describe('useResourceView', () => {
 
     it('builds breadcrumbs as FDP root → catalog → dataset → distribution', async () => {
       setupFetchFixtures({
-        'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
-          readFixture('distribution.ttl'),
-        'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': readFixture('dataset.ttl'),
-        'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f': readFixture('catalog.ttl'),
-        'http://localhost': EMPTY_TTL,
-        'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': EMPTY_TTL,
+        [DISTRIBUTION_URI]: readFixture('distribution.ttl'),
+        [DATASET_URI]: readFixture('dataset.ttl'),
+        [CATALOG_URI]: readFixture('catalog.ttl'),
+        [ROOT_URI_NO_TRAILING_SLASH]: EMPTY_TTL,
+        [DISTRIBUTION_PROFILE_URI]: EMPTY_TTL,
       })
       const { breadcrumbs } = useResourceView()
       await flushPromises()
       expect(breadcrumbs.value).toEqual([
-        { text: 'FAIR Data Point', uri: 'http://localhost/' },
-        { text: 'A catalog', uri: 'http://localhost/catalog/37691d1d-94b4-4376-80a9-e49cab8e676f' },
-        { text: 'A dataset', uri: 'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad' },
+        { text: 'FAIR Data Point', uri: ROOT_URI },
+        { text: 'A catalog', uri: CATALOG_URI },
+        { text: 'A dataset', uri: DATASET_URI },
         {
           text: 'One distribution',
-          uri: 'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4',
+          uri: DISTRIBUTION_URI,
         },
       ])
     })
@@ -737,12 +735,9 @@ describe('useResourceView', () => {
       beforeEach(() => {
         mockRoute({ resourceType: 'distribution', id: '28f248e7-a965-4739-9381-b66878845ea4' })
         setupFetchFixtures({
-          'http://localhost/distribution/28f248e7-a965-4739-9381-b66878845ea4':
-            readFixture('distribution.ttl'),
-          'http://localhost/dataset/dfb63246-106a-4388-9b81-ed42ccb3f0ad': EMPTY_TTL,
-          'http://localhost/profile/02c649de-c579-43bb-b470-306abdc808c7': readFixture(
-            'profile-distribution.ttl',
-          ),
+          [DISTRIBUTION_URI]: readFixture('distribution.ttl'),
+          [DATASET_URI]: EMPTY_TTL,
+          [DISTRIBUTION_PROFILE_URI]: readFixture('profile-distribution.ttl'),
           'http://localhost/metadata-schemas/ebacbf83-cd4f-4113-8738-d73c0735b0ab': readFixture(
             'metadata-schema-distribution.ttl',
           ),
