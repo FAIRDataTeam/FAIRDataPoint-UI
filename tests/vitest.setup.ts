@@ -4,7 +4,7 @@ import { ClientConfig } from '../src/config'
 
 const TEST_FDP_BASE_URL = 'http://localhost'
 
-const testClientConfig: ClientConfig = { fdpBaseUrl: TEST_FDP_BASE_URL }
+const testClientConfig: ClientConfig = { apiEndpointUrl: TEST_FDP_BASE_URL }
 
 /**
  * Mock the config module to return a value without loading from a JSON file.

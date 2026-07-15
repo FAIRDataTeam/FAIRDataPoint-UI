@@ -1,8 +1,8 @@
 import { getClientConfig } from '@/config'
 
-/** @example getBaseUrl() // -> 'http://localhost'  (when fdpBaseUrl = 'http://localhost/') */
+/** @example getBaseUrl() // -> 'http://localhost'  (when apiEndpointUrl = 'http://localhost/') */
 export function getBaseUrl(): string {
-  return getClientConfig().fdpBaseUrl.replace(/\/$/, '')
+  return getClientConfig().apiEndpointUrl.replace(/\/$/, '')
 }
 
 /**

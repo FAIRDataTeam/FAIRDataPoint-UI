@@ -25,7 +25,6 @@ import * as fs from "node:fs";
  * - {@link https://vite.dev/guide/api-plugin#configureserver configureServer docs}
  * - {@link https://vite.dev/guide/api-javascript#vitedevserver ViteDevServer docs}
  * - {@link https://github.com/senchalabs/connect#use-middleware server.middlewares docs}
- *
  */
 const clientConfigOverridePlugin = () => ({
   name: 'client-config-override',

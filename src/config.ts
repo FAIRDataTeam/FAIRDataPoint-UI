@@ -25,7 +25,8 @@ let clientConfig: ClientConfig | undefined
  * Defines the runtime configuration for the application.
  */
 export interface ClientConfig {
-  fdpBaseUrl: string
+  // The primary API endpoint URL for the FAIR Data Point backend
+  apiEndpointUrl: string
 }
 
 /**
