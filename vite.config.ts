@@ -2,13 +2,13 @@
 
 import { fileURLToPath, URL } from 'node:url'
 
-import {defineConfig, ViteDevServer} from 'vite'
+import { defineConfig, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 import { version } from './package.json'
-import path from "node:path";
-import * as fs from "node:fs";
+import path from 'node:path'
+import * as fs from 'node:fs'
 
 /**
  * This plugin configures the Vite development server to rewrite the `/config.json` URL to `/config.local.json`
