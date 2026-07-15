@@ -40,17 +40,16 @@ Here's how to install project dependencies and run the development server, provi
 
    ```bash
    npm run dev
-   ``` 
+   ```
 
    To specify a custom port, we can use the `--port` argument.
-   For example: 
-   
+   For example:
+
    ```bash
    npm run dev -- --port 8000
    ```
 
    Also see [vite development server] for more options.
-
 
 [FAIRDataPoint]: https://github.com/FAIRDataTeam/FAIRDataPoint
 [FAIRDataPoint-client]: https://github.com/FAIRDataTeam/FAIRDataPoint-client
