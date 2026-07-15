@@ -1,10 +1,61 @@
 # FAIR Data Point client redux
 
-A browser-based client for administration of the FAIR Data Point reference implementation ([FAIRDataPoint]).
+A browser-based client for administration of the FAIR Data Point (FDP) reference implementation ([FAIRDataPoint]).
 
-This client replaces the original [FAIRDataPoint-client].
+This client replaces the original [FAIRDataPoint-client], which has been archived.
 
 <!-- TODO: Change the original client repository status to "Archived" on GitHub -->
+
+## Background
+
+### FAIR principles
+
+The [FAIR principles] aim to make _data_ more **F**indable, **A**ccessible, **I**nteroperable, and **R**eusable.
+
+### FAIR Data Point (FDP)
+
+A FAIR Data Point (FDP) is a web application, backed by a triple store, that facilitates the publication of _metadata_ as [Linked (Open) Data] in the form of [RDF] and [DCAT], following the [FAIR principles].
+The FDP reference implementation ([FAIRDataPoint]) is a Java-based implementation of the [FAIRDataPoint specification] that provides an HTTP API for manipulating these metadata.
+The FDP API is intended primarily for machine interaction.
+For example, the API enables data stewards to build automated metadata publication workflows for the FDP.
+However, direct human interaction with the FDP API can be a bit cumbersome.
+To simplify direct human interaction with the FDP API, we offer the FDP client.
+
+### FAIR Data Point Client (FDP client)
+
+The FAIR Data Point Client (FDP client) is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
+The client provides a web interface that makes it easier for humans to interact with the FAIR Data Point by hiding the interactions with the FDP API.
+The main goal of the FDP client is to enable basic administration of the FDP, inspection of FDP content, and execution of simple queries.
+
+> [!NOTE]
+> The FDP client was not designed for bulk operations or complicated queries.
+> Those are best performed by direct interaction with the FDP API.
+
+## Quickstart
+
+The FDP client is published as a Docker image ([fairdata/fairdatapoint-client-redux]) and is designed to run in a container.
+The Docker image is based on the official [Nginx hardened image], configured as a static file server listening on port `8080`.
+
+One way to deploy the client is using Docker compose, as follows:
+
+```yaml
+# compose.yaml
+services:
+  fdp-client-redux:
+    image: fairdata/fairdatapoint-client-redux
+    volumes:
+      # Override the default runtime config to specify the URL of the FDP API
+      - './config.json:/usr/share/nginx/html/config.json'
+```
+
+where `config.json` is a runtime configuration file that defines the primary endpoint URL of the FDP API, for example:
+
+```yaml
+# config.json
+{ apiEndpointUrl: https://fdp.example.org }
+```
+
+It is also possible to run the FDP client application from source, but this is only recommended for development purposes.
 
 ## Setting up a development machine
 
@@ -53,6 +104,7 @@ Here's how to install project dependencies and run the development server, provi
 
 [FAIRDataPoint]: https://github.com/FAIRDataTeam/FAIRDataPoint
 [FAIRDataPoint-client]: https://github.com/FAIRDataTeam/FAIRDataPoint-client
+[FAIRDataPoint specification]: https://specs.fairdatapoint.org/
 [npm]: https://docs.npmjs.com/cli/v11/commands
 [npm clean-install]: https://docs.npmjs.com/cli/v11/commands/npm-ci
 [npm install]: https://docs.npmjs.com/cli/v11/commands/npm-install
@@ -61,3 +113,9 @@ Here's how to install project dependencies and run the development server, provi
 [vite development server]: https://vite.dev/guide/cli#dev-server
 [dotenv]: https://github.com/motdotla/dotenv
 [vite docs]: https://vite.dev/guide/env-and-mode#env-files
+[fairdata/fairdatapoint-client-redux]: https://hub.docker.com/r/fairdata/fairdatapoint-client-redux
+[RDF]: https://www.w3.org/TR/rdf12-primer/
+[DCAT]: https://www.w3.org/TR/vocab-dcat-3/
+[Linked (Open) Data]: https://www.w3.org/DesignIssues/LinkedData
+[FAIR principles]: https://doi.org/10.1038/sdata.2016.18
+[Nginx hardened image]: https://hub.docker.com/hardened-images/catalog/dhi/nginx
