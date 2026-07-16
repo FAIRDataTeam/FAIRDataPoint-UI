@@ -15,7 +15,8 @@ The [FAIR principles] aim to make _data_ more **F**indable, **A**ccessible, **I*
 
 ### FAIR Data Point (FDP)
 
-A FAIR Data Point (FDP) is a web application, backed by a triple store, that facilitates the publication of _metadata_ as [Linked (Open) Data] in the form of [RDF] and [DCAT], following the [FAIR principles].
+A FAIR Data Point (FDP) is a web application that facilitates the publication of _metadata_ as [Linked (Open) Data] in the form of [RDF] and [DCAT], following the [FAIR principles].
+The FDP application is backed by a [triple store], a type of graph database specialized for storing [RDF], which provides the ability to query the metadata using the [SPARQL] query language.   
 The [FDP reference implementation] is a Java-based implementation of the [FDP specification] that provides an HTTP API for manipulating these metadata.
 The FDP API is intended primarily for machine interaction.
 For example, the API enables data stewards to build automated metadata publication workflows for the FDP.
@@ -130,6 +131,8 @@ Note that the `config.local.json` file is ignored by `git`.
 [fairdata/fairdatapoint-client-redux]: https://hub.docker.com/r/fairdata/fairdatapoint-client-redux
 [RDF]: https://www.w3.org/TR/rdf12-primer/
 [DCAT]: https://www.w3.org/TR/vocab-dcat-3/
+[SPARQL]: https://www.w3.org/TR/sparql11-query/
 [Linked (Open) Data]: https://www.w3.org/DesignIssues/LinkedData
 [FAIR principles]: https://doi.org/10.1038/sdata.2016.18
 [Nginx hardened image]: https://hub.docker.com/hardened-images/catalog/dhi/nginx
+[triple store]: https://opendatahandbook.org/glossary/en/terms/triple-store/
