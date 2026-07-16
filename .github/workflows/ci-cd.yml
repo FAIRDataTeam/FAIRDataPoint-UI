@@ -1,4 +1,4 @@
-name: continuous integration and deployment
+name: check, test, build image, and publish
 
 on:
   push:
