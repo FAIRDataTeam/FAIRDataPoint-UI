@@ -23,3 +23,6 @@ dist
 
 # Environment variable files
 *.env*
+
+# Dev config files
+config.local.json

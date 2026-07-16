@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 import UserMenu from './components/UserMenu.vue'
+import { getBaseUrl } from '@/composables/urlUtils.ts'
 
 const { isLoggedIn } = useAuth()
 const router = useRouter()
@@ -26,7 +27,7 @@ async function openAbout() {
   aboutOpen.value = true
   if (serverInfo.value) return
   try {
-    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+    const base = getBaseUrl()
     const res = await fetch(`${base}/actuator/info`, { headers: { Accept: 'application/json' } })
     if (res.ok) serverInfo.value = (await res.json()) as ServerInfo
   } catch {

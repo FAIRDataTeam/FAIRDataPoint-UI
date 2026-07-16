@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { useAuth, userInitials } from '../../src/composables/useAuth'
 
 vi.hoisted(() => {
@@ -17,13 +17,8 @@ vi.hoisted(() => {
 // login
 
 describe('login', () => {
-  beforeEach(() => {
-    vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost')
-  })
-
   afterEach(() => {
     useAuth().logout()
-    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
 
@@ -118,13 +113,8 @@ describe('login', () => {
 // logout
 
 describe('logout', () => {
-  beforeEach(() => {
-    vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost')
-  })
-
   afterEach(() => {
     useAuth().logout()
-    vi.unstubAllEnvs()
     vi.unstubAllGlobals()
   })
 

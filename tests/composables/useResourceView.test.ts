@@ -44,12 +44,7 @@ function setupFetchFixtures(fixtureMap: Record<string, string>) {
 
 // Tests
 describe('useResourceView', () => {
-  beforeEach(() => {
-    vi.stubEnv('VITE_FDP_BASE_URL', ROOT_URI_NO_TRAILING_SLASH)
-  })
-
   afterEach(() => {
-    vi.unstubAllEnvs()
     vi.clearAllMocks()
   })
 

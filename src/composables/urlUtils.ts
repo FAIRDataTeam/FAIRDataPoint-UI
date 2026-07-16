@@ -1,6 +1,8 @@
-/** @example getBaseUrl() // -> 'http://localhost'  (when VITE_FDP_BASE_URL = 'http://localhost/') */
+import { getClientConfig } from '@/config'
+
+/** @example getBaseUrl() // -> 'http://localhost'  (when apiEndpointUrl = 'http://localhost/') */
 export function getBaseUrl(): string {
-  return import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+  return getClientConfig().apiEndpointUrl.replace(/\/$/, '')
 }
 
 /**
@@ -9,7 +11,7 @@ export function getBaseUrl(): string {
  * String prefix matching is used instead of URL object comparison: it is simpler and handles
  * all real cases correctly, since the base URL is a known configuration value (not arbitrary user input).
  * @example isInternalUri('http://localhost/catalog/1') // -> true
- * @example isInternalUri('https://example.com/foo')   // -> false
+ * @example isInternalUri('https://example.com/foo') // -> false
  */
 export function isInternalUri(uri: string): boolean {
   const base = getBaseUrl()
