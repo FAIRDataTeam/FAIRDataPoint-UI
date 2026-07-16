@@ -5,9 +5,8 @@ on:
     branches:
       - master
   pull_request:
-  pull_request_review:
-    types: [submitted]
-  workflow_dispatch:
+  pull_request_review: # enables us to trigger the publish job in pull requests, without pushing to docker hub
+  workflow_dispatch: # allows manual triggering, but only on the default branch
   release:
     types: [created]
 
@@ -54,7 +53,7 @@ jobs:
         run: npm run test
 
   publish:
-    # skip this job for pull request updates (it *will* run on review submission, push to master, and release creation)
+    # skip this job for pull request updates (it *will* run on pr review, push to master, and release creation)
     if: ${{ github.event_name != 'pull_request' }}
     needs: check
     # The docker-publish.yml workflow expects the following GitHub actions settings:
