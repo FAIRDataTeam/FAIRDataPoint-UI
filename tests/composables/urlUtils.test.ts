@@ -1,10 +1,7 @@
-import { describe, it, expect, vi, beforeAll, afterAll } from 'vitest'
+import { describe, it, expect } from 'vitest'
 import { isInternalUri, internalHref } from '../../src/composables/urlUtils'
 
 describe('isInternalUri', () => {
-  beforeAll(() => vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost'))
-  afterAll(() => vi.unstubAllEnvs())
-
   it('returns true for the base URL', () => {
     expect(isInternalUri('http://localhost')).toBe(true)
   })
@@ -31,9 +28,6 @@ describe('isInternalUri', () => {
 })
 
 describe('internalHref', () => {
-  beforeAll(() => vi.stubEnv('VITE_FDP_BASE_URL', 'http://localhost'))
-  afterAll(() => vi.unstubAllEnvs())
-
   it('returns / for the base URL', () => {
     expect(internalHref('http://localhost')).toBe('/')
   })

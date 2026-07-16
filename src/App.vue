@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth } from './composables/useAuth'
 import UserMenu from './components/UserMenu.vue'
+import { getBaseUrl } from '@/composables/urlUtils.ts'
 
 const { isLoggedIn } = useAuth()
 const router = useRouter()
@@ -20,13 +21,13 @@ type ServerInfo = { name: string; version: string; builtAt: string }
 const aboutOpen = ref(false)
 const serverInfo = ref<ServerInfo | null>(null)
 const appVersion = __APP_VERSION__
-const appBuildAt = __APP_BUILD_AT__
+const appBuiltAt = __APP_BUILT_AT__
 
 async function openAbout() {
   aboutOpen.value = true
   if (serverInfo.value) return
   try {
-    const base = import.meta.env.VITE_FDP_BASE_URL.replace(/\/$/, '')
+    const base = getBaseUrl()
     const res = await fetch(`${base}/actuator/info`, { headers: { Accept: 'application/json' } })
     if (res.ok) serverInfo.value = (await res.json()) as ServerInfo
   } catch {
@@ -158,7 +159,7 @@ async function openAbout() {
               </tr>
               <tr>
                 <td>Built at</td>
-                <td class="about-table__value">{{ new Date(appBuildAt).toLocaleString() }}</td>
+                <td class="about-table__value">{{ new Date(appBuiltAt).toLocaleString() }}</td>
               </tr>
             </tbody>
           </table>
