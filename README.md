@@ -1,8 +1,9 @@
 # FAIR Data Point client redux
 
-A browser-based client for administration of the FAIR Data Point (FDP) reference implementation ([FAIRDataPoint]).
+A browser-based client for FAIR Data Point (FDP) administration.
 
-This client replaces the original [FAIRDataPoint-client], which has been archived.
+>[!NOTE]
+> This client replaces the [legacy FDP client], which has been archived.
 
 <!-- TODO: Change the original client repository status to "Archived" on GitHub -->
 
@@ -15,7 +16,7 @@ The [FAIR principles] aim to make _data_ more **F**indable, **A**ccessible, **I*
 ### FAIR Data Point (FDP)
 
 A FAIR Data Point (FDP) is a web application, backed by a triple store, that facilitates the publication of _metadata_ as [Linked (Open) Data] in the form of [RDF] and [DCAT], following the [FAIR principles].
-The FDP reference implementation ([FAIRDataPoint]) is a Java-based implementation of the [FAIRDataPoint specification] that provides an HTTP API for manipulating these metadata.
+The [FDP reference implementation] is a Java-based implementation of the [FDP specification] that provides an HTTP API for manipulating these metadata.
 The FDP API is intended primarily for machine interaction.
 For example, the API enables data stewards to build automated metadata publication workflows for the FDP.
 However, direct human interaction with the FDP API can be a bit cumbersome.
@@ -104,9 +105,8 @@ If such a file exists, it is picked up automatically by the Vite development ser
 
 For example, you could use this to point the client to an actual FDP on the web, as follows:
 
-#### public/config.local.json
-
-```json
+```yaml
+# public/config.local.json
 {
   "apiEndpointUrl": "https://app.fairdatapoint.org"
 }
@@ -114,8 +114,9 @@ For example, you could use this to point the client to an actual FDP on the web,
 
 Note that the `config.local.json` file is ignored by `git`.
 
-[FAIRDataPoint]: https://github.com/FAIRDataTeam/FAIRDataPoint
-[FAIRDataPoint-client]: https://github.com/FAIRDataTeam/FAIRDataPoint-client
+[FDP reference implementation]: https://github.com/FAIRDataTeam/FAIRDataPoint
+[legacy FDP client]: https://github.com/FAIRDataTeam/FAIRDataPoint-client
+[FDP specification]: https://specs.fairdatapoint.org 
 [FAIRDataTeam/compose]: https://github.com/FAIRDataTeam/compose/tree/master/fdp/ephemeral/v1/dev/fdp-client-redux
 [npm]: https://docs.npmjs.com/cli/v11/commands
 [npm clean-install]: https://docs.npmjs.com/cli/v11/commands/npm-ci
