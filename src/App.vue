@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
-import { useAuth } from './composables/useAuth'
+import { useAuth, loginAvailable } from './composables/useAuth'
 import UserMenu from './components/UserMenu.vue'
 import { getBaseUrl } from '@/composables/urlUtils.ts'
 
@@ -101,7 +101,9 @@ async function openAbout() {
         </form>
 
         <nav class="app-header__nav">
-          <RouterLink v-if="!isLoggedIn" to="/login" class="header-login-btn">Log in</RouterLink>
+          <RouterLink v-if="loginAvailable && !isLoggedIn" to="/login" class="header-login-btn"
+            >Log in</RouterLink
+          >
 
           <UserMenu v-else />
         </nav>

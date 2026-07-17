@@ -146,11 +146,10 @@ export async function updateUserPassword(uuid: string, password: string): Promis
 }
 
 /** Fetches the currently authenticated user's profile. */
-export async function fetchCurrentUser(): Promise<unknown> {
-  const base = getBaseUrl()
+export async function fetchCurrentUser(url: string): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/current`, { headers })
+  const response = await fetch(url, { headers })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
 }

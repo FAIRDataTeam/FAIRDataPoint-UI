@@ -29,6 +29,21 @@ export async function discoverApiDocsUrl(uri: string): Promise<string> {
   return endpointDescription ?? new URL('/v3/api-docs', currentUri).toString()
 }
 
+let apiDocsPromise: Promise<unknown> | null = null
+
+/** Fetches the FDP's OpenAPI doc once per session and reuses it for all subsequent lookups. */
+async function getCachedApiDocs(rootUri: string): Promise<unknown> {
+  if (!apiDocsPromise) {
+    apiDocsPromise = discoverApiDocsUrl(rootUri)
+      .then(fetchApiDocs)
+      .catch((err) => {
+        apiDocsPromise = null
+        throw err
+      })
+  }
+  return apiDocsPromise
+}
+
 type OpenApiOperation = { operationId?: string }
 type OpenApiDoc = { paths?: Record<string, Record<string, OpenApiOperation>> }
 
@@ -66,8 +81,7 @@ export async function resolveOperationUrl(
   fallbackMethod: string,
 ): Promise<{ url: string; method: string }> {
   try {
-    const docsUrl = await discoverApiDocsUrl(rootUri)
-    const doc = await fetchApiDocs(docsUrl)
+    const doc = await getCachedApiDocs(rootUri)
     const operation = resolveOperation(doc, operationId)
     if (operation) {
       return { url: new URL(operation.path, rootUri).toString(), method: operation.method }
@@ -76,4 +90,19 @@ export async function resolveOperationUrl(
     // fall through to fallback
   }
   return { url: new URL(fallbackPath, rootUri).toString(), method: fallbackMethod }
+}
+
+/**
+ * Checks whether the FDP's OpenAPI doc advertises the given operationId. Returns false only when
+ * the doc was fetched successfully and the operation is absent from it; any discovery/fetch
+ * failure resolves to true, since failing to discover an operation isn't evidence it doesn't
+ * exist.
+ */
+export async function isOperationOffered(rootUri: string, operationId: string): Promise<boolean> {
+  try {
+    const doc = await getCachedApiDocs(rootUri)
+    return resolveOperation(doc, operationId) !== null
+  } catch {
+    return true
+  }
 }

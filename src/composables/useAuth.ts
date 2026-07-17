@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { resolveOperationUrl } from './apiDocs'
+import { resolveOperationUrl, isOperationOffered } from './apiDocs'
 import { getBaseUrl } from './urlUtils'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
@@ -24,6 +24,28 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
+function getRootUri(): string {
+  return `${getBaseUrl()}/`
+}
+
+/** Resolves the current-authenticated-user endpoint URL via the OpenAPI docs. */
+async function resolveCurrentUserUrl(): Promise<string> {
+  const { url } = await resolveOperationUrl(getRootUri(), 'getUserCurrent', '/users/current', 'GET')
+  return url
+}
+
+/** Whether this FDP instance's OpenAPI doc advertises token-based login; drives the login button. */
+export const loginAvailable = ref(true)
+
+/** Resolves once login availability is known; awaited by the router guard for a definitive answer. */
+export const loginAvailabilityChecked: Promise<boolean> = isOperationOffered(
+  getRootUri(),
+  'generateToken',
+).then((available) => {
+  loginAvailable.value = available
+  return available
+})
+
 function clearSession() {
   token.value = null
   userEmail.value = null
@@ -35,7 +57,8 @@ function clearSession() {
 
 /** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
 export const authReady: Promise<void> = token.value
-  ? fetchCurrentUser()
+  ? resolveCurrentUserUrl()
+      .then((url) => fetchCurrentUser(url))
       .then((u) => {
         user.value = u as User
       })
@@ -69,12 +92,17 @@ export function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const rootUri = `${getBaseUrl()}/`
-    const { url, method } = await resolveOperationUrl(rootUri, 'generateToken', '/tokens', 'POST')
+    const { url, method } = await resolveOperationUrl(
+      getRootUri(),
+      'generateToken',
+      '/tokens',
+      'POST',
+    )
     const newToken = await fetchToken(email, password, url, method)
     setAuthToken(newToken)
     try {
-      const currentUser = (await fetchCurrentUser()) as User
+      const currentUserUrl = await resolveCurrentUserUrl()
+      const currentUser = (await fetchCurrentUser(currentUserUrl)) as User
       token.value = newToken
       userEmail.value = email
       user.value = currentUser
