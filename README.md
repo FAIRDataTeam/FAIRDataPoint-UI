@@ -21,7 +21,8 @@ A FAIR Data Point (FDP) is a tool for the publication of **_metadata_** describi
 The FDP uses the Resource Description Framework ([RDF]) and the Data Catalog Vocabulary ([DCAT]) to facilitate publication of metadata as [Linked (Open) Data], following the [FAIR principles].
 
 [RDF] describes _things_ using statements of the form `(<subject>, <predicate>, <object>)`, called triples.
-By storing metadata, in the form of RDF, in a [triple store], a type of graph database specialized for handling [RDF], the we gain the ability to perform advanced queries using the [SPARQL] query language.
+Together, these triples define a knowledge graph where the `<subject>` and `<object>` terms represent nodes and the `<predicate>` terms represent edges.
+By storing metadata, in the form of RDF, in a [triple store], a type of graph database specialized for handling [RDF], an FDP gains the ability to perform advanced queries using the [SPARQL] query language.
 
 Due to the use of [Semantic Web] technology, metadata published on an FDP becomes part of a world wide web of knowledge.
 This enables people and machines from around the globe to explore the metadata and discover relations between different datasets using logical inference and reasoning techniques.
