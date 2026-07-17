@@ -52,8 +52,9 @@ To simplify direct human interaction with the FDP API, we offer the FDP client.
 
 ## FAIR Data Point Client
 
-The FAIR Data Point (FDP) _client_ is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
-The client provides a web-based user interface that makes it easier for humans to interact with a FAIR Data Point by hiding the interactions with the FDP API.
+The FAIR Data Point (FDP) _client_ provides a web-based user interface that makes it easier for humans to interact with a FAIR Data Point by hiding the interactions with the FDP API.
+The client is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
+Under the hood, the FDP client uses the JavaScript [Fetch API] to make HTTP requests to a remote FDP API that complies with the [FDP 1.2 specification]. 
 The main goal of the FDP client is to enable basic administration of the FDP, inspection of FDP content, and execution of simple queries.
 
 > [!NOTE]
@@ -170,3 +171,4 @@ Note that the `config.local.json` file is ignored by `git`.
 [OpenAPI 3 spec]: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.2.0.md
 [REST]: https://roy.gbiv.com/pubs/dissertation/rest_arch_style.htm
 [Docker Compose]: https://docs.docker.com/compose/
+[Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
