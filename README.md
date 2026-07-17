@@ -39,7 +39,7 @@ Compliance with the [FDP 1.2 specification] specification implies the following:
 4. FDP metadata schemas must have (a subclass of) [DCAT] `Resource` as the target class.
 5. The FDP metadata must include Linked Data Platform ([LDP]) containment statements.
 
-The [FDP 1.2 specification] also mentions that the FDP must provide an API following REST guidelines so that a client is able to discover the available actions and access the resources it needs.
+The [FDP 1.2 specification] also mentions that the FDP must provide an API following [REST] guidelines so that a client is able to discover the available actions and access the resources it needs.
 
 #### Reference implementation and API
 
@@ -50,10 +50,10 @@ The FDP API is intended primarily for machine interaction and exposes machine-re
 However, direct human interaction with the FDP API can be a bit cumbersome.
 To simplify direct human interaction with the FDP API, we offer the FDP client.
 
-## FAIR Data Point Client (FDP client)
+## FAIR Data Point Client
 
-The FAIR Data Point Client (FDP client) is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
-The client provides a web interface that makes it easier for humans to interact with the FAIR Data Point by hiding the interactions with the FDP API.
+The FAIR Data Point (FDP) _client_ is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
+The client provides a web-based user interface that makes it easier for humans to interact with a FAIR Data Point by hiding the interactions with the FDP API.
 The main goal of the FDP client is to enable basic administration of the FDP, inspection of FDP content, and execution of simple queries.
 
 > [!NOTE]
@@ -85,7 +85,7 @@ where `my.config.json` is a custom runtime configuration file that defines the p
 { apiEndpointUrl: https://fdp.example.org }
 ```
 
-It is also possible to run the FDP client application from source, but this is only recommended for development purposes.
+It is also possible to run the FDP client application from source, but this is only recommended for client development purposes.
 
 ### Setting up a development machine
 
