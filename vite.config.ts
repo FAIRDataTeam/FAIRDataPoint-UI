@@ -1,5 +1,6 @@
 /// <reference types="vitest/config" />
 
+import { strict as assert } from 'node:assert'
 import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig, ViteDevServer } from 'vite'
@@ -66,7 +67,7 @@ function clientConfigOverridePlugin() {
 
 /**
  * Returns a version string obtained from `git describe`, in long format, for example, `'v1.2.3-0-gfc7760f'`.
- * Falls back to `'unknown'` in case of error.
+ * Fails intentionally if stdout is falsy.
  */
 function gitDescribeVersion(): string {
   const { stdout, stderr, status } = spawnSync(
@@ -79,8 +80,6 @@ function gitDescribeVersion(): string {
     ],
     { encoding: 'utf8' },
   )
-  if (status !== 0) {
-    console.error('git describe exited with nonzero code (%d) - %s', status, stderr)
-  }
-  return stdout.trim() || 'unknown'
+  assert(stdout, `git describe failed (exit code: ${status}, stderr: ${stderr?.trim()})`)
+  return stdout.trim()
 }
