@@ -74,7 +74,7 @@ function clientConfigOverridePlugin() {
 function customCssPlugin() {
   return {
     name: 'html-transform',
-    transformIndexHtml(html: string): HtmlTagDescriptor[] {
+    transformIndexHtml(): HtmlTagDescriptor[] {
       return [
         {
           tag: 'link',
