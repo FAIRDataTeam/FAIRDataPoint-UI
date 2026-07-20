@@ -78,7 +78,7 @@ function customCssPlugin() {
       return [
         {
           tag: 'link',
-          attrs: { rel: 'stylesheet', crossorigin: '', href: '/custom.css' },
+          attrs: { rel: 'stylesheet', crossorigin: 'anonymous', href: '/custom.css' },
           injectTo: 'head',
         },
       ]
