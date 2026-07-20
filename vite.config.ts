@@ -1,15 +1,15 @@
 /// <reference types="vitest/config" />
 
 import { strict as assert } from 'node:assert'
+import { spawnSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { defineConfig, ViteDevServer } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
-import path from 'node:path'
-import * as fs from 'node:fs'
-import { spawnSync } from 'node:child_process'
 
 // https://vite.dev/config/
 export default defineConfig({
