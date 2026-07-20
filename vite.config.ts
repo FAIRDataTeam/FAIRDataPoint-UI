@@ -1,14 +1,15 @@
 /// <reference types="vitest/config" />
 
+import * as fs from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { defineConfig, ViteDevServer } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
+
 import { version } from './package.json'
-import path from 'node:path'
-import * as fs from 'node:fs'
 
 // https://vite.dev/config/
 export default defineConfig({
