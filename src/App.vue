@@ -41,7 +41,7 @@ async function openAbout() {
     <header class="app-header">
       <div class="app-header__inner">
         <RouterLink to="/" class="app-header__brand">
-          <img src="/assets/fair-logo.png" alt="FAIR Data Point logo" class="app-header__logo" />
+          <img src="/assets/logo.png" alt="Organization logo" class="app-header__logo" />
           <span class="app-header__title">
             <span class="app-header__title-full">
               FAIR Data Point
