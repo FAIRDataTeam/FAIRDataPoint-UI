@@ -8,7 +8,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 import path from 'node:path'
 import * as fs from 'node:fs'
-import { spawnSync, SpawnSyncReturns } from 'node:child_process'
+import { spawnSync } from 'node:child_process'
 
 // https://vite.dev/config/
 export default defineConfig({
