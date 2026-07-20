@@ -66,14 +66,17 @@ function clientConfigOverridePlugin() {
 
 /**
  * Returns a version string obtained from `git describe`, in long format, for example, `'v1.2.3-0-gfc7760f'`.
- * Uses `--tags` to include the lightweight tags created by github, `--always` to use abbreviated commit hash if there
- * are no tags at all, and `--long` to use long format even if the current commit is tagged.
  * Falls back to `'unknown'` in case of error.
  */
 function gitDescribeVersion(): string {
   const { stdout, stderr, status } = spawnSync(
     'git',
-    ['describe', '--tags', '--always', '--long'],
+    [
+      'describe',
+      '--tags', // include the lightweight tags created by e.g. github
+      '--always', // use abbreviated commit hash if there are no tags at all
+      '--long', // use long format even if the current commit is tagged ('v1.2.3-0-gfc7760f' instead of 'v1.2.3')
+    ],
     { encoding: 'utf8' },
   )
   if (status !== 0) {
