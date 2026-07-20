@@ -6,9 +6,9 @@ import { defineConfig, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
-import { version } from './package.json'
 import path from 'node:path'
 import * as fs from 'node:fs'
+import { spawnSync, SpawnSyncReturns } from 'node:child_process'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -20,7 +20,7 @@ export default defineConfig({
     },
   },
   define: {
-    __APP_VERSION__: JSON.stringify(version),
+    __APP_VERSION__: JSON.stringify(gitDescribeVersion()),
     __APP_BUILT_AT__: JSON.stringify(new Date().toISOString()),
   },
   // vitest options
@@ -62,4 +62,22 @@ function clientConfigOverridePlugin() {
       })
     },
   }
+}
+
+/**
+ * Returns a version string obtained from `git describe`, in long format, for example, `'v1.2.3-0-gfc7760f'`.
+ * Uses `--tags` to include the lightweight tags created by github, `--always` to use abbreviated commit hash if there
+ * are no tags at all, and `--long` to use long format even if the current commit is tagged.
+ * Falls back to `'unknown'` in case of error.
+ */
+function gitDescribeVersion(): string {
+  const { stdout, stderr, status } = spawnSync(
+    'git',
+    ['describe', '--tags', '--always', '--long'],
+    { encoding: 'utf8' },
+  )
+  if (status !== 0) {
+    console.error('git describe exited with nonzero code (%d) - %s', status, stderr)
+  }
+  return stdout.trim() || 'unknown'
 }
