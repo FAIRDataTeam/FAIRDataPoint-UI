@@ -67,7 +67,7 @@ function clientConfigOverridePlugin() {
 
 /**
  * Returns a version string obtained from `git describe`, in long format, for example, `'v1.2.3-0-gfc7760f'`.
- * Fails intentionally if stdout is falsy.
+ * Fails intentionally if the `git describe` call fails or if its output is falsy.
  */
 function gitDescribeVersion(): string {
   const { stdout, stderr, status } = spawnSync(
@@ -80,6 +80,6 @@ function gitDescribeVersion(): string {
     ],
     { encoding: 'utf8' },
   )
-  assert(stdout, `git describe failed (exit code: ${status}, stderr: ${stderr?.trim()})`)
+  assert(stdout, `git describe call failed (exit code: ${status}, stderr: ${stderr?.trim()})`)
   return stdout.trim()
 }
