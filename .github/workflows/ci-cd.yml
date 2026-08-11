@@ -1,11 +1,14 @@
-name: continuous integration checks and tests
+name: check, test, build image, and publish
 
 on:
   push:
     branches:
       - master
   pull_request:
-  workflow_dispatch:
+  pull_request_review: # enables us to trigger the publish job in pull requests, without pushing to docker hub
+  workflow_dispatch: # allows manual triggering, but only on the default branch
+  release:
+    types: [created]
 
 concurrency:
   # prevent duplicate runs
@@ -13,7 +16,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
+  check:
     runs-on: ubuntu-latest
 
     strategy:
@@ -48,3 +51,17 @@ jobs:
         # https://vitest.dev/config/watch
         name: Run tests
         run: npm run test
+
+  publish:
+    # skip this job for pull request updates (it *will* run on pr review, push to master, and release creation)
+    if: ${{ github.event_name != 'pull_request' }}
+    needs: check
+    # The docker-publish.yml workflow expects the following GitHub actions settings:
+    #   Environment variables: DOCKER_HUB_NAMESPACE, DOCKER_IMAGE_NAME, DOCKER_HUB_USERNAME
+    #   Environment secrets: DOCKER_HUB_PASSWORD
+    uses: FAIRDataTeam/github-workflows/.github/workflows/docker-publish.yml@v3
+    secrets: inherit
+    with:
+      file: './Dockerfile'
+      # only publish to docker hub when triggered by push to master branch or release creation
+      push: ${{ github.event_name == 'push' || github.event_name == 'release' }}
