@@ -3,13 +3,12 @@ import { parseTurtle, resolveSubjectUri, getParentUri, getNodeRefs } from './rdf
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
 
 /**
- * Resolves the URL of the FDP's OpenAPI/SmartAPI document. Follows dct:isPartOf up from the
- * given resource until reaching the FDP root (no further parent), reads
- * dcat:endPointDescription there, and falls back to a same-origin /v3/api-docs guess if the
- * root doesn't declare one. The returned URL is not verified to actually respond; callers are
- * responsible for handling a failed or invalid fetch.
+ * Finds candidate URLs for the FDP's OpenAPI/SmartAPI document: walks dct:isPartOf up to the FDP
+ * root, reads dcat:endpointDescription there, and adds a /v3/api-docs guess as a fallback.
+ * FDP 1.22+ can declare more than one (e.g. the OpenAPI doc and the Swagger UI page) in no
+ * guaranteed order, and none of the returned URLs are verified to respond; callers must try each.
  */
-export async function discoverApiDocsUrl(uri: string): Promise<string> {
+export async function discoverApiDocsUrls(uri: string): Promise<string[]> {
   let currentUri = uri
   let store = parseTurtle(await fetchRdfTurtle(currentUri))
   let subjectUri = resolveSubjectUri(store, currentUri)
@@ -22,11 +21,16 @@ export async function discoverApiDocsUrl(uri: string): Promise<string> {
     parentUri = subjectUri ? getParentUri(store, subjectUri) : null
   }
 
-  const endpointDescription = subjectUri
-    ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION)[0]
-    : undefined
+  const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
+  const fallbackUrl = new URL('/v3/api-docs', currentUri).toString()
+  return [...new Set([...declaredUrls, fallbackUrl])]
+}
 
-  return endpointDescription ?? new URL('/v3/api-docs', currentUri).toString()
+type OpenApiOperation = { operationId?: string }
+type OpenApiDoc = { paths?: Record<string, Record<string, OpenApiOperation>> }
+
+function isOpenApiDoc(doc: unknown): doc is OpenApiDoc {
+  return typeof doc === 'object' && doc !== null && 'paths' in doc
 }
 
 let apiDocsPromise: Promise<unknown> | null = null
@@ -34,18 +38,31 @@ let apiDocsPromise: Promise<unknown> | null = null
 /** Fetches the FDP's OpenAPI doc once per session and reuses it for all subsequent lookups. */
 async function getCachedApiDocs(rootUri: string): Promise<unknown> {
   if (!apiDocsPromise) {
-    apiDocsPromise = discoverApiDocsUrl(rootUri)
-      .then(fetchApiDocs)
-      .catch((err) => {
-        apiDocsPromise = null
-        throw err
-      })
+    apiDocsPromise = resolveApiDocs(rootUri).catch((err) => {
+      apiDocsPromise = null
+      throw err
+    })
   }
   return apiDocsPromise
 }
 
-type OpenApiOperation = { operationId?: string }
-type OpenApiDoc = { paths?: Record<string, Record<string, OpenApiOperation>> }
+/**
+ * Fetches the FDP's OpenAPI document, trying each URL from discoverApiDocsUrls in turn and
+ * keeping the first one that actually parses as an OpenAPI document (has a paths object).
+ * Throws if none of the candidates resolve to one.
+ */
+async function resolveApiDocs(rootUri: string): Promise<unknown> {
+  const candidates = await discoverApiDocsUrls(rootUri)
+  for (const url of candidates) {
+    try {
+      const doc = await fetchApiDocs(url)
+      if (isOpenApiDoc(doc)) return doc
+    } catch {
+      // try the next candidate
+    }
+  }
+  throw new Error(`No usable OpenAPI document found among candidates: ${candidates.join(', ')}`)
+}
 
 /**
  * Finds the path and HTTP method for a given operationId in an already-fetched OpenAPI document.
