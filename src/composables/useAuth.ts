@@ -37,14 +37,17 @@ async function resolveCurrentUserUrl(): Promise<string> {
 /** Whether this FDP instance's OpenAPI doc advertises token-based login; drives the login button. */
 export const loginAvailable = ref(true)
 
-/** Resolves once login availability is known; awaited by the router guard for a definitive answer. */
-export const loginAvailabilityChecked: Promise<boolean> = isOperationOffered(
-  getRootUri(),
-  'generateToken',
-).then((available) => {
+/**
+ * Resolves once login availability is known; the router guard awaits it before allowing /login.
+ * Wrapped in an async IIFE, not a direct isOperationOffered() call: this module evaluates before
+ * main.ts awaits loadClientConfig(), so getRootUri() can throw before config is ready. The IIFE
+ * turns that into a rejected promise instead of a synchronous exception that crashes app startup.
+ */
+export const loginAvailabilityChecked: Promise<boolean> = (async () => {
+  const available = await isOperationOffered(getRootUri(), 'generateToken')
   loginAvailable.value = available
   return available
-})
+})().catch(() => loginAvailable.value)
 
 function clearSession() {
   token.value = null
