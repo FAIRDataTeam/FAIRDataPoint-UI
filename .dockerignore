@@ -1,0 +1,62 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Testing
+tests/
+coverage/
+*.test.ts
+
+# Version control
+.git/
+.gitignore
+
+# CI/CD
+.github/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation
+README.md
+CONTRIBUTING.md
+LICENSE
+
+# Docker
+Dockerfile
+.dockerignore
+compose.yml
+compose.override.yml
+
+# Linting & Formatting
+.eslintcache
+.eslintrc*
+eslint.config.ts
+.prettierrc*
+.oxlintrc.json
+
+# Environment
+.env
+.env.*
+*.local
+*.local.json
+.nvmrc
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# Logs
+logs/
+*.log*
+
+# Various
+.cache/
+.tmp/
+.temp/
