@@ -34,6 +34,10 @@ services:
     volumes:
       # Override the default runtime config to specify the URL of the FDP API
       - './my.config.json:/usr/share/nginx/html/config.json'
+      # [optional] Custom CSS style file
+      - "./my.custom.css:/usr/share/nginx/html/custom.css"
+      # [optional] Custom logo
+      - "./my.logo.png:/usr/share/nginx/html/assets/logo.png"
 ```
 
 where `my.config.json` is a custom runtime configuration file that defines the primary endpoint URL of the FDP API, for example:
@@ -42,6 +46,8 @@ where `my.config.json` is a custom runtime configuration file that defines the p
 # my.config.json
 { apiEndpointUrl: https://fdp.example.org }
 ```
+
+The custom CSS file and custom logo are both optional.
 
 It is also possible to run the FDP client application from source, but this is only recommended for client development purposes.
 
