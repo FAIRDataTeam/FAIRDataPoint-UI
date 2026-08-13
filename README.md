@@ -46,8 +46,8 @@ The [FDP 1.2 specification] also mentions that the FDP must provide an API follo
 The [FDP reference implementation] is a Java-based implementation of the [FDP 1.2 specification] that provides an HTTP API for manipulating and querying RDF metadata.
 This enables users, like data stewards, to build automated metadata publication workflows for the FDP.
 The FDP API is intended primarily for machine interaction and exposes machine-readable documentation based on the [OpenAPI 3 spec].
-
-However, direct human interaction with the FDP API can be a bit cumbersome.
+The FDP reference implementation also provides a [swagger-ui] interface that allows humans to explore the API using a web browser.
+However, direct human interaction with the FDP API can still be a bit cumbersome.
 To simplify direct human interaction with the FDP API, we offer the FDP client.
 
 ## FAIR Data Point Client
@@ -173,3 +173,4 @@ Note that the `config.local.json` file is ignored by `git`.
 [Nginx hardened image]: https://hub.docker.com/hardened-images/catalog/dhi/nginx
 [Docker Compose]: https://docs.docker.com/compose/
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[swagger-ui]: https://swagger.io/open-source/swagger-ui/
