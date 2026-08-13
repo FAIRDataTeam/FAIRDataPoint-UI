@@ -45,6 +45,7 @@ eslint.config.ts
 .env
 .env.*
 *.local
+*.local.json
 .nvmrc
 
 # OS specific

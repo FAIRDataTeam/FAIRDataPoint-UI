@@ -170,5 +170,6 @@ Note that the `config.local.json` file is ignored by `git`.
 [LDP]: https://www.w3.org/TR/ldp/
 [OpenAPI 3 spec]: https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.2.0.md
 [REST]: https://roy.gbiv.com/pubs/dissertation/rest_arch_style.htm
+[Nginx hardened image]: https://hub.docker.com/hardened-images/catalog/dhi/nginx
 [Docker Compose]: https://docs.docker.com/compose/
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
