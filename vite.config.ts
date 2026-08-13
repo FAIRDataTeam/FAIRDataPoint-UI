@@ -7,14 +7,14 @@ import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
 import vue from '@vitejs/plugin-vue'
-import { defineConfig, ViteDevServer } from 'vite'
+import { defineConfig, HtmlTagDescriptor, ViteDevServer } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
 
 // https://vite.dev/config/
 export default defineConfig({
   // plugin order matters
-  plugins: [vue(), svgLoader(), vueDevTools(), clientConfigOverridePlugin()],
+  plugins: [vue(), svgLoader(), vueDevTools(), clientConfigOverridePlugin(), customCssPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -82,4 +82,25 @@ function gitDescribeVersion(): string {
   )
   assert(stdout, `git describe call failed (exit code: ${status}, stderr: ${stderr?.trim()})`)
   return stdout.trim()
+}
+
+/**
+ * Appends a `<link>` tag for a custom CSS `stylesheet` to the `<head>` section of `index.html`.
+ * This should be loaded after the default CSS files to allow proper overriding.
+ * Also see {@link https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascade/Introduction#complete_cascade_order CSS cascade order}
+ * and {@link https://vite.dev/guide/api-plugin#transformindexhtml transformIndexHtml hook docs}.
+ */
+function customCssPlugin() {
+  return {
+    name: 'html-transform',
+    transformIndexHtml(): HtmlTagDescriptor[] {
+      return [
+        {
+          tag: 'link',
+          attrs: { rel: 'stylesheet', crossorigin: 'anonymous', href: '/custom.css' },
+          injectTo: 'head',
+        },
+      ]
+    },
+  }
 }
