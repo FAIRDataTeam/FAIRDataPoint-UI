@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { internalHref, getRootUri } from '../composables/urlUtils'
+import { internalHref } from '../composables/urlUtils'
 import { searchResources } from '../composables/fdpApi'
-import { resolveOperationUrl } from '../composables/apiDocs'
+import { searchBinding } from '../composables/useSearch'
 
 type SearchResult = {
   uri: string
@@ -38,8 +38,7 @@ async function search(q: string) {
   loading.value = true
   error.value = null
   try {
-    // 'search_1', not the more obvious 'search': see App.vue's searchAvailable comment.
-    const { url, method } = await resolveOperationUrl(getRootUri(), 'search_1', '/search', 'POST')
+    const { url, method } = await searchBinding
     results.value = (await searchResources(q, url, method)) as SearchResult[]
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Search failed'

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { resolveOperationUrl, isOperationOffered } from './apiDocs'
+import { bindOperation, type OperationBinding } from './apiDocs'
 import { getRootUri } from './urlUtils'
 import { configReady } from '@/config'
 
@@ -25,27 +25,45 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
-/** Resolves the current-authenticated-user endpoint URL via the OpenAPI docs. */
-async function resolveCurrentUserUrl(): Promise<string> {
-  const { url } = await resolveOperationUrl(getRootUri(), 'getUserCurrent', '/users/current', 'GET')
-  return url
-}
+/**
+ * Resolved once, reused for gating (loginAvailable) and login()'s actual request. Awaits
+ * configReady since this evaluates before config loads (see config.ts); can reject if
+ * generateToken isn't offered (see apiDocs.ts's bindOperation).
+ */
+const generateTokenBinding: Promise<OperationBinding> = (async () => {
+  await configReady
+  return bindOperation(getRootUri(), 'generateToken')
+})()
 
-/** Whether this FDP instance's OpenAPI doc advertises token-based login; drives the login button. */
+/**
+ * Same as generateTokenBinding, for the current-authenticated-user endpoint. Only awaited
+ * conditionally though (authReady when a session exists; login() when someone logs in), so a
+ * rejection could go unobserved otherwise; the no-op .catch() below just marks it as observed
+ * without changing what real consumers see.
+ */
+const getUserCurrentBinding: Promise<OperationBinding> = (async () => {
+  await configReady
+  return bindOperation(getRootUri(), 'getUserCurrent')
+})()
+getUserCurrentBinding.catch(() => {})
+
+/** Controls whether the login button is shown, based on whether this FDP's OpenAPI doc actually offers token-based login. */
 export const loginAvailable = ref(false)
 
 /**
  * Resolves once login availability is known; the router guard awaits it before allowing /login.
- * This module evaluates before main.ts awaits loadClientConfig(), so getRootUri() would throw if
- * called immediately; awaiting configReady first ensures the check only runs once config has
- * actually finished loading.
+ * generateTokenBinding rejects if login isn't offered (or couldn't be confirmed), in which case
+ * this resolves to false rather than propagating the rejection.
  */
-export const loginAvailabilityChecked: Promise<boolean> = (async () => {
-  await configReady
-  const available = await isOperationOffered(getRootUri(), 'generateToken')
-  loginAvailable.value = available
-  return available
-})().catch(() => loginAvailable.value)
+export const loginAvailabilityChecked: Promise<boolean> = generateTokenBinding
+  .then(() => {
+    loginAvailable.value = true
+    return true
+  })
+  .catch(() => {
+    loginAvailable.value = false
+    return false
+  })
 
 function clearSession() {
   token.value = null
@@ -56,16 +74,10 @@ function clearSession() {
   setAuthToken(null)
 }
 
-/**
- * Resolves once the current user is loaded for an existing session; app mounting waits on this.
- * Awaits configReady first, for the same reason loginAvailabilityChecked does: this module
- * evaluates before main.ts awaits loadClientConfig(), so resolveCurrentUserUrl()'s getRootUri()
- * call would otherwise always fail before config has finished loading.
- */
+/** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
 export const authReady: Promise<void> = token.value
-  ? configReady
-      .then(() => resolveCurrentUserUrl())
-      .then((url) => fetchCurrentUser(url))
+  ? getUserCurrentBinding
+      .then((binding) => fetchCurrentUser(binding.url))
       .then((u) => {
         user.value = u as User
       })
@@ -99,16 +111,11 @@ export function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const { url, method } = await resolveOperationUrl(
-      getRootUri(),
-      'generateToken',
-      '/tokens',
-      'POST',
-    )
+    const { url, method } = await generateTokenBinding
     const newToken = await fetchToken(email, password, url, method)
     setAuthToken(newToken)
     try {
-      const currentUserUrl = await resolveCurrentUserUrl()
+      const currentUserUrl = (await getUserCurrentBinding).url
       const currentUser = (await fetchCurrentUser(currentUserUrl)) as User
       token.value = newToken
       userEmail.value = email

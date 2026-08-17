@@ -14,5 +14,6 @@ vi.mock('@/config', () => {
   return {
     loadClientConfig: vi.fn().mockResolvedValue(undefined),
     getClientConfig: vi.fn().mockReturnValue(testClientConfig),
+    configReady: Promise.resolve(),
   }
 })

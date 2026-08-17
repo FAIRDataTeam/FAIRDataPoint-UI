@@ -1,5 +1,10 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { useAuth, userInitials } from '../../src/composables/useAuth'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import type {
+  useAuth as UseAuth,
+  userInitials as UserInitials,
+} from '../../src/composables/useAuth'
 
 vi.hoisted(() => {
   const store: Record<string, string> = {}
@@ -11,31 +16,68 @@ vi.hoisted(() => {
     removeItem: (key: string) => {
       delete store[key]
     },
+    clear: () => {
+      for (const key of Object.keys(store)) delete store[key]
+    },
   } as Storage
 })
 
-// login
+const apiDocsFixture: unknown = JSON.parse(
+  readFileSync(resolve(__dirname, '../fixtures/api-docs.json'), 'utf-8'),
+)
+
+/**
+ * login()/authReady resolve generateToken and getUserCurrent via bindOperation before making the
+ * real request, so tests need to mock that resolution too (root Turtle fetch + /v3/api-docs
+ * fetch), not just the /tokens and /users/current calls themselves. handleAction covers only the
+ * latter; discovery is mocked identically for every test here, so it's factored out.
+ */
+function mockLoginFetch(
+  handleAction: (url: string, init?: RequestInit) => Promise<unknown> | unknown,
+) {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    const accept = (init?.headers as Record<string, string> | undefined)?.Accept
+    if (accept === 'text/turtle') return { ok: true, text: async () => '' }
+    if (url === 'http://localhost/v3/api-docs')
+      return { ok: true, json: async () => apiDocsFixture }
+    return handleAction(url, init)
+  })
+}
+
+// generateTokenBinding/getUserCurrentBinding are singletons resolved once, when useAuth.ts is
+// first imported, so a fetch mock must be active *before* that import, not just before login()
+// is called, or the first resolution attempt hits a real, unmocked fetch and permanently poisons
+// the binding for the rest of the module's lifetime. vi.resetModules() + a dynamic import per
+// test (see apiDocs.test.ts for the same pattern) ensures this. The default stub below covers
+// describe blocks that don't care about resolution at all (updateCurrentUser, userInitials).
+beforeEach(() => {
+  vi.resetModules()
+  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 0 }))
+})
+afterEach(() => {
+  vi.unstubAllGlobals()
+  sessionStorage.clear()
+})
 
 describe('login', () => {
-  afterEach(() => {
-    useAuth().logout()
-    vi.unstubAllGlobals()
-  })
-
   it('sets token, email, and isLoggedIn on success', async () => {
-    vi.stubGlobal('fetch', async (url: string) => ({
-      ok: true,
-      json: async () =>
-        String(url).endsWith('/tokens')
-          ? { token: 'efIobn394nvJJFJ30...' }
-          : {
-              uuid: '1',
-              firstName: 'Albert',
-              lastName: 'Einstein',
-              email: 'user@example.com',
-              role: 'USER',
-            },
-    }))
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async (url) => ({
+        ok: true,
+        json: async () =>
+          String(url).endsWith('/tokens')
+            ? { token: 'efIobn394nvJJFJ30...' }
+            : {
+                uuid: '1',
+                firstName: 'Albert',
+                lastName: 'Einstein',
+                email: 'user@example.com',
+                role: 'USER',
+              },
+      })),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login, token, userEmail, isLoggedIn } = useAuth()
     await login('user@example.com', 'secret')
     expect(token.value).toBe('efIobn394nvJJFJ30...')
@@ -44,19 +86,23 @@ describe('login', () => {
   })
 
   it('sets user and isAdmin after successful login', async () => {
-    vi.stubGlobal('fetch', async (url: string) => ({
-      ok: true,
-      json: async () =>
-        String(url).endsWith('/tokens')
-          ? { token: 'tok123' }
-          : {
-              uuid: 'u1',
-              firstName: 'Albert',
-              lastName: 'Einstein',
-              email: 'a@example.com',
-              role: 'ADMIN',
-            },
-    }))
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async (url) => ({
+        ok: true,
+        json: async () =>
+          String(url).endsWith('/tokens')
+            ? { token: 'tok123' }
+            : {
+                uuid: 'u1',
+                firstName: 'Albert',
+                lastName: 'Einstein',
+                email: 'a@example.com',
+                role: 'ADMIN',
+              },
+      })),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login, user, isAdmin } = useAuth()
     await login('a@example.com', 'secret')
     expect(user.value).toMatchObject({ firstName: 'Albert', lastName: 'Einstein', role: 'ADMIN' })
@@ -64,11 +110,15 @@ describe('login', () => {
   })
 
   it('clears session and rejects when /users/current fails', async () => {
-    vi.stubGlobal('fetch', async (url: string) => {
-      if (String(url).endsWith('/tokens'))
-        return { ok: true, json: async () => ({ token: 'tok123' }) }
-      return { ok: false, status: 500 }
-    })
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async (url) => {
+        if (String(url).endsWith('/tokens'))
+          return { ok: true, json: async () => ({ token: 'tok123' }) }
+        return { ok: false, status: 500 }
+      }),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login, token, user, isLoggedIn } = useAuth()
     await expect(login('a@example.com', 'secret')).rejects.toThrow()
     expect(token.value).toBeNull()
@@ -77,19 +127,27 @@ describe('login', () => {
   })
 
   it('throws "Invalid email or password" on 401', async () => {
-    vi.stubGlobal('fetch', async () => ({ ok: false, status: 401 }))
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async () => ({ ok: false, status: 401 })),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login } = useAuth()
     await expect(login('user@example.com', 'wrong')).rejects.toThrow('Invalid email or password')
   })
 
   it('throws "Login failed" on other HTTP errors', async () => {
-    vi.stubGlobal('fetch', async () => ({ ok: false, status: 500 }))
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async () => ({ ok: false, status: 500 })),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login } = useAuth()
     await expect(login('user@example.com', 'secret')).rejects.toThrow('Login failed (HTTP 500)')
   })
 
   it('posts credentials to the tokens endpoint', async () => {
-    const mockFetch = vi.fn(async (url: string) => ({
+    const mockFetch = mockLoginFetch(async (url) => ({
       ok: true,
       json: async () =>
         String(url).endsWith('/tokens')
@@ -97,6 +155,7 @@ describe('login', () => {
           : { uuid: '1', firstName: 'A', lastName: 'B', email: 'user@example.com', role: 'USER' },
     }))
     vi.stubGlobal('fetch', mockFetch)
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login } = useAuth()
     await login('user@example.com', 'secret')
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/tokens', {
@@ -110,22 +169,19 @@ describe('login', () => {
   })
 })
 
-// logout
-
 describe('logout', () => {
-  afterEach(() => {
-    useAuth().logout()
-    vi.unstubAllGlobals()
-  })
-
   it('clears token, email, and isLoggedIn', async () => {
-    vi.stubGlobal('fetch', async (url: string) => ({
-      ok: true,
-      json: async () =>
-        String(url).endsWith('/tokens')
-          ? { token: 'efIobn394nvJJFJ30...' }
-          : { uuid: '1', firstName: 'A', lastName: 'B', email: 'user@example.com', role: 'USER' },
-    }))
+    vi.stubGlobal(
+      'fetch',
+      mockLoginFetch(async (url) => ({
+        ok: true,
+        json: async () =>
+          String(url).endsWith('/tokens')
+            ? { token: 'efIobn394nvJJFJ30...' }
+            : { uuid: '1', firstName: 'A', lastName: 'B', email: 'user@example.com', role: 'USER' },
+      })),
+    )
+    const { useAuth } = await import('../../src/composables/useAuth')
     const { login, logout, token, userEmail, isLoggedIn } = useAuth()
     await login('user@example.com', 'secret')
     logout()
@@ -135,11 +191,11 @@ describe('logout', () => {
   })
 })
 
-// updateCurrentUser
-
 describe('updateCurrentUser', () => {
-  afterEach(() => {
-    useAuth().logout()
+  let useAuth: typeof UseAuth
+
+  beforeEach(async () => {
+    ;({ useAuth } = await import('../../src/composables/useAuth'))
   })
 
   it('updates user and userEmail', () => {
@@ -156,9 +212,13 @@ describe('updateCurrentUser', () => {
   })
 })
 
-// userInitials
-
 describe('userInitials', () => {
+  let userInitials: typeof UserInitials
+
+  beforeEach(async () => {
+    ;({ userInitials } = await import('../../src/composables/useAuth'))
+  })
+
   it('returns "?" for null', () => {
     expect(userInitials(null)).toBe('?')
   })

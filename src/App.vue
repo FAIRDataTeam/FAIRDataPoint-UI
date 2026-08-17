@@ -2,26 +2,14 @@
 import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth, loginAvailable } from './composables/useAuth'
+import { searchAvailable } from './composables/useSearch'
 import UserMenu from './components/UserMenu.vue'
-import { getBaseUrl, getRootUri } from '@/composables/urlUtils.ts'
-import { isOperationOffered } from '@/composables/apiDocs'
+import { getBaseUrl } from '@/composables/urlUtils.ts'
 
 const { isLoggedIn } = useAuth()
 const router = useRouter()
 
 const searchQuery = ref('')
-
-/**
- * Controls whether the search box is shown, based on whether this FDP's OpenAPI doc actually
- * offers full-text search.
- * The operationId is 'search_1', not the more obvious 'search': the backend has two different
- * operations whose Java method is literally named search(), and 'search' itself was claimed by
- * the other one (a saved-query endpoint), confirmed against the live generated api-docs.
- */
-const searchAvailable = ref(false)
-isOperationOffered(getRootUri(), 'search_1').then((available) => {
-  searchAvailable.value = available
-})
 
 function submitSearch() {
   const q = searchQuery.value.trim()

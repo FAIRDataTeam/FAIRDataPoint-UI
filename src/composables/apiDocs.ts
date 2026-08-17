@@ -1,28 +1,21 @@
 import { fetchRdfTurtle, fetchApiDocs } from './fdpApi'
-import { parseTurtle, resolveSubjectUri, getParentUri, getNodeRefs } from './rdfUtils'
+import { parseTurtle, resolveSubjectUri, getNodeRefs } from './rdfUtils'
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
 
 /**
- * Finds candidate URLs for the FDP's OpenAPI/SmartAPI document: walks dct:isPartOf up to the FDP
- * root, reads dcat:endpointDescription there, and adds a /v3/api-docs guess as a fallback.
+ * Finds candidate URLs for the FDP's OpenAPI/SmartAPI document: reads dcat:endpointDescription
+ * from the FDP root's Turtle, and adds a /v3/api-docs guess as a fallback. Always called with the
+ * root URI: dcat:endpointDescription is a root-only property per the FDP spec (Section 4.2.1), so
+ * there's nothing to discover by walking dct:isPartOf up from elsewhere, and callers already know
+ * the root directly via getRootUri(), no discovery needed to find it either.
  * FDP 1.22+ can declare more than one (e.g. the OpenAPI doc and the Swagger UI page) in no
  * guaranteed order, and none of the returned URLs are verified to respond; callers must try each.
  */
-export async function discoverApiDocsUrls(uri: string): Promise<string[]> {
-  let currentUri = uri
-  let store = parseTurtle(await fetchRdfTurtle(currentUri))
-  let subjectUri = resolveSubjectUri(store, currentUri)
-
-  let parentUri = subjectUri ? getParentUri(store, subjectUri) : null
-  while (parentUri) {
-    currentUri = parentUri
-    store = parseTurtle(await fetchRdfTurtle(currentUri))
-    subjectUri = resolveSubjectUri(store, currentUri)
-    parentUri = subjectUri ? getParentUri(store, subjectUri) : null
-  }
-
+export async function discoverApiDocsUrls(rootUri: string): Promise<string[]> {
+  const store = parseTurtle(await fetchRdfTurtle(rootUri))
+  const subjectUri = resolveSubjectUri(store, rootUri)
   const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
-  const fallbackUrl = new URL('/v3/api-docs', currentUri).toString()
+  const fallbackUrl = new URL('/v3/api-docs', rootUri).toString()
   return [...new Set([...declaredUrls, fallbackUrl])]
 }
 
@@ -86,40 +79,22 @@ export function resolveOperation(
   return null
 }
 
-/**
- * Resolves an operationId to a full URL and HTTP method by discovering and fetching the FDP's
- * OpenAPI document. Falls back to fallbackPath/fallbackMethod if discovery, fetching, or
- * resolution fails for any reason.
- */
-export async function resolveOperationUrl(
-  rootUri: string,
-  operationId: string,
-  fallbackPath: string,
-  fallbackMethod: string,
-): Promise<{ url: string; method: string }> {
-  try {
-    const doc = await getCachedApiDocs(rootUri)
-    const operation = resolveOperation(doc, operationId)
-    if (operation) {
-      return { url: new URL(operation.path, rootUri).toString(), method: operation.method }
-    }
-  } catch {
-    // fall through to fallback
-  }
-  return { url: new URL(fallbackPath, rootUri).toString(), method: fallbackMethod }
-}
+export type OperationBinding = { url: string; method: string }
 
 /**
- * Checks whether the FDP's OpenAPI doc advertises the given operationId. Only used to gate UI
- * affordances (e.g. showing a "Log in" button), so it fails closed: any discovery/fetch failure,
- * or the operation being absent from a successfully-fetched doc, resolves to false. We only offer
- * functionality we can actually confirm the backend supports.
+ * Resolves an operationId to the URL/method to call it. No fallback: the only guessed URL in
+ * this module is discoverApiDocsUrls's /v3/api-docs guess, for locating the doc itself. Once we
+ * have the doc, resolveOperation gives a definitive answer, offered or not, so this rejects
+ * rather than guessing a path the backend has already told us doesn't exist.
  */
-export async function isOperationOffered(rootUri: string, operationId: string): Promise<boolean> {
-  try {
-    const doc = await getCachedApiDocs(rootUri)
-    return resolveOperation(doc, operationId) !== null
-  } catch {
-    return false
+export async function bindOperation(
+  rootUri: string,
+  operationId: string,
+): Promise<OperationBinding> {
+  const doc = await getCachedApiDocs(rootUri)
+  const operation = resolveOperation(doc, operationId)
+  if (!operation) {
+    throw new Error(`Operation '${operationId}' is not offered by this FDP's OpenAPI doc`)
   }
+  return { url: new URL(operation.path, rootUri).toString(), method: operation.method }
 }
