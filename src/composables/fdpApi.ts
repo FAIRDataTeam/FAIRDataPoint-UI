@@ -32,15 +32,21 @@ export async function fetchApiDocs(uri: string): Promise<unknown> {
 
 /** Searches resources via the FDP full-text search endpoint. */
 // TODO: currently limited to the first 20 results; consider pagination or a larger page size.
-export async function searchResources(query: string): Promise<unknown[]> {
-  const base = getBaseUrl()
+export async function searchResources(
+  query: string,
+  url: string,
+  method: string,
+): Promise<unknown[]> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/search?page=0&size=20`, {
-    method: 'POST',
+  const searchUrl = new URL(url)
+  searchUrl.searchParams.set('page', '0')
+  searchUrl.searchParams.set('size', '20')
+  const response = await fetch(searchUrl.toString(), {
+    method,
     headers,
     body: JSON.stringify({ query }),
   })

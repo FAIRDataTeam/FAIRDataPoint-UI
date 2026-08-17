@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
 import { resolveOperationUrl, isOperationOffered } from './apiDocs'
-import { getBaseUrl } from './urlUtils'
+import { getRootUri } from './urlUtils'
 import { configReady } from '@/config'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
@@ -24,10 +24,6 @@ const isLoggedIn = computed(() => token.value !== null)
 const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
-
-function getRootUri(): string {
-  return `${getBaseUrl()}/`
-}
 
 /** Resolves the current-authenticated-user endpoint URL via the OpenAPI docs. */
 async function resolveCurrentUserUrl(): Promise<string> {

@@ -5,6 +5,11 @@ export function getBaseUrl(): string {
   return getClientConfig().apiEndpointUrl.replace(/\/$/, '')
 }
 
+/** @example getRootUri() // -> 'http://localhost/'  (when apiEndpointUrl = 'http://localhost') */
+export function getRootUri(): string {
+  return `${getBaseUrl()}/`
+}
+
 /**
  * RDF metadata can contain links to other resources on this FDP instance.
  * Internal links are handled by the Vue router; external links open in a new tab.
