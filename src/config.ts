@@ -21,6 +21,15 @@ const CONFIG_FILE_PATH = '/config.json'
 // and then use getClientConfig() whenever it is needed.
 let clientConfig: ClientConfig | undefined
 
+// Some module-level code (e.g. in useAuth.ts) needs to call getClientConfig()-dependent functions
+// as soon as its module evaluates, which happens before main.ts gets a chance to call and await
+// loadClientConfig(). Such code should await configReady first, so it runs once config has
+// actually finished loading instead of hitting a "not loaded yet" error every time.
+let resolveConfigReady: () => void
+export const configReady: Promise<void> = new Promise((resolve) => {
+  resolveConfigReady = resolve
+})
+
 /**
  * Defines the runtime configuration for the application.
  */
@@ -40,7 +49,14 @@ export async function loadClientConfig(): Promise<void> {
     throw new Error(`Failed to load runtime configuration from file: ${CONFIG_FILE_PATH}`)
   }
   // Parse JSON and update the config object
-  clientConfig = (await response.json()) as ClientConfig
+  const parsed = (await response.json()) as ClientConfig
+  if (!parsed.apiEndpointUrl || typeof parsed.apiEndpointUrl !== 'string') {
+    throw new Error(
+      `Runtime configuration from ${CONFIG_FILE_PATH} is missing a valid "apiEndpointUrl"`,
+    )
+  }
+  clientConfig = parsed
+  resolveConfigReady()
 }
 
 /**

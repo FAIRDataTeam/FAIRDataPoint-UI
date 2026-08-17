@@ -66,6 +66,12 @@ body {
   flex: 1;
 }
 
+/* Shown in place of #app's content if the app fails to start before Vue ever mounts (see main.ts). */
+.startup-error {
+  padding: var(--fdp-space-8);
+  color: var(--fdp-color-danger);
+}
+
 button,
 input,
 select,
