@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
 import { resolveOperationUrl, isOperationOffered } from './apiDocs'
 import { getBaseUrl } from './urlUtils'
+import { configReady } from '@/config'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -35,15 +36,16 @@ async function resolveCurrentUserUrl(): Promise<string> {
 }
 
 /** Whether this FDP instance's OpenAPI doc advertises token-based login; drives the login button. */
-export const loginAvailable = ref(true)
+export const loginAvailable = ref(false)
 
 /**
  * Resolves once login availability is known; the router guard awaits it before allowing /login.
- * Wrapped in an async IIFE, not a direct isOperationOffered() call: this module evaluates before
- * main.ts awaits loadClientConfig(), so getRootUri() can throw before config is ready. The IIFE
- * turns that into a rejected promise instead of a synchronous exception that crashes app startup.
+ * This module evaluates before main.ts awaits loadClientConfig(), so getRootUri() would throw if
+ * called immediately; awaiting configReady first ensures the check only runs once config has
+ * actually finished loading.
  */
 export const loginAvailabilityChecked: Promise<boolean> = (async () => {
+  await configReady
   const available = await isOperationOffered(getRootUri(), 'generateToken')
   loginAvailable.value = available
   return available
@@ -58,9 +60,15 @@ function clearSession() {
   setAuthToken(null)
 }
 
-/** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
+/**
+ * Resolves once the current user is loaded for an existing session; app mounting waits on this.
+ * Awaits configReady first, for the same reason loginAvailabilityChecked does: this module
+ * evaluates before main.ts awaits loadClientConfig(), so resolveCurrentUserUrl()'s getRootUri()
+ * call would otherwise always fail before config has finished loading.
+ */
 export const authReady: Promise<void> = token.value
-  ? resolveCurrentUserUrl()
+  ? configReady
+      .then(() => resolveCurrentUserUrl())
       .then((url) => fetchCurrentUser(url))
       .then((u) => {
         user.value = u as User

@@ -105,7 +105,7 @@ async function openAbout() {
             >Log in</RouterLink
           >
 
-          <UserMenu v-else />
+          <UserMenu v-else-if="isLoggedIn" />
         </nav>
       </div>
     </header>

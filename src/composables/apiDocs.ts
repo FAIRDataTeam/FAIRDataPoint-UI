@@ -110,16 +110,16 @@ export async function resolveOperationUrl(
 }
 
 /**
- * Checks whether the FDP's OpenAPI doc advertises the given operationId. Returns false only when
- * the doc was fetched successfully and the operation is absent from it; any discovery/fetch
- * failure resolves to true, since failing to discover an operation isn't evidence it doesn't
- * exist.
+ * Checks whether the FDP's OpenAPI doc advertises the given operationId. Only used to gate UI
+ * affordances (e.g. showing a "Log in" button), so it fails closed: any discovery/fetch failure,
+ * or the operation being absent from a successfully-fetched doc, resolves to false. We only offer
+ * functionality we can actually confirm the backend supports.
  */
 export async function isOperationOffered(rootUri: string, operationId: string): Promise<boolean> {
   try {
     const doc = await getCachedApiDocs(rootUri)
     return resolveOperation(doc, operationId) !== null
   } catch {
-    return true
+    return false
   }
 }
