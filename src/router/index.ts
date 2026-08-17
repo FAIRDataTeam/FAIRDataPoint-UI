@@ -5,7 +5,9 @@ import SearchView from '@/views/SearchView.vue'
 import NotAllowedView from '@/views/NotAllowedView.vue'
 import UsersView from '@/views/UsersView.vue'
 import UserFormView from '@/views/UserFormView.vue'
-import { useAuth, loginAvailabilityChecked } from '@/composables/useAuth'
+import { useAuth, loginAvailabilityChecked, getUserCurrentChecked } from '@/composables/useAuth'
+import { getUsersChecked, createUserChecked, getUserChecked } from '@/composables/useUsers'
+import { searchChecked } from '@/composables/useSearch'
 
 declare module 'vue-router' {
   interface RouteMeta {
@@ -74,6 +76,11 @@ router.beforeEach(async (to) => {
   if (to.meta.requiresAuth && !isLoggedIn.value) return '/login'
   if (to.meta.requiresAdmin && !isAdmin.value) return '/not-allowed'
   if (to.name === 'login' && !(await loginAvailabilityChecked)) return '/'
+  if (to.name === 'users' && !(await getUsersChecked)) return '/'
+  if (to.name === 'user-create' && !(await createUserChecked)) return '/'
+  if (to.name === 'user-detail' && !(await getUserChecked)) return '/'
+  if (to.name === 'user-profile' && !(await getUserCurrentChecked)) return '/'
+  if (to.name === 'search' && !(await searchChecked)) return '/'
 })
 
 export default router

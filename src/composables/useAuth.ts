@@ -43,12 +43,16 @@ const getUserCurrentBinding: Promise<OperationBinding> = (async () => {
 
 /** Controls whether the "Edit profile" link is shown, based on whether this FDP's OpenAPI doc actually offers fetching the current user. */
 export const getUserCurrentAvailable = ref(false)
-getUserCurrentBinding
+
+/** Resolves once getUserCurrentAvailable is known; the router guard awaits it before allowing /users/current. */
+export const getUserCurrentChecked: Promise<boolean> = getUserCurrentBinding
   .then(() => {
     getUserCurrentAvailable.value = true
+    return true
   })
   .catch(() => {
     getUserCurrentAvailable.value = false
+    return false
   })
 
 /** Controls whether the login button is shown, based on whether this FDP's OpenAPI doc actually offers token-based login. */

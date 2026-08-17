@@ -20,10 +20,14 @@ export const searchBinding: Promise<OperationBinding> = (async () => {
 
 /** Controls whether the search box is shown, based on whether this FDP's OpenAPI doc actually offers full-text search. */
 export const searchAvailable = ref(false)
-searchBinding
+
+/** Resolves once searchAvailable is known; the router guard awaits it before allowing /search. */
+export const searchChecked: Promise<boolean> = searchBinding
   .then(() => {
     searchAvailable.value = true
+    return true
   })
   .catch(() => {
     searchAvailable.value = false
+    return false
   })
