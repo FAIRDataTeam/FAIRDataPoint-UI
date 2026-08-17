@@ -2,6 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, createUser, updateUser, updateUserPassword } from '../composables/fdpApi'
+import { bindOperation, type OperationBinding } from '../composables/apiDocs'
+import { getRootUri } from '../composables/urlUtils'
+import { createUserAvailable } from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
@@ -16,6 +19,20 @@ const { updateCurrentUser } = useAuth()
 const isCreate = computed(() => route.name === 'user-create')
 const isSelf = computed(() => route.name === 'user-profile')
 const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
+
+/**
+ * Editing your own profile (/users/current) and an admin editing someone else's (/users/:id) are
+ * different backend operations (getUserCurrent vs getUser, etc.), not the same one with a path
+ * param, the /users/current family takes no uuid at all.
+ */
+function selfOrUuidOperation(
+  selfOperationId: string,
+  uuidOperationId: string,
+): Promise<OperationBinding> {
+  return isSelf.value
+    ? bindOperation(getRootUri(), selfOperationId)
+    : bindOperation(getRootUri(), uuidOperationId, { uuid: userId.value })
+}
 
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -43,12 +60,19 @@ const savedName = ref('')
 const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
+// Whether the profile-save/password-save buttons are shown, based on whether this FDP's OpenAPI
+// doc actually offers the operation selfOrUuidOperation would resolve for the current route
+// (putUserCurrent/putUserCurrentPassword when isSelf, else putUser/putUserPassword).
+const profileEditAvailable = ref(false)
+const passwordEditAvailable = ref(false)
+
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
   loading.value = true
   loadError.value = null
   try {
-    const u = (await fetchUser(userId.value)) as User
+    const { url } = await selfOrUuidOperation('getUserCurrent', 'getUser')
+    const u = (await fetchUser(url)) as User
     firstName.value = u.firstName
     lastName.value = u.lastName
     email.value = u.email
@@ -77,13 +101,18 @@ async function submitCreate() {
   profileError.value = null
   profileSaving.value = true
   try {
-    await createUser({
-      firstName: firstName.value,
-      lastName: lastName.value,
-      email: email.value,
-      role: role.value,
-      password: newPassword.value,
-    })
+    const { url, method } = await bindOperation(getRootUri(), 'createUser')
+    await createUser(
+      {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+        role: role.value,
+        password: newPassword.value,
+      },
+      url,
+      method,
+    )
     await router.push('/users')
   } catch (err) {
     profileError.value = err instanceof Error ? err.message : 'Unable to create user.'
@@ -110,12 +139,17 @@ async function submitProfile() {
   profileSuccess.value = null
   profileSaving.value = true
   try {
-    await updateUser(userId.value, {
-      firstName: firstName.value,
-      lastName: lastName.value,
-      email: email.value,
-      role: role.value,
-    })
+    const { url, method } = await selfOrUuidOperation('putUserCurrent', 'putUser')
+    await updateUser(
+      {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+        role: role.value,
+      },
+      url,
+      method,
+    )
     savedName.value = `${firstName.value} ${lastName.value}`
     if (isSelf.value) {
       updateCurrentUser({
@@ -142,7 +176,8 @@ async function submitPassword() {
   passwordSuccess.value = null
   passwordSaving.value = true
   try {
-    await updateUserPassword(userId.value, newPassword.value)
+    const { url, method } = await selfOrUuidOperation('putUserCurrentPassword', 'putUserPassword')
+    await updateUserPassword(newPassword.value, url, method)
     newPassword.value = ''
     passwordConfirm.value = ''
     passwordSubmitted.value = false
@@ -155,7 +190,22 @@ async function submitPassword() {
 }
 
 onMounted(() => {
-  if (!isCreate.value) void loadUser()
+  if (isCreate.value) return
+  void loadUser()
+  selfOrUuidOperation('putUserCurrent', 'putUser')
+    .then(() => {
+      profileEditAvailable.value = true
+    })
+    .catch(() => {
+      profileEditAvailable.value = false
+    })
+  selfOrUuidOperation('putUserCurrentPassword', 'putUserPassword')
+    .then(() => {
+      passwordEditAvailable.value = true
+    })
+    .catch(() => {
+      passwordEditAvailable.value = false
+    })
 })
 </script>
 
@@ -203,7 +253,12 @@ onMounted(() => {
         </p>
       </div>
 
-      <button type="submit" class="user-form__btn" :disabled="profileSaving">
+      <button
+        v-if="createUserAvailable"
+        type="submit"
+        class="user-form__btn"
+        :disabled="profileSaving"
+      >
         {{ profileSaving ? 'Creating…' : 'Create user' }}
       </button>
     </form>
@@ -224,7 +279,12 @@ onMounted(() => {
             :hide-role="isSelf"
           />
 
-          <button type="submit" class="user-form__btn" :disabled="profileSaving">
+          <button
+            v-if="profileEditAvailable"
+            type="submit"
+            class="user-form__btn"
+            :disabled="profileSaving"
+          >
             {{ profileSaving ? 'Saving…' : 'Save profile' }}
           </button>
         </form>
@@ -262,7 +322,12 @@ onMounted(() => {
             </p>
           </div>
 
-          <button type="submit" class="user-form__btn" :disabled="passwordSaving">
+          <button
+            v-if="passwordEditAvailable"
+            type="submit"
+            class="user-form__btn"
+            :disabled="passwordSaving"
+          >
             {{ passwordSaving ? 'Updating…' : 'Update password' }}
           </button>
         </form>

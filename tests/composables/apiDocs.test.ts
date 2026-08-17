@@ -147,6 +147,52 @@ describe('bindOperation', () => {
       'network error',
     )
   })
+
+  it('substitutes pathParams into the resolved path template', async () => {
+    const { fetchRdfTurtle, fetchApiDocs } = await import('../../src/composables/fdpApi')
+    const { bindOperation } = await import('../../src/composables/apiDocs')
+
+    vi.mocked(fetchRdfTurtle).mockResolvedValue(`
+      @prefix dcat: <http://www.w3.org/ns/dcat#> .
+      <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
+    `)
+    vi.mocked(fetchApiDocs).mockResolvedValue(JSON.parse(readFixture('api-docs.json')))
+
+    expect(await bindOperation('http://localhost/', 'deleteUser', { uuid: 'abc-123' })).toEqual({
+      url: 'http://localhost/users/abc-123',
+      method: 'DELETE',
+    })
+  })
+
+  it('URL-encodes path param values, not just substitutes them verbatim', async () => {
+    const { fetchRdfTurtle, fetchApiDocs } = await import('../../src/composables/fdpApi')
+    const { bindOperation } = await import('../../src/composables/apiDocs')
+
+    vi.mocked(fetchRdfTurtle).mockResolvedValue(`
+      @prefix dcat: <http://www.w3.org/ns/dcat#> .
+      <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
+    `)
+    vi.mocked(fetchApiDocs).mockResolvedValue(JSON.parse(readFixture('api-docs.json')))
+
+    expect(
+      await bindOperation('http://localhost/', 'deleteUser', { uuid: 'a/b c' }),
+    ).toEqual({ url: 'http://localhost/users/a%2Fb%20c', method: 'DELETE' })
+  })
+
+  it('rejects when a required path param is missing', async () => {
+    const { fetchRdfTurtle, fetchApiDocs } = await import('../../src/composables/fdpApi')
+    const { bindOperation } = await import('../../src/composables/apiDocs')
+
+    vi.mocked(fetchRdfTurtle).mockResolvedValue(`
+      @prefix dcat: <http://www.w3.org/ns/dcat#> .
+      <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
+    `)
+    vi.mocked(fetchApiDocs).mockResolvedValue(JSON.parse(readFixture('api-docs.json')))
+
+    await expect(bindOperation('http://localhost/', 'deleteUser', {})).rejects.toThrow(
+      "Missing path parameter 'uuid'",
+    )
+  })
 })
 
 describe('resolveOperation', () => {

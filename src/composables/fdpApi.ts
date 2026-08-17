@@ -1,5 +1,3 @@
-import { getBaseUrl } from './urlUtils'
-
 let authToken: string | null = null
 
 /** Stores the JWT token to be included in subsequent requests as a Bearer header. */
@@ -55,30 +53,27 @@ export async function searchResources(
 }
 
 /** Lists all users registered on the FDP. */
-export async function fetchUsers(): Promise<unknown[]> {
-  const base = getBaseUrl()
+export async function fetchUsers(url: string): Promise<unknown[]> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users`, { headers })
+  const response = await fetch(url, { headers })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json() as Promise<unknown[]>
 }
 
-/** Deletes a user by UUID. */
-export async function deleteUser(uuid: string): Promise<void> {
-  const base = getBaseUrl()
+/** Deletes a user. */
+export async function deleteUser(url: string, method: string): Promise<void> {
   const headers: Record<string, string> = {}
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, { method: 'DELETE', headers })
+  const response = await fetch(url, { method, headers })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
 }
 
-/** Fetches a single user's profile by UUID. */
-export async function fetchUser(uuid: string): Promise<unknown> {
-  const base = getBaseUrl()
+/** Fetches a single user's profile. */
+export async function fetchUser(url: string): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, { headers })
+  const response = await fetch(url, { headers })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
 }
@@ -87,24 +82,23 @@ export async function fetchUser(uuid: string): Promise<unknown> {
  * Creates a new user; body mirrors the backend's UserCreateDTO.
  * Error responses are assumed to carry { message: string } (e.g. "Email '...' is already taken").
  */
-export async function createUser(data: {
-  firstName: string
-  lastName: string
-  email: string
-  role: string
-  password: string
-}): Promise<unknown> {
-  const base = getBaseUrl()
+export async function createUser(
+  data: {
+    firstName: string
+    lastName: string
+    email: string
+    role: string
+    password: string
+  },
+  url: string,
+  method: string,
+): Promise<unknown> {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users`, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify(data),
-  })
+  const response = await fetch(url, { method, headers, body: JSON.stringify(data) })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     throw new Error((body as { message?: string })?.message ?? `HTTP ${response.status}`)
@@ -114,20 +108,16 @@ export async function createUser(data: {
 
 /** Updates a user's profile fields; body mirrors the backend's UserChangeDTO. */
 export async function updateUser(
-  uuid: string,
   data: { firstName: string; lastName: string; email: string; role: string },
+  url: string,
+  method: string,
 ): Promise<unknown> {
-  const base = getBaseUrl()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     Accept: 'application/json',
   }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify(data),
-  })
+  const response = await fetch(url, { method, headers, body: JSON.stringify(data) })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     throw new Error((body as { message?: string })?.message ?? `HTTP ${response.status}`)
@@ -136,15 +126,14 @@ export async function updateUser(
 }
 
 /** Updates a user's password. */
-export async function updateUserPassword(uuid: string, password: string): Promise<void> {
-  const base = getBaseUrl()
+export async function updateUserPassword(
+  password: string,
+  url: string,
+  method: string,
+): Promise<void> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json' }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}/password`, {
-    method: 'PUT',
-    headers,
-    body: JSON.stringify({ password }),
-  })
+  const response = await fetch(url, { method, headers, body: JSON.stringify({ password }) })
   if (!response.ok) {
     const body = await response.json().catch(() => null)
     throw new Error((body as { message?: string })?.message ?? `HTTP ${response.status}`)

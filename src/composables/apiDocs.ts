@@ -82,7 +82,20 @@ export function resolveOperation(
 export type OperationBinding = { url: string; method: string }
 
 /**
- * Resolves an operationId to the URL/method to call it. No fallback: the only guessed URL in
+ * Substitutes {name}-style placeholders in a path template with values from pathParams.
+ * @example substitutePathParams('/users/{uuid}', { uuid: 'abc' }) // -> '/users/abc'
+ */
+function substitutePathParams(path: string, pathParams: Record<string, string>): string {
+  return path.replace(/\{([^}]+)\}/g, (_placeholder, name: string) => {
+    const value = pathParams[name]
+    if (value === undefined) throw new Error(`Missing path parameter '${name}' for '${path}'`)
+    return encodeURIComponent(value)
+  })
+}
+
+/**
+ * Resolves an operationId to the URL/method to call it, substituting pathParams into any
+ * {name}-style placeholders in the resolved path template. No fallback: the only guessed URL in
  * this module is discoverApiDocsUrls's /v3/api-docs guess, for locating the doc itself. Once we
  * have the doc, resolveOperation gives a definitive answer, offered or not, so this rejects
  * rather than guessing a path the backend has already told us doesn't exist.
@@ -90,11 +103,13 @@ export type OperationBinding = { url: string; method: string }
 export async function bindOperation(
   rootUri: string,
   operationId: string,
+  pathParams?: Record<string, string>,
 ): Promise<OperationBinding> {
   const doc = await getCachedApiDocs(rootUri)
   const operation = resolveOperation(doc, operationId)
   if (!operation) {
     throw new Error(`Operation '${operationId}' is not offered by this FDP's OpenAPI doc`)
   }
-  return { url: new URL(operation.path, rootUri).toString(), method: operation.method }
+  const path = pathParams ? substitutePathParams(operation.path, pathParams) : operation.path
+  return { url: new URL(path, rootUri).toString(), method: operation.method }
 }

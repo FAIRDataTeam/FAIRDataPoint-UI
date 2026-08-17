@@ -35,17 +35,21 @@ const generateTokenBinding: Promise<OperationBinding> = (async () => {
   return bindOperation(getRootUri(), 'generateToken')
 })()
 
-/**
- * Same as generateTokenBinding, for the current-authenticated-user endpoint. Only awaited
- * conditionally though (authReady when a session exists; login() when someone logs in), so a
- * rejection could go unobserved otherwise; the no-op .catch() below just marks it as observed
- * without changing what real consumers see.
- */
+/** Same as generateTokenBinding, for the current-authenticated-user endpoint. */
 const getUserCurrentBinding: Promise<OperationBinding> = (async () => {
   await configReady
   return bindOperation(getRootUri(), 'getUserCurrent')
 })()
-getUserCurrentBinding.catch(() => {})
+
+/** Controls whether the "Edit profile" link is shown, based on whether this FDP's OpenAPI doc actually offers fetching the current user. */
+export const getUserCurrentAvailable = ref(false)
+getUserCurrentBinding
+  .then(() => {
+    getUserCurrentAvailable.value = true
+  })
+  .catch(() => {
+    getUserCurrentAvailable.value = false
+  })
 
 /** Controls whether the login button is shown, based on whether this FDP's OpenAPI doc actually offers token-based login. */
 export const loginAvailable = ref(false)

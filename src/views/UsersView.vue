@@ -2,6 +2,9 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { fetchUsers, deleteUser as apiDeleteUser } from '../composables/fdpApi'
+import { bindOperation } from '../composables/apiDocs'
+import { getRootUri } from '../composables/urlUtils'
+import { createUserAvailable, deleteUserAvailable } from '../composables/useUsers'
 import { avatarColor } from '../composables/useAuth'
 import type { User } from '../composables/useAuth'
 import IconTrash from '../assets/icons/trash.svg?component'
@@ -23,7 +26,8 @@ async function loadUsers() {
   loading.value = true
   error.value = null
   try {
-    const data = await fetchUsers()
+    const { url } = await bindOperation(getRootUri(), 'getUsers')
+    const data = await fetchUsers(url)
     users.value = [...(data as User[])].sort((a, b) =>
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`),
     )
@@ -38,7 +42,8 @@ async function loadUsers() {
 async function handleDelete(user: User) {
   if (!window.confirm(`Are you sure you want to delete ${user.firstName} ${user.lastName}?`)) return
   try {
-    await apiDeleteUser(user.uuid)
+    const { url, method } = await bindOperation(getRootUri(), 'deleteUser', { uuid: user.uuid })
+    await apiDeleteUser(url, method)
     await loadUsers()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unable to delete user.'
@@ -52,7 +57,9 @@ onMounted(loadUsers)
   <main class="page-container">
     <div class="users-header">
       <h1 class="users-title">Users</h1>
-      <RouterLink to="/users/create" class="users-create-link">+ Create user</RouterLink>
+      <RouterLink v-if="createUserAvailable" to="/users/create" class="users-create-link"
+        >+ Create user</RouterLink
+      >
     </div>
 
     <p v-if="loading">Loading…</p>
@@ -73,7 +80,12 @@ onMounted(loadUsers)
           <div class="user-list__email">{{ user.email }}</div>
         </div>
         <div class="user-list__actions">
-          <button class="user-list__delete" data-tooltip="Remove" @click="handleDelete(user)">
+          <button
+            v-if="deleteUserAvailable"
+            class="user-list__delete"
+            data-tooltip="Remove"
+            @click="handleDelete(user)"
+          >
             <IconTrash />
           </button>
         </div>
