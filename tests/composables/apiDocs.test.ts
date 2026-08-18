@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { discoverApiDocsUrls, resolveOperation } from '../../src/composables/apiDocs'
-import { fetchRdfTurtle, fetchApiDocs } from '../../src/composables/fdpApi'
+import { fetchRdfTurtle } from '../../src/composables/fdpApi'
 
 vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfTurtle: vi.fn(), fetchApiDocs: vi.fn() }))
 
