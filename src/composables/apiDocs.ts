@@ -3,13 +3,10 @@ import { parseTurtle, resolveSubjectUri, getNodeRefs } from './rdfUtils'
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
 
 /**
- * Finds candidate URLs for the FDP's OpenAPI/SmartAPI document: reads dcat:endpointDescription
- * from the FDP root's Turtle, and adds a /v3/api-docs guess as a fallback. Always called with the
- * root URI: dcat:endpointDescription is a root-only property per the FDP spec (Section 4.2.1), so
- * there's nothing to discover by walking dct:isPartOf up from elsewhere, and callers already know
- * the root directly via getRootUri(), no discovery needed to find it either.
- * FDP 1.22+ can declare more than one (e.g. the OpenAPI doc and the Swagger UI page) in no
- * guaranteed order, and none of the returned URLs are verified to respond; callers must try each.
+ * Returns candidate OpenAPI/SmartAPI document URLs from the FDP root. The spec defines
+ * dcat:endpointDescription on the root, and FDP 1.22+ may declare multiple values, such as both
+ * the OpenAPI document and Swagger UI. A /v3/api-docs guess is kept as the only path fallback for
+ * older or incomplete roots; callers still have to try the candidates.
  */
 export async function discoverApiDocsUrls(rootUri: string): Promise<string[]> {
   const store = parseTurtle(await fetchRdfTurtle(rootUri))
@@ -94,11 +91,9 @@ function substitutePathParams(path: string, pathParams: Record<string, string>):
 }
 
 /**
- * Resolves an operationId to the URL/method to call it, substituting pathParams into any
- * {name}-style placeholders in the resolved path template. No fallback: the only guessed URL in
- * this module is discoverApiDocsUrls's /v3/api-docs guess, for locating the doc itself. Once we
- * have the doc, resolveOperation gives a definitive answer, offered or not, so this rejects
- * rather than guessing a path the backend has already told us doesn't exist.
+ * Resolves an operationId to the URL/method advertised by the OpenAPI document.
+ * No endpoint-path fallback is attempted here: after the document is found, a missing operation
+ * means this FDP does not offer it.
  */
 export async function bindOperation(
   rootUri: string,

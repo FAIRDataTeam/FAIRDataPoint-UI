@@ -8,9 +8,8 @@ import { loadClientConfig } from '@/config'
 
 const app = createApp(App)
 
-// Load runtime configuration from a JSON file. Afterwards, we can use getClientConfig() to
-// access the result at any time. Wrapped in try/catch (unlike the rest of this file) so a
-// failure shows a visible error instead of leaving a blank page.
+// Show a visible startup error when runtime config cannot be loaded; otherwise Vue never mounts
+// and the page is blank.
 try {
   await loadClientConfig()
 } catch (err) {

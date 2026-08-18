@@ -23,24 +23,22 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
-/** Resolved once, reused for gating (loginAvailable) and login()'s actual request. */
+/** Reused by both availability checks and the login request. */
 const generateTokenBinding = readyBinding('generateToken')
 
-/** Same as generateTokenBinding, for the current-authenticated-user endpoint. */
+/** Reused anywhere the current authenticated user endpoint is needed. */
 const getUserCurrentBinding = readyBinding('getUserCurrent')
 
 /**
- * getUserCurrentAvailable controls whether the "Edit profile" link is shown, based on whether
- * this FDP's OpenAPI doc actually offers fetching the current user. getUserCurrentChecked
- * resolves once that's known; the router guard awaits it before allowing /users/current.
+ * Drives the "Edit profile" affordance and the /users/current route guard from the same
+ * OpenAPI-backed check.
  */
 export const { available: getUserCurrentAvailable, checked: getUserCurrentChecked } =
   deriveAvailability(getUserCurrentBinding)
 
 /**
- * loginAvailable controls whether the login button is shown, based on whether this FDP's OpenAPI
- * doc actually offers token-based login. loginAvailabilityChecked resolves once that's known;
- * the router guard awaits it before allowing /login.
+ * Drives the login button and /login route guard from whether this FDP advertises token-based
+ * login in its OpenAPI document.
  */
 export const { available: loginAvailable, checked: loginAvailabilityChecked } =
   deriveAvailability(generateTokenBinding)

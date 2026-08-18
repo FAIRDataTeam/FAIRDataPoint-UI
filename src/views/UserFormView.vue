@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { fetchUser, createUser, updateUser, updateUserPassword } from '../composables/fdpApi'
+import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
 import { bindOperation, type OperationBinding } from '../composables/apiDocs'
 import { getRootUri } from '../composables/urlUtils'
-import { createUserAvailable } from '../composables/useUsers'
+import { createUser, createUserAvailable } from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
@@ -21,9 +21,8 @@ const isSelf = computed(() => route.name === 'user-profile')
 const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
 
 /**
- * Editing your own profile (/users/current) and an admin editing someone else's (/users/:id) are
- * different backend operations (getUserCurrent vs getUser, etc.), not the same one with a path
- * param, the /users/current family takes no uuid at all.
+ * Self-service profile routes use current-user operations. Admin routes use uuid-based user
+ * operations; /users/current is not the same endpoint with a path param.
  */
 function selfOrUuidOperation(
   selfOperationId: string,
@@ -60,9 +59,7 @@ const savedName = ref('')
 const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
-// Whether the profile-save/password-save buttons are shown, based on whether this FDP's OpenAPI
-// doc actually offers the operation selfOrUuidOperation would resolve for the current route
-// (putUserCurrent/putUserCurrentPassword when isSelf, else putUser/putUserPassword).
+// Save buttons are shown only when the matching self/admin update operation is advertised.
 const profileEditAvailable = ref(false)
 const passwordEditAvailable = ref(false)
 
@@ -101,18 +98,13 @@ async function submitCreate() {
   profileError.value = null
   profileSaving.value = true
   try {
-    const { url, method } = await bindOperation(getRootUri(), 'createUser')
-    await createUser(
-      {
-        firstName: firstName.value,
-        lastName: lastName.value,
-        email: email.value,
-        role: role.value,
-        password: newPassword.value,
-      },
-      url,
-      method,
-    )
+    await createUser({
+      firstName: firstName.value,
+      lastName: lastName.value,
+      email: email.value,
+      role: role.value,
+      password: newPassword.value,
+    })
     await router.push('/users')
   } catch (err) {
     profileError.value = err instanceof Error ? err.message : 'Unable to create user.'

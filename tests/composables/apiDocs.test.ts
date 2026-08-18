@@ -174,9 +174,10 @@ describe('bindOperation', () => {
     `)
     vi.mocked(fetchApiDocs).mockResolvedValue(JSON.parse(readFixture('api-docs.json')))
 
-    expect(
-      await bindOperation('http://localhost/', 'deleteUser', { uuid: 'a/b c' }),
-    ).toEqual({ url: 'http://localhost/users/a%2Fb%20c', method: 'DELETE' })
+    expect(await bindOperation('http://localhost/', 'deleteUser', { uuid: 'a/b c' })).toEqual({
+      url: 'http://localhost/users/a%2Fb%20c',
+      method: 'DELETE',
+    })
   })
 
   it('rejects when a required path param is missing', async () => {

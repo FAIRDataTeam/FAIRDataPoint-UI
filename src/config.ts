@@ -21,10 +21,8 @@ const CONFIG_FILE_PATH = '/config.json'
 // and then use getClientConfig() whenever it is needed.
 let clientConfig: ClientConfig | undefined
 
-// Some module-level code (e.g. in useAuth.ts) needs to call getClientConfig()-dependent functions
-// as soon as its module evaluates, which happens before main.ts gets a chance to call and await
-// loadClientConfig(). Such code should await configReady first, so it runs once config has
-// actually finished loading instead of hitting a "not loaded yet" error every time.
+// Module-level bindings can evaluate before runtime config is loaded; configReady lets them wait
+// for loadClientConfig().
 let resolveConfigReady: () => void
 export const configReady: Promise<void> = new Promise((resolve) => {
   resolveConfigReady = resolve

@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
-import { fetchUsers, deleteUser as apiDeleteUser } from '../composables/fdpApi'
-import { bindOperation } from '../composables/apiDocs'
-import { getRootUri } from '../composables/urlUtils'
-import { createUserAvailable, deleteUserAvailable } from '../composables/useUsers'
+import {
+  fetchUsers,
+  deleteUser,
+  createUserAvailable,
+  deleteUserAvailable,
+} from '../composables/useUsers'
 import { avatarColor } from '../composables/useAuth'
 import type { User } from '../composables/useAuth'
 import IconTrash from '../assets/icons/trash.svg?component'
@@ -26,8 +28,7 @@ async function loadUsers() {
   loading.value = true
   error.value = null
   try {
-    const { url } = await bindOperation(getRootUri(), 'getUsers')
-    const data = await fetchUsers(url)
+    const data = await fetchUsers()
     users.value = [...(data as User[])].sort((a, b) =>
       `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`),
     )
@@ -42,8 +43,7 @@ async function loadUsers() {
 async function handleDelete(user: User) {
   if (!window.confirm(`Are you sure you want to delete ${user.firstName} ${user.lastName}?`)) return
   try {
-    const { url, method } = await bindOperation(getRootUri(), 'deleteUser', { uuid: user.uuid })
-    await apiDeleteUser(url, method)
+    await deleteUser(user.uuid)
     await loadUsers()
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Unable to delete user.'
