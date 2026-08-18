@@ -1,8 +1,6 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { bindOperation, type OperationBinding } from './apiDocs'
-import { getRootUri } from './urlUtils'
-import { configReady } from '@/config'
+import { readyBinding, deriveAvailability } from './operationBinding'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -25,53 +23,27 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
-/**
- * Resolved once, reused for gating (loginAvailable) and login()'s actual request. Awaits
- * configReady since this evaluates before config loads (see config.ts); can reject if
- * generateToken isn't offered (see apiDocs.ts's bindOperation).
- */
-const generateTokenBinding: Promise<OperationBinding> = (async () => {
-  await configReady
-  return bindOperation(getRootUri(), 'generateToken')
-})()
+/** Resolved once, reused for gating (loginAvailable) and login()'s actual request. */
+const generateTokenBinding = readyBinding('generateToken')
 
 /** Same as generateTokenBinding, for the current-authenticated-user endpoint. */
-const getUserCurrentBinding: Promise<OperationBinding> = (async () => {
-  await configReady
-  return bindOperation(getRootUri(), 'getUserCurrent')
-})()
-
-/** Controls whether the "Edit profile" link is shown, based on whether this FDP's OpenAPI doc actually offers fetching the current user. */
-export const getUserCurrentAvailable = ref(false)
-
-/** Resolves once getUserCurrentAvailable is known; the router guard awaits it before allowing /users/current. */
-export const getUserCurrentChecked: Promise<boolean> = getUserCurrentBinding
-  .then(() => {
-    getUserCurrentAvailable.value = true
-    return true
-  })
-  .catch(() => {
-    getUserCurrentAvailable.value = false
-    return false
-  })
-
-/** Controls whether the login button is shown, based on whether this FDP's OpenAPI doc actually offers token-based login. */
-export const loginAvailable = ref(false)
+const getUserCurrentBinding = readyBinding('getUserCurrent')
 
 /**
- * Resolves once login availability is known; the router guard awaits it before allowing /login.
- * generateTokenBinding rejects if login isn't offered (or couldn't be confirmed), in which case
- * this resolves to false rather than propagating the rejection.
+ * getUserCurrentAvailable controls whether the "Edit profile" link is shown, based on whether
+ * this FDP's OpenAPI doc actually offers fetching the current user. getUserCurrentChecked
+ * resolves once that's known; the router guard awaits it before allowing /users/current.
  */
-export const loginAvailabilityChecked: Promise<boolean> = generateTokenBinding
-  .then(() => {
-    loginAvailable.value = true
-    return true
-  })
-  .catch(() => {
-    loginAvailable.value = false
-    return false
-  })
+export const { available: getUserCurrentAvailable, checked: getUserCurrentChecked } =
+  deriveAvailability(getUserCurrentBinding)
+
+/**
+ * loginAvailable controls whether the login button is shown, based on whether this FDP's OpenAPI
+ * doc actually offers token-based login. loginAvailabilityChecked resolves once that's known;
+ * the router guard awaits it before allowing /login.
+ */
+export const { available: loginAvailable, checked: loginAvailabilityChecked } =
+  deriveAvailability(generateTokenBinding)
 
 function clearSession() {
   token.value = null
