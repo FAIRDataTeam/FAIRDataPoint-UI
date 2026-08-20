@@ -10,7 +10,8 @@ coverage/
 *.test.ts
 
 # Version control
-.git/
+# The .git dir is intentionally included in the build context because the build stage needs it to derive a version tag.
+# The Dockerfile only copies the build stage output from /app/dist into the final image, so .git is excluded that way.
 .gitignore
 
 # CI/CD
