@@ -1,26 +1,27 @@
 /// <reference types="vitest/config" />
 
+import { strict as assert } from 'node:assert'
+import { spawnSync } from 'node:child_process'
+import * as fs from 'node:fs'
+import path from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 
-import { defineConfig, ViteDevServer } from 'vite'
 import vue from '@vitejs/plugin-vue'
+import { defineConfig, HtmlTagDescriptor, ViteDevServer } from 'vite'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import svgLoader from 'vite-svg-loader'
-import { version } from './package.json'
-import path from 'node:path'
-import * as fs from 'node:fs'
 
 // https://vite.dev/config/
 export default defineConfig({
   // plugin order matters
-  plugins: [vue(), svgLoader(), vueDevTools(), clientConfigOverridePlugin()],
+  plugins: [vue(), svgLoader(), vueDevTools(), clientConfigOverridePlugin(), customCssPlugin()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
   define: {
-    __APP_VERSION__: JSON.stringify(version),
+    __APP_VERSION__: JSON.stringify(gitDescribeVersion()),
     __APP_BUILT_AT__: JSON.stringify(new Date().toISOString()),
   },
   // vitest options
@@ -60,6 +61,46 @@ function clientConfigOverridePlugin() {
         }
         next()
       })
+    },
+  }
+}
+
+/**
+ * Returns a version string obtained from `git describe`, in long format, for example, `'v1.2.3-0-gfc7760f'`.
+ * Fails intentionally if the `git describe` call fails or if its output is falsy.
+ */
+function gitDescribeVersion(): string {
+  const { stdout, stderr, status } = spawnSync(
+    'git',
+    [
+      'describe',
+      '--tags', // include the lightweight tags created by e.g. github
+      '--always', // use abbreviated commit hash if there are no tags at all
+      '--long', // use long format even if the current commit is tagged ('v1.2.3-0-gfc7760f' instead of 'v1.2.3')
+    ],
+    { encoding: 'utf8' },
+  )
+  assert(stdout, `git describe call failed (exit code: ${status}, stderr: ${stderr?.trim()})`)
+  return stdout.trim()
+}
+
+/**
+ * Appends a `<link>` tag for a custom CSS `stylesheet` to the `<head>` section of `index.html`.
+ * This should be loaded after the default CSS files to allow proper overriding.
+ * Also see {@link https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Cascade/Introduction#complete_cascade_order CSS cascade order}
+ * and {@link https://vite.dev/guide/api-plugin#transformindexhtml transformIndexHtml hook docs}.
+ */
+function customCssPlugin() {
+  return {
+    name: 'html-transform',
+    transformIndexHtml(): HtmlTagDescriptor[] {
+      return [
+        {
+          tag: 'link',
+          attrs: { rel: 'stylesheet', crossorigin: 'anonymous', href: '/custom.css' },
+          injectTo: 'head',
+        },
+      ]
     },
   }
 }
