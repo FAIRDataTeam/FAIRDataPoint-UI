@@ -4,7 +4,7 @@ A browser-based user interface for FAIR Data Point (FDP) administration.
 
 > [!WARNING]
 > FAIRDataPoint-UI is still in the early development phase and is not production-ready.
-> Currently, it can be used to view and FDP, but editing an FDP is not possible yet.
+> Currently, it can be used to view an FDP, but editing an FDP is not possible yet.
 > We are actively developing, so keep an eye on the [releases] page for any news.
 
 > [!NOTE]
