@@ -2,6 +2,11 @@
 
 A browser-based user interface for FAIR Data Point (FDP) administration.
 
+> [!WARNING]
+> FAIRDataPoint-UI is still in the early development phase and is not production-ready.
+> Currently, it can be used to view and FDP, but editing an FDP is not possible yet.
+> We are actively developing, so keep an eye on the [releases] page for any news.
+
 > [!NOTE]
 > FAIRDataPoint-UI replaces the legacy [FAIRDataPoint-client], which will be archived.
 
@@ -121,3 +126,4 @@ Note that the `config.local.json` file is ignored by `git`.
 [Nginx hardened image]: https://hub.docker.com/hardened-images/catalog/dhi/nginx
 [Docker Compose]: https://docs.docker.com/compose/
 [Fetch API]: https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API
+[releases]: https://github.com/FAIRDataTeam/FAIRDataPoint-UI/releases
