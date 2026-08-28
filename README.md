@@ -3,27 +3,27 @@
 A browser-based user interface for FAIR Data Point (FDP) administration.
 
 > [!NOTE]
-> FAIRDataPoint-UI replaces the legacy [FAIRDataPoint-client], which is scheduled to be archived.
+> FAIRDataPoint-UI replaces the legacy [FAIRDataPoint-client], which will be archived.
 
-<!-- TODO: Change the original client repository status to "Archived" on GitHub -->
+<!-- TODO: Change the original FAIRDataPoint-client repository status to "Archived" on GitHub -->
 
-## FAIR Data Point Client
+## FAIR Data Point User Interface
 
-The FAIR Data Point (FDP) _client_ provides a web-based user interface that makes it easier for humans to interact with a FAIR Data Point by hiding the interactions with the FDP API.
-The client is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
-Under the hood, the FDP client uses the JavaScript [Fetch API] to make HTTP requests to a remote FDP API that complies with the [FDP 1.2 specification].
-The main goal of the FDP client is to enable basic administration of the FDP, inspection of FDP content, and execution of simple queries.
+The FAIR Data Point _User Interface_ (FDP UI) provides a web-based user interface that makes it easier for humans to interact with a FAIR Data Point by hiding the interactions with the FDP API.
+The UI is a JavaScript (TypeScript) application that runs entirely in the browser, without any server-side rendering.
+Under the hood, the FDP UI uses the JavaScript [Fetch API] to make HTTP requests to a remote FDP API that complies with the [FDP 1.2 specification].
+The main goal of the FDP UI is to enable basic administration of the FDP, inspection of FDP content, and execution of simple queries.
 
 > [!NOTE]
-> The FDP client was not designed for bulk operations or advanced queries.
+> The FDP UI was not designed for bulk operations or advanced queries.
 > Those are best performed by direct interaction with the FDP API.
 
 ### Quickstart
 
-The FDP client is published as a Docker image ([fairdata/fairdatapoint-ui]) and is designed to run in a container.
+The FDP UI is published as a Docker image ([fairdata/fairdatapoint-ui]) and is designed to run in a container.
 The Docker image is based on the official [Nginx hardened image], configured as a static file server listening on port `8080`.
 
-One way to deploy the client is using [Docker Compose], as follows:
+One way to deploy the UI is using [Docker Compose], as follows:
 
 ```yaml
 # compose.yaml
@@ -49,7 +49,7 @@ where `my.config.json` is a custom runtime configuration file that defines the p
 
 The custom CSS file and custom logo are both optional.
 
-It is also possible to run the FDP client application from source, but this is only recommended for client development purposes.
+It is also possible to run the FDP UI application from source, but this is only recommended for UI development purposes.
 
 ### Setting up a development machine
 
@@ -88,7 +88,7 @@ Here's how to install project dependencies and run the development server, provi
 
 #### App configuration for development
 
-The browser-based client application needs an API, provided by a FAIR Data Point (FDP), to function properly.
+The browser-based UI application needs an API, provided by a FAIR Data Point (FDP), to function properly.
 The URL for the primary API endpoint is defined in the [public/config.json] file and defaults to `http://localhost:8080`.
 
 The default configuration is convenient for local development using the `dev/fdp-ui` stack from the [FAIRDataTeam/compose] repository.
@@ -96,7 +96,7 @@ However, it is also possible to override the default [public/config.json] file l
 This can be achieved by creating a `public/config.local.json` file.
 If such a file exists, it is picked up automatically by the Vite development server.
 
-For example, you could use this to point the client to an actual FDP on the web, as follows:
+For example, you could use this to point the UI to an actual FDP on the web, as follows:
 
 ```yaml
 # public/config.local.json
