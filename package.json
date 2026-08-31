@@ -1,4 +1,5 @@
 {
+  "name": "fairdatapoint-ui",
   "private": true,
   "type": "module",
   "scripts": {
