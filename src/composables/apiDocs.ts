@@ -30,6 +30,7 @@ export async function discoverApiDocsUrls(rootUri: string, timeoutMs?: number): 
 type OpenApiOperation = { operationId?: string }
 type OpenApiDoc = { paths?: Record<string, Record<string, OpenApiOperation>> }
 
+/** Duck-typing: If it looks like an OpenApiDoc, treat it as one. */
 function isOpenApiDoc(doc: unknown): doc is OpenApiDoc {
   return typeof doc === 'object' && doc !== null && 'paths' in doc
 }
