@@ -23,6 +23,7 @@ export async function discoverApiDocsUrls(rootUri: string, timeoutMs?: number): 
   const subjectUri = resolveSubjectUri(store, rootUri)
   const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
   const fallbackUrl = joinUrl(rootUri, 'v3/api-docs')
+  // Note that JavaScript Set preserves insertion order
   return [...new Set([...declaredUrls, fallbackUrl])]
 }
 
