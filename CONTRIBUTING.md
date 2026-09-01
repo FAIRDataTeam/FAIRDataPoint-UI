@@ -17,4 +17,4 @@ If a PR gets very big, split it up into smaller PRs that can be reviewed separat
 To reduce the maintenance burden, we aim to minimize the number of external dependencies.
 If external dependencies cannot be avoided, prefer well-supported projects with large numbers of contributors.
 
-[pull requests]: https://github.com/FAIRDataTeam/FAIRDataPoint-client-redux/pulls
+[pull requests]: https://github.com/FAIRDataTeam/FAIRDataPoint-UI/pulls
