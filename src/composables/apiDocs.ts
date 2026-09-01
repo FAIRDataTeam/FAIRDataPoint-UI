@@ -1,6 +1,16 @@
+import { ref } from 'vue'
 import { fetchRdfTurtle, fetchApiDocs } from './fdpApi'
 import { parseTurtle, resolveSubjectUri, getNodeRefs } from './rdfUtils'
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
+import { getRootUri } from './urlUtils'
+import { configReady } from '@/config'
+
+/**
+ * Appends an FDP-relative path to a base URL without letting a leading slash reset to the origin.
+ */
+function joinUrl(base: string, path: string): string {
+  return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
+}
 
 /**
  * Returns candidate OpenAPI/SmartAPI document URLs from the FDP root. The spec defines
@@ -12,7 +22,7 @@ export async function discoverApiDocsUrls(rootUri: string): Promise<string[]> {
   const store = parseTurtle(await fetchRdfTurtle(rootUri))
   const subjectUri = resolveSubjectUri(store, rootUri)
   const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
-  const fallbackUrl = new URL('/v3/api-docs', rootUri).toString()
+  const fallbackUrl = joinUrl(rootUri, 'v3/api-docs')
   return [...new Set([...declaredUrls, fallbackUrl])]
 }
 
@@ -23,25 +33,12 @@ function isOpenApiDoc(doc: unknown): doc is OpenApiDoc {
   return typeof doc === 'object' && doc !== null && 'paths' in doc
 }
 
-let apiDocsPromise: Promise<unknown> | null = null
-
-/** Fetches the FDP's OpenAPI doc once per session and reuses it for all subsequent lookups. */
-async function getCachedApiDocs(rootUri: string): Promise<unknown> {
-  if (!apiDocsPromise) {
-    apiDocsPromise = resolveApiDocs(rootUri).catch((err) => {
-      apiDocsPromise = null
-      throw err
-    })
-  }
-  return apiDocsPromise
-}
-
 /**
- * Fetches the FDP's OpenAPI document, trying each URL from discoverApiDocsUrls in turn and
- * keeping the first one that actually parses as an OpenAPI document (has a paths object).
- * Throws if none of the candidates resolve to one.
+ * Fetches the FDP's api-docs, trying each URL from discoverApiDocsUrls in turn and keeping the
+ * first one that actually parses as an OpenAPI document (has a paths object). Throws if none of
+ * the candidates resolve to one.
  */
-async function resolveApiDocs(rootUri: string): Promise<unknown> {
+async function resolveApiDocs(rootUri: string): Promise<OpenApiDoc> {
   const candidates = await discoverApiDocsUrls(rootUri)
   for (const url of candidates) {
     try {
@@ -51,12 +48,12 @@ async function resolveApiDocs(rootUri: string): Promise<unknown> {
       // try the next candidate
     }
   }
-  throw new Error(`No usable OpenAPI document found among candidates: ${candidates.join(', ')}`)
+  throw new Error(`No usable api-docs found among candidates: ${candidates.join(', ')}`)
 }
 
 /**
- * Finds the path and HTTP method for a given operationId in an already-fetched OpenAPI document.
- * Returns null if the document has no matching operation.
+ * Finds the path and HTTP method for a given operationId in already-fetched api-docs.
+ * Returns null if there's no matching operation.
  */
 export function resolveOperation(
   doc: unknown,
@@ -90,21 +87,62 @@ function substitutePathParams(path: string, pathParams: Record<string, string>):
   })
 }
 
+/** The FDP's api-docs, once resolved. Null until resolved, or if resolution failed. */
+export const apiDocs = ref<OpenApiDoc | null>(null)
+
+async function loadApiDocs(): Promise<void> {
+  try {
+    apiDocs.value = await resolveApiDocs(getRootUri())
+  } catch {
+    apiDocs.value = null // fail closed, same as an absent operation
+  }
+}
+
+/** Resolves once the initial api-docs resolution attempt has settled, success or failure. */
+export const apiDocsReady: Promise<void> = (async () => {
+  await configReady
+  await loadApiDocs()
+})()
+
 /**
- * Resolves an operationId to the URL/method advertised by the OpenAPI document.
- * No endpoint-path fallback is attempted here: after the document is found, a missing operation
- * means this FDP does not offer it.
+ * Re-fetches api-docs after backend changes that may alter advertised operations,
+ * such as ResourceDefinition updates.
+ */
+export async function refreshApiDocs(): Promise<void> {
+  await configReady // safe regardless of when a future caller invokes this
+  await loadApiDocs()
+}
+
+/** Whether the FDP's api-docs currently advertise the given operationId. */
+export function isOperationOffered(operationId: string): boolean {
+  return resolveOperation(apiDocs.value, operationId) !== null
+}
+
+/**
+ * Resolves an advertised operation from the already-loaded api-docs. Throws if it isn't offered.
+ * Not exported: every caller needs api-docs readiness first anyway, so they go through
+ * bindOperation instead.
+ */
+function getOperationOrThrow(
+  operationId: string,
+  pathParams?: Record<string, string>,
+): OperationBinding {
+  const operation = resolveOperation(apiDocs.value, operationId)
+  if (!operation) {
+    throw new Error(`Operation '${operationId}' is not offered by this FDP's api-docs`)
+  }
+  const path = pathParams ? substitutePathParams(operation.path, pathParams) : operation.path
+  return { url: joinUrl(getRootUri(), path), method: operation.method }
+}
+
+/**
+ * Waits for api-docs readiness, then resolves an advertised operation.
+ * Used by action code; availability checks use isOperationOffered().
  */
 export async function bindOperation(
-  rootUri: string,
   operationId: string,
   pathParams?: Record<string, string>,
 ): Promise<OperationBinding> {
-  const doc = await getCachedApiDocs(rootUri)
-  const operation = resolveOperation(doc, operationId)
-  if (!operation) {
-    throw new Error(`Operation '${operationId}' is not offered by this FDP's OpenAPI doc`)
-  }
-  const path = pathParams ? substitutePathParams(operation.path, pathParams) : operation.path
-  return { url: new URL(path, rootUri).toString(), method: operation.method }
+  await apiDocsReady
+  return getOperationOrThrow(operationId, pathParams)
 }

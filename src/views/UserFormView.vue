@@ -2,8 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
-import { bindOperation, type OperationBinding } from '../composables/apiDocs'
-import { getRootUri } from '../composables/urlUtils'
+import { isOperationOffered, bindOperation, type OperationBinding } from '../composables/apiDocs'
 import { createUser, createUserAvailable } from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
@@ -29,8 +28,8 @@ function selfOrUuidOperation(
   uuidOperationId: string,
 ): Promise<OperationBinding> {
   return isSelf.value
-    ? bindOperation(getRootUri(), selfOperationId)
-    : bindOperation(getRootUri(), uuidOperationId, { uuid: userId.value })
+    ? bindOperation(selfOperationId)
+    : bindOperation(uuidOperationId, { uuid: userId.value })
 }
 
 const loading = ref(false)
@@ -60,8 +59,12 @@ const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
 // Save buttons are shown only when the matching self/admin update operation is advertised.
-const profileEditAvailable = ref(false)
-const passwordEditAvailable = ref(false)
+const profileEditAvailable = computed(() =>
+  isOperationOffered(isSelf.value ? 'putUserCurrent' : 'putUser'),
+)
+const passwordEditAvailable = computed(() =>
+  isOperationOffered(isSelf.value ? 'putUserCurrentPassword' : 'putUserPassword'),
+)
 
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
@@ -184,20 +187,6 @@ async function submitPassword() {
 onMounted(() => {
   if (isCreate.value) return
   void loadUser()
-  selfOrUuidOperation('putUserCurrent', 'putUser')
-    .then(() => {
-      profileEditAvailable.value = true
-    })
-    .catch(() => {
-      profileEditAvailable.value = false
-    })
-  selfOrUuidOperation('putUserCurrentPassword', 'putUserPassword')
-    .then(() => {
-      passwordEditAvailable.value = true
-    })
-    .catch(() => {
-      passwordEditAvailable.value = false
-    })
 })
 </script>
 

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { readyBinding, deriveAvailability } from './operationBinding'
+import { isOperationOffered, bindOperation } from './apiDocs'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -23,25 +23,14 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
-/** Reused by both availability checks and the login request. */
-const generateTokenBinding = readyBinding('generateToken')
-
-/** Reused anywhere the current authenticated user endpoint is needed. */
-const getUserCurrentBinding = readyBinding('getUserCurrent')
+/** Drives the "Edit profile" affordance; the /users/current route guard checks the same operation. */
+export const getUserCurrentAvailable = computed(() => isOperationOffered('getUserCurrent'))
 
 /**
- * Drives the "Edit profile" affordance and the /users/current route guard from the same
- * OpenAPI-backed check.
+ * Drives the login button; the /login route guard checks the same operation, i.e. whether this
+ * FDP's api-docs advertise token-based login.
  */
-export const { available: getUserCurrentAvailable, checked: getUserCurrentChecked } =
-  deriveAvailability(getUserCurrentBinding)
-
-/**
- * Drives the login button and /login route guard from whether this FDP advertises token-based
- * login in its OpenAPI document.
- */
-export const { available: loginAvailable, checked: loginAvailabilityChecked } =
-  deriveAvailability(generateTokenBinding)
+export const loginAvailable = computed(() => isOperationOffered('generateToken'))
 
 function clearSession() {
   token.value = null
@@ -53,14 +42,15 @@ function clearSession() {
 }
 
 /** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
-export const authReady: Promise<void> = token.value
-  ? getUserCurrentBinding
-      .then((binding) => fetchCurrentUser(binding.url))
-      .then((u) => {
-        user.value = u as User
-      })
-      .catch(() => clearSession())
-  : Promise.resolve()
+export const authReady: Promise<void> = (async () => {
+  if (!token.value) return
+  try {
+    const { url } = await bindOperation('getUserCurrent')
+    user.value = (await fetchCurrentUser(url)) as User
+  } catch {
+    clearSession()
+  }
+})()
 
 /**
  * Derives a deterministic two-tone gradient from an email, used as an avatar background.
@@ -89,11 +79,11 @@ export function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const { url, method } = await generateTokenBinding
+    const { url, method } = await bindOperation('generateToken')
     const newToken = await fetchToken(email, password, url, method)
     setAuthToken(newToken)
     try {
-      const currentUserUrl = (await getUserCurrentBinding).url
+      const currentUserUrl = (await bindOperation('getUserCurrent')).url
       const currentUser = (await fetchCurrentUser(currentUserUrl)) as User
       token.value = newToken
       userEmail.value = email

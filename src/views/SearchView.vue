@@ -3,7 +3,7 @@ import { ref, watch, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { internalHref } from '../composables/urlUtils'
 import { searchResources } from '../composables/fdpApi'
-import { searchBinding } from '../composables/useSearch'
+import { bindOperation } from '../composables/apiDocs'
 
 type SearchResult = {
   uri: string
@@ -38,7 +38,7 @@ async function search(q: string) {
   loading.value = true
   error.value = null
   try {
-    const { url, method } = await searchBinding
+    const { url, method } = await bindOperation('search_1')
     results.value = (await searchResources(q, url, method)) as SearchResult[]
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Search failed'
