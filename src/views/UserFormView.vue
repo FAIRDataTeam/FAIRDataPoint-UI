@@ -13,15 +13,15 @@ const router = useRouter()
 const { updateCurrentUser } = useAuth()
 
 // This view handles three routes: creating a new user (admin only), an admin
-// editing another user's profile (/users/:id), and a user editing their own
-// profile (/users/current, isSelf), which also hides the role field.
+// editing another user's profile (/users/:id), and editing the signed-in
+// user's profile (/users/current, isSelf), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
 const isSelf = computed(() => route.name === 'user-profile')
 const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
 
 /**
- * Self-service profile routes use current-user operations. Admin routes use uuid-based user
- * operations; /users/current is not the same endpoint with a path param.
+ * For /users/current, the signed-in user's profile is edited via current-user operations.
+ * Admin routes (/users/:id) use uuid-based user operations instead.
  */
 function selfOrUuidOperation(
   selfOperationId: string,
@@ -58,7 +58,7 @@ const savedName = ref('')
 const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
-// Save buttons are shown only when the matching self/admin update operation is advertised.
+// Save buttons are shown only when the matching current-user/admin update operation is advertised.
 const profileEditAvailable = computed(() =>
   isOperationOffered(isSelf.value ? 'putUserCurrent' : 'putUser'),
 )

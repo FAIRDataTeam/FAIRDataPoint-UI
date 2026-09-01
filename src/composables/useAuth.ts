@@ -100,7 +100,7 @@ export function useAuth() {
     clearSession()
   }
 
-  /** Updates the cached current user after a self-service profile edit. */
+  /** Updates the cached current user after /users/current profile edits. */
   function updateCurrentUser(updated: User) {
     user.value = updated
     userEmail.value = updated.email
