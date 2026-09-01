@@ -5,25 +5,27 @@ export function setAuthToken(token: string | null): void {
   authToken = token
 }
 
-/** Low-level fetch for any RDF resource; callers specify the Accept header. */
-export async function fetchRdf(uri: string, accept: string): Promise<string> {
+/** Low-level fetch for any RDF resource; callers specify the Accept header and optional timeout. */
+export async function fetchRdf(uri: string, accept: string, timeoutMs?: number): Promise<string> {
   const headers: Record<string, string> = { Accept: accept }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(uri, { headers })
+  const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
+  const response = await fetch(uri, { headers, signal })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.text()
 }
 
 /** Fetches an RDF resource as Turtle, the only format used by this client. */
-export async function fetchRdfTurtle(uri: string): Promise<string> {
-  return fetchRdf(uri, 'text/turtle')
+export async function fetchRdfTurtle(uri: string, timeoutMs?: number): Promise<string> {
+  return fetchRdf(uri, 'text/turtle', timeoutMs)
 }
 
-/** Fetches an OpenAPI document as JSON from the given URL. */
-export async function fetchApiDocs(uri: string): Promise<unknown> {
+/** Fetches api-docs as JSON from the given URL. See fetchRdf for the optional timeoutMs. */
+export async function fetchApiDocs(uri: string, timeoutMs?: number): Promise<unknown> {
   const headers: Record<string, string> = { Accept: 'application/json' }
   if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(uri, { headers })
+  const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
+  const response = await fetch(uri, { headers, signal })
   if (!response.ok) throw new Error(`HTTP ${response.status}`)
   return response.json()
 }

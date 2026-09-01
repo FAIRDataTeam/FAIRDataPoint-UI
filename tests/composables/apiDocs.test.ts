@@ -180,6 +180,22 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     })
   })
 
+  it('bounds both the root Turtle fetch and each candidate fetch with a timeout', async () => {
+    const { apiDocs, fdpApi } = await importFresh({
+      turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
+      apiDocsImpl: async () => realDoc(),
+    })
+
+    await apiDocs.apiDocsReady
+
+    // Verify timeout wiring without waiting for a real hang.
+    expect(fdpApi.fetchRdfTurtle).toHaveBeenCalledWith('http://localhost/', expect.any(Number))
+    expect(fdpApi.fetchApiDocs).toHaveBeenCalledWith(
+      'http://localhost/v3/api-docs',
+      expect.any(Number),
+    )
+  })
+
   it('fails closed (isOperationOffered false) when none of the candidates are usable', async () => {
     const { apiDocs } = await importFresh({
       turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },

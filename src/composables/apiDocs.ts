@@ -18,8 +18,8 @@ function joinUrl(base: string, path: string): string {
  * the OpenAPI document and Swagger UI. A /v3/api-docs guess is kept as the only path fallback for
  * older or incomplete roots; callers still have to try the candidates.
  */
-export async function discoverApiDocsUrls(rootUri: string): Promise<string[]> {
-  const store = parseTurtle(await fetchRdfTurtle(rootUri))
+export async function discoverApiDocsUrls(rootUri: string, timeoutMs?: number): Promise<string[]> {
+  const store = parseTurtle(await fetchRdfTurtle(rootUri, timeoutMs))
   const subjectUri = resolveSubjectUri(store, rootUri)
   const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
   const fallbackUrl = joinUrl(rootUri, 'v3/api-docs')
@@ -33,16 +33,19 @@ function isOpenApiDoc(doc: unknown): doc is OpenApiDoc {
   return typeof doc === 'object' && doc !== null && 'paths' in doc
 }
 
+// Timeout per api-docs discovery/fetch attempt.
+const API_DOCS_TIMEOUT_MS = 10_000
+
 /**
  * Fetches the FDP's api-docs, trying each URL from discoverApiDocsUrls in turn and keeping the
  * first one that actually parses as an OpenAPI document (has a paths object). Throws if none of
  * the candidates resolve to one.
  */
 async function resolveApiDocs(rootUri: string): Promise<OpenApiDoc> {
-  const candidates = await discoverApiDocsUrls(rootUri)
+  const candidates = await discoverApiDocsUrls(rootUri, API_DOCS_TIMEOUT_MS)
   for (const url of candidates) {
     try {
-      const doc = await fetchApiDocs(url)
+      const doc = await fetchApiDocs(url, API_DOCS_TIMEOUT_MS)
       if (isOpenApiDoc(doc)) return doc
     } catch {
       // try the next candidate
