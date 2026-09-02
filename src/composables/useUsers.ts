@@ -15,6 +15,12 @@ export const createUserAvailable = computed(() => isOperationOffered('createUser
 /** Controls whether the per-user delete button is shown. */
 export const deleteUserAvailable = computed(() => isOperationOffered('deleteUser'))
 
+// Save buttons are shown only when the matching current-user/admin update operation is advertised.
+export const putUserAvailable = (isCurrentUser: boolean) =>
+  isOperationOffered(isCurrentUser ? 'putUserCurrent' : 'putUser')
+export const putUserPasswordAvailable = (isCurrentUser: boolean) =>
+  isOperationOffered(isCurrentUser ? 'putUserCurrentPassword' : 'putUserPassword')
+
 /** Lists all users through the getUsers operation, resolved via api-docs. */
 export async function fetchUsers(): Promise<unknown[]> {
   return apiFetchUsers()

@@ -2,8 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
-import { isOperationOffered } from '../composables/apiDocs'
-import { createUser, createUserAvailable } from '../composables/useUsers'
+import {
+  createUser,
+  createUserAvailable,
+  putUserPasswordAvailable,
+  putUserAvailable,
+} from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
@@ -46,12 +50,8 @@ const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
 // Save buttons are shown only when the matching current-user/admin update operation is advertised.
-const profileEditAvailable = computed(() =>
-  isOperationOffered(isCurrent.value ? 'putUserCurrent' : 'putUser'),
-)
-const passwordEditAvailable = computed(() =>
-  isOperationOffered(isCurrent.value ? 'putUserCurrentPassword' : 'putUserPassword'),
-)
+const profileEditAvailable = computed(() => putUserAvailable(isCurrent.value))
+const passwordEditAvailable = computed(() => putUserPasswordAvailable(isCurrent.value))
 
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
