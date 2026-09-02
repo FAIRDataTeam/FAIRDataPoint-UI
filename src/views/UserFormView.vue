@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
-import { isOperationOffered, bindOperation, type OperationBinding } from '../composables/apiDocs'
+import { isOperationOffered } from '../composables/apiDocs'
 import { createUser, createUserAvailable } from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'

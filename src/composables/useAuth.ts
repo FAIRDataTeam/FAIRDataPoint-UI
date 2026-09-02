@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
-import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { isOperationOffered, bindOperation } from './apiDocs'
+import { fetchToken, fetchUser, setAuthToken } from './fdpApi'
+import { isOperationOffered } from './apiDocs'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -78,8 +78,7 @@ export function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const { url, method } = await bindOperation('generateToken')
-    const newToken = await fetchToken(email, password, url, method)
+    const newToken = await fetchToken(email, password)
     setAuthToken(newToken)
     try {
       const currentUser = (await fetchUser()) as User

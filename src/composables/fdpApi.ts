@@ -76,13 +76,15 @@ export async function searchResources(
 }
 
 /** Lists all users registered on the FDP. */
-export async function fetchUsers(url: string): Promise<unknown[]> {
+export async function fetchUsers(): Promise<unknown[]> {
+  const { url } = await bindOperation('getUsers')
   const response = await request(url, { headers: { Accept: 'application/json' } })
   return response.json() as Promise<unknown[]>
 }
 
 /** Deletes a user. */
-export async function deleteUser(url: string, method: string): Promise<void> {
+export async function deleteUser(uuid: string): Promise<void> {
+  const { url, method } = await bindOperation('deleteUser', { uuid })
   await request(url, { method })
 }
 
@@ -97,17 +99,14 @@ export async function fetchUser(uuid?: string): Promise<unknown> {
  * Creates a new user; body mirrors the backend's UserCreateDTO.
  * Error responses are assumed to carry { message: string } (e.g. "Email '...' is already taken").
  */
-export async function createUser(
-  data: {
-    firstName: string
-    lastName: string
-    email: string
-    role: string
-    password: string
-  },
-  url: string,
-  method: string,
-): Promise<unknown> {
+export async function createUser(data: {
+  firstName: string
+  lastName: string
+  email: string
+  role: string
+  password: string
+}): Promise<unknown> {
+  const { url, method } = await bindOperation('createUser')
   const response = await fetch(url, {
     method,
     headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
@@ -153,12 +152,8 @@ export async function updateUserPassword(password: string, uuid?: string): Promi
 }
 
 /** Authenticates with the FDP and returns a JWT token. */
-export async function fetchToken(
-  email: string,
-  password: string,
-  url: string,
-  method: string,
-): Promise<string> {
+export async function fetchToken(email: string, password: string): Promise<string> {
+  const { url, method } = await bindOperation('generateToken')
   const response = await fetch(url, {
     method,
     headers: { 'Content-Type': 'application/json' },

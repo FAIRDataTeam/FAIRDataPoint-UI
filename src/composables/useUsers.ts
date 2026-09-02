@@ -4,7 +4,7 @@ import {
   createUser as apiCreateUser,
   deleteUser as apiDeleteUser,
 } from './fdpApi'
-import { isOperationOffered, bindOperation } from './apiDocs'
+import { isOperationOffered } from './apiDocs'
 
 /** Drives the "Users" menu link; the /users route guard checks the same operation. */
 export const getUsersAvailable = computed(() => isOperationOffered('getUsers'))
@@ -17,8 +17,7 @@ export const deleteUserAvailable = computed(() => isOperationOffered('deleteUser
 
 /** Lists all users through the getUsers operation, resolved via api-docs. */
 export async function fetchUsers(): Promise<unknown[]> {
-  const { url } = await bindOperation('getUsers')
-  return apiFetchUsers(url)
+  return apiFetchUsers()
 }
 
 /** Creates a user through the createUser operation, resolved via api-docs. */
@@ -29,8 +28,7 @@ export async function createUser(data: {
   role: string
   password: string
 }): Promise<unknown> {
-  const { url, method } = await bindOperation('createUser')
-  return apiCreateUser(data, url, method)
+  return apiCreateUser(data)
 }
 
 /** Deletes a user through the deleteUser operation, resolved via api-docs. */
