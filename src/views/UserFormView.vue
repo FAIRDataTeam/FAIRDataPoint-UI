@@ -14,9 +14,9 @@ const { updateCurrentUser } = useAuth()
 
 // This view handles three routes: creating a new user (admin only), an admin
 // editing another user's profile (/users/:id), and editing the signed-in
-// user's profile (/users/current, isSelf), which also hides the role field.
+// user's profile (/users/current, isCurrent), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
-const isSelf = computed(() => route.name === 'user-profile')
+const isCurrent = computed(() => route.name === 'user-current')
 const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
 
 /**
@@ -27,7 +27,7 @@ function selfOrUuidOperation(
   selfOperationId: string,
   uuidOperationId: string,
 ): Promise<OperationBinding> {
-  return isSelf.value
+  return isCurrent.value
     ? bindOperation(selfOperationId)
     : bindOperation(uuidOperationId, { uuid: userId.value })
 }
@@ -60,10 +60,10 @@ const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.val
 
 // Save buttons are shown only when the matching current-user/admin update operation is advertised.
 const profileEditAvailable = computed(() =>
-  isOperationOffered(isSelf.value ? 'putUserCurrent' : 'putUser'),
+  isOperationOffered(isCurrent.value ? 'putUserCurrent' : 'putUser'),
 )
 const passwordEditAvailable = computed(() =>
-  isOperationOffered(isSelf.value ? 'putUserCurrentPassword' : 'putUserPassword'),
+  isOperationOffered(isCurrent.value ? 'putUserCurrentPassword' : 'putUserPassword'),
 )
 
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
@@ -146,7 +146,7 @@ async function submitProfile() {
       method,
     )
     savedName.value = `${firstName.value} ${lastName.value}`
-    if (isSelf.value) {
+    if (isCurrent.value) {
       updateCurrentUser({
         uuid: savedUuid.value,
         firstName: firstName.value,
@@ -191,7 +191,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <nav v-if="!isSelf" class="breadcrumbs" aria-label="Breadcrumb">
+  <nav v-if="!isCurrent" class="breadcrumbs" aria-label="Breadcrumb">
     <div class="breadcrumbs__inner">
       <RouterLink to="/users" class="breadcrumb-link">Users</RouterLink>
       <span class="breadcrumb-sep">/</span>
@@ -257,7 +257,7 @@ onMounted(() => {
             v-model:email="email"
             v-model:role="role"
             :submitted="profileSubmitted"
-            :hide-role="isSelf"
+            :hide-role="isCurrent"
           />
 
           <button
