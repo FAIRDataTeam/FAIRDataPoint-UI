@@ -17,20 +17,7 @@ const { updateCurrentUser } = useAuth()
 // user's profile (/users/current, isCurrent), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
 const isCurrent = computed(() => route.name === 'user-current')
-const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
-
-/**
- * For /users/current, the signed-in user's profile is edited via current-user operations.
- * Admin routes (/users/:id) use uuid-based user operations instead.
- */
-function selfOrUuidOperation(
-  selfOperationId: string,
-  uuidOperationId: string,
-): Promise<OperationBinding> {
-  return isCurrent.value
-    ? bindOperation(selfOperationId)
-    : bindOperation(uuidOperationId, { uuid: userId.value })
-}
+const userId = computed(() => route.params.id as string | undefined)
 
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -71,8 +58,7 @@ async function loadUser() {
   loading.value = true
   loadError.value = null
   try {
-    const { url } = await selfOrUuidOperation('getUserCurrent', 'getUser')
-    const u = (await fetchUser(url)) as User
+    const u = (await fetchUser(userId.value)) as User
     firstName.value = u.firstName
     lastName.value = u.lastName
     email.value = u.email
@@ -134,7 +120,6 @@ async function submitProfile() {
   profileSuccess.value = null
   profileSaving.value = true
   try {
-    const { url, method } = await selfOrUuidOperation('putUserCurrent', 'putUser')
     await updateUser(
       {
         firstName: firstName.value,
@@ -142,8 +127,7 @@ async function submitProfile() {
         email: email.value,
         role: role.value,
       },
-      url,
-      method,
+      userId.value,
     )
     savedName.value = `${firstName.value} ${lastName.value}`
     if (isCurrent.value) {
@@ -171,8 +155,7 @@ async function submitPassword() {
   passwordSuccess.value = null
   passwordSaving.value = true
   try {
-    const { url, method } = await selfOrUuidOperation('putUserCurrentPassword', 'putUserPassword')
-    await updateUserPassword(newPassword.value, url, method)
+    await updateUserPassword(newPassword.value, userId.value)
     newPassword.value = ''
     passwordConfirm.value = ''
     passwordSubmitted.value = false

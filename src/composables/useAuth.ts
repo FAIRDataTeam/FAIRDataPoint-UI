@@ -45,8 +45,7 @@ function clearSession() {
 export const authReady: Promise<void> = (async () => {
   if (!token.value) return
   try {
-    const { url } = await bindOperation('getUserCurrent')
-    user.value = (await fetchCurrentUser(url)) as User
+    user.value = (await fetchUser()) as User
   } catch {
     clearSession()
   }
@@ -83,8 +82,7 @@ export function useAuth() {
     const newToken = await fetchToken(email, password, url, method)
     setAuthToken(newToken)
     try {
-      const currentUserUrl = (await bindOperation('getUserCurrent')).url
-      const currentUser = (await fetchCurrentUser(currentUserUrl)) as User
+      const currentUser = (await fetchUser()) as User
       token.value = newToken
       userEmail.value = email
       user.value = currentUser

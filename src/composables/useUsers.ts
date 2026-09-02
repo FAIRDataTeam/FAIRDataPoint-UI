@@ -35,6 +35,5 @@ export async function createUser(data: {
 
 /** Deletes a user through the deleteUser operation, resolved via api-docs. */
 export async function deleteUser(uuid: string): Promise<void> {
-  const { url, method } = await bindOperation('deleteUser', { uuid })
-  await apiDeleteUser(url, method)
+  await apiDeleteUser(uuid)
 }

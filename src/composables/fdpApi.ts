@@ -1,4 +1,20 @@
+import { bindOperation, type OperationBinding } from '@/composables/apiDocs.ts'
+
 let authToken: string | null = null
+
+/**
+ * For /users/current, the signed-in user's profile is edited via current-user operations.
+ * Admin routes (/users/:id) use uuid-based user operations instead.
+ */
+function bindUserOperation(
+  currentUserOperationId: string,
+  uuidUserOperationId: string,
+  uuid?: string,
+): Promise<OperationBinding> {
+  return !uuid
+    ? bindOperation(currentUserOperationId)
+    : bindOperation(uuidUserOperationId, { uuid })
+}
 
 /** Stores the JWT token to be included in subsequent requests as a Bearer header. */
 export function setAuthToken(token: string | null): void {
@@ -71,7 +87,8 @@ export async function deleteUser(url: string, method: string): Promise<void> {
 }
 
 /** Fetches a single user's profile. */
-export async function fetchUser(url: string): Promise<unknown> {
+export async function fetchUser(uuid?: string): Promise<unknown> {
+  const { url } = await bindUserOperation('getUserCurrent', 'getUser', uuid)
   const response = await request(url, { headers: { Accept: 'application/json' } })
   return response.json()
 }
@@ -106,9 +123,9 @@ export async function createUser(
 /** Updates a user's profile fields; body mirrors the backend's UserChangeDTO. */
 export async function updateUser(
   data: { firstName: string; lastName: string; email: string; role: string },
-  url: string,
-  method: string,
+  uuid?: string,
 ): Promise<unknown> {
+  const { url, method } = await bindUserOperation('putUserCurrent', 'putUser', uuid)
   const response = await fetch(url, {
     method,
     headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
@@ -122,11 +139,8 @@ export async function updateUser(
 }
 
 /** Updates a user's password. */
-export async function updateUserPassword(
-  password: string,
-  url: string,
-  method: string,
-): Promise<void> {
+export async function updateUserPassword(password: string, uuid?: string): Promise<void> {
+  const { url, method } = await bindUserOperation('putUserCurrentPassword', 'putUserPassword', uuid)
   const response = await fetch(url, {
     method,
     headers: authHeaders({ 'Content-Type': 'application/json' }),
@@ -136,12 +150,6 @@ export async function updateUserPassword(
     const body = await response.json().catch(() => null)
     throw new Error((body as { message?: string })?.message ?? `HTTP ${response.status}`)
   }
-}
-
-/** Fetches the currently authenticated user's profile. */
-export async function fetchCurrentUser(url: string): Promise<unknown> {
-  const response = await request(url, { headers: { Accept: 'application/json' } })
-  return response.json()
 }
 
 /** Authenticates with the FDP and returns a JWT token. */
