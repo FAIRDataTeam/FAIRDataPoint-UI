@@ -9,6 +9,8 @@ import {
   DCT_MODIFIED,
   DCAT_ACCESS_URL,
   DCAT_DOWNLOAD_URL,
+  DCAT_ENDPOINT_DESCRIPTION,
+  DCAT_ENDPOINT_URL,
   DCAT_THEME_TAXONOMY,
   FDP_METADATA_ISSUED,
   FDP_METADATA_MODIFIED,
@@ -447,6 +449,12 @@ const metadataSkipList = new Set([
   SIO_IS_RELATED_TO,
 ])
 
+// dcat:endpointURL/endpointDescription describe a dcat:DataService's real API address and its
+// docs (e.g. OpenAPI, Swagger UI), not browsable FDP resources. Even when same-origin as this FDP
+// instance, they're not resources the router has a matching route for. Always render as external
+// links pointing at the actual backend, regardless of which function builds the row.
+const alwaysExternalPredicates = new Set([DCAT_ENDPOINT_DESCRIPTION, DCAT_ENDPOINT_URL])
+
 /**
  * Resolves a blank node to its predicate/value pairs for display.
  * Only one level deep; nested blank-node objects are not resolved.
@@ -486,7 +494,7 @@ function resolveBlankNode(store: Store, id: string): BlankNodeProperty[] {
         values: linkValues.map((href) => ({
           text: uriLabel(store, href),
           href,
-          internal: isInternalUri(href),
+          internal: !alwaysExternalPredicates.has(predicate) && isInternalUri(href),
         })),
       })
     }
@@ -561,7 +569,7 @@ function buildRow(
             ? href
             : uriLabel(store, href),
         href,
-        internal: isInternalUri(href),
+        internal: !alwaysExternalPredicates.has(predicate) && isInternalUri(href),
       })),
     }
   }
