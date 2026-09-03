@@ -8,9 +8,15 @@ import { loadClientConfig } from '@/config'
 
 const app = createApp(App)
 
-// Load runtime configuration from a JSON file.
-// Afterwards, we can use getClientConfig() to access the result at any time.
-await loadClientConfig()
+// Show a visible startup error when runtime config cannot be loaded; otherwise Vue never mounts
+// and the page is blank.
+try {
+  await loadClientConfig()
+} catch (err) {
+  document.getElementById('app')!.innerHTML =
+    '<p class="startup-error">Configuration error: this FDP client is not set up correctly.</p>'
+  throw err
+}
 
 authReady.then(() => {
   app.use(router)

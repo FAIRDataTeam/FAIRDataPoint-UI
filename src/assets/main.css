@@ -66,6 +66,12 @@ body {
   flex: 1;
 }
 
+/* Fallback shown when startup fails before Vue mounts. */
+.startup-error {
+  padding: var(--fdp-space-8);
+  color: var(--fdp-color-danger);
+}
+
 button,
 input,
 select,

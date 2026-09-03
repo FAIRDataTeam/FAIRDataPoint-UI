@@ -5,14 +5,7 @@ import SearchView from '@/views/SearchView.vue'
 import NotAllowedView from '@/views/NotAllowedView.vue'
 import UsersView from '@/views/UsersView.vue'
 import UserFormView from '@/views/UserFormView.vue'
-import { useAuth } from '@/composables/useAuth'
-
-declare module 'vue-router' {
-  interface RouteMeta {
-    requiresAuth?: boolean
-    requiresAdmin?: boolean
-  }
-}
+import { checkRouteAccess } from './guard'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -31,11 +24,13 @@ const router = createRouter({
       path: '/login',
       name: 'login',
       component: LoginView,
+      meta: { requiresOperation: 'generateToken' },
     },
     {
       path: '/search',
       name: 'search',
       component: SearchView,
+      meta: { requiresOperation: 'search_1' },
     },
     {
       path: '/not-allowed',
@@ -46,33 +41,29 @@ const router = createRouter({
       path: '/users',
       name: 'users',
       component: UsersView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, requiresOperation: 'getUsers' },
     },
     {
       path: '/users/create',
       name: 'user-create',
       component: UserFormView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, requiresOperation: 'createUser' },
     },
     {
       path: '/users/current',
       name: 'user-profile',
       component: UserFormView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresOperation: 'getUserCurrent' },
     },
     {
       path: '/users/:id',
       name: 'user-detail',
       component: UserFormView,
-      meta: { requiresAuth: true, requiresAdmin: true },
+      meta: { requiresAuth: true, requiresAdmin: true, requiresOperation: 'getUser' },
     },
   ],
 })
 
-router.beforeEach((to) => {
-  const { isLoggedIn, isAdmin } = useAuth()
-  if (to.meta.requiresAuth && !isLoggedIn.value) return '/login'
-  if (to.meta.requiresAdmin && !isAdmin.value) return '/not-allowed'
-})
+router.beforeEach(checkRouteAccess)
 
 export default router

@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { useAuth, avatarColor, userInitials } from '../composables/useAuth'
+import { useAuth, avatarColor, userInitials, getUserCurrentAvailable } from '../composables/useAuth'
+import { getUsersAvailable } from '../composables/useUsers'
 import IconUsers from '../assets/icons/users.svg?component'
 import IconUserEdit from '../assets/icons/user-edit.svg?component'
 import IconLogOut from '../assets/icons/log-out.svg?component'
@@ -61,7 +62,7 @@ onUnmounted(() => {
     </button>
 
     <div v-if="menuOpen" class="user-dropdown">
-      <template v-if="isAdmin">
+      <template v-if="isAdmin && getUsersAvailable">
         <div class="user-dropdown__section-header">FAIR Data Point</div>
         <RouterLink to="/users" class="user-dropdown__item" @click="menuOpen = false">
           <IconUsers />
@@ -72,7 +73,12 @@ onUnmounted(() => {
       <div class="user-dropdown__section-header">
         {{ user ? `${user.firstName} ${user.lastName}` : userEmail }}
       </div>
-      <RouterLink to="/users/current" class="user-dropdown__item" @click="menuOpen = false">
+      <RouterLink
+        v-if="getUserCurrentAvailable"
+        to="/users/current"
+        class="user-dropdown__item"
+        @click="menuOpen = false"
+      >
         <IconUserEdit />
         Edit profile
       </RouterLink>
