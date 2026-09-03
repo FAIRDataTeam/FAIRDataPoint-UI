@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
-import { fetchToken, fetchUser, setAuthToken } from './fdpApi'
+import { fetchToken, fetchUser } from './fdpApi'
 import { isOperationOffered } from './apiDocs'
+import { setAuthToken } from '@/composables/fetchUtils.ts'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {

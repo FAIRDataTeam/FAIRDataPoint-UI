@@ -1,6 +1,6 @@
 import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
-import { fetchRdf } from './fdpApi'
+import { fetchRdf } from './fetchUtils'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-turtle'
 import 'prismjs/components/prism-json'
