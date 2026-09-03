@@ -17,11 +17,9 @@ function bindUserOperation(
 
 /** Searches resources via the FDP full-text search endpoint. */
 // TODO: currently limited to the first 20 results; consider pagination or a larger page size.
-export async function searchResources(
-  query: string,
-  url: string,
-  method: string,
-): Promise<unknown[]> {
+export async function searchResources(query: string): Promise<unknown[]> {
+  // search_1, not search: springdoc renames one of the two backend search() methods on collision.
+  const { url, method } = await bindOperation('search_1')
   const searchUrl = new URL(url)
   searchUrl.searchParams.set('page', '0')
   searchUrl.searchParams.set('size', '20')

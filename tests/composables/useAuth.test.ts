@@ -44,12 +44,8 @@ function mockLoginFetch(
   })
 }
 
-// generateTokenBinding/getUserCurrentBinding are singletons resolved once, when useAuth.ts is
-// first imported, so a fetch mock must be active *before* that import, not just before login()
-// is called, or the first resolution attempt hits a real, unmocked fetch and caches a rejected
-// binding for that module instance. vi.resetModules() + a dynamic import per test (see
-// apiDocs.test.ts for the same pattern) ensures this. The default stub below covers describe
-// blocks that don't care about resolution at all (updateCurrentUser, userInitials).
+// apiDocsReady starts when useAuth.ts imports apiDocs.ts, so tests that exercise
+// login/authReady must install fetch mocks before dynamically importing useAuth.ts.
 beforeEach(() => {
   vi.resetModules()
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 0 }))

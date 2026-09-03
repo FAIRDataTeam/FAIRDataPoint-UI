@@ -7,9 +7,9 @@ vi.mock('../../src/composables/fetchUtils', () => ({ fetchRdfTurtle: vi.fn(), fe
 const readFixture = (name: string) => readFileSync(resolve(__dirname, '../fixtures', name), 'utf-8')
 
 /**
- * apiDocsReady starts when apiDocs.ts is imported, so each test configures fdpApi mocks before
- * importing a fresh module instance. Reset only those fdpApi mocks between tests; resetAllMocks()
- * would also clear the shared @/config mock used by getRootUri().
+ * apiDocsReady starts when apiDocs.ts is imported, so each test configures fetchUtils mocks before
+ * importing a fresh module instance. Reset only those mocks between tests; resetAllMocks() would
+ * also clear the shared @/config mock used by getRootUri().
  */
 async function importFresh(options: {
   turtleFixtures?: Record<string, string>
