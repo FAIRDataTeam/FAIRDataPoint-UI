@@ -317,4 +317,151 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
       "Operation 'deleteEverything' is not offered",
     )
   })
+
+  describe('apiDocsUrl / apiDocsPageUrl', () => {
+    it('separates the resolved OpenAPI document from the readable page', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('offers the readable page from the declared candidates even when resolution never fetched it', async () => {
+      // Proves the Swagger UI link can come from the declared list after resolution stops.
+      const rootTurtleWithApiDocsFirst = `
+        @prefix dcat: <http://www.w3.org/ns/dcat#> .
+        <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
+        <http://localhost/> dcat:endpointDescription <http://localhost/swagger-ui.html> .
+      `
+      const { apiDocs, fetchUtils } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsFirst },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(fetchUtils.fetchJSON).not.toHaveBeenCalledWith(
+        'http://localhost/swagger-ui.html',
+        expect.any(Number),
+      )
+    })
+
+    it('never offers a declared candidate that was already tried and confirmed dead', async () => {
+      // Do not offer a declared docs link that was already tried and failed.
+      const { apiDocs } = await importFresh({
+        turtleFixtures: {
+          'http://localhost/': `
+            @prefix dcat: <http://www.w3.org/ns/dcat#> .
+            <http://localhost/> dcat:endpointDescription <http://localhost/swagger-ui.html> .
+          `,
+        },
+        apiDocsImpl: async (url) => {
+          if (url === 'http://localhost/v3/api-docs') return realDoc()
+          throw new Error('HTTP 404')
+        },
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+    })
+
+    it('never offers the /v3/api-docs fallback as the readable page', async () => {
+      // The fallback can resolve operations, but it was not advertised as human-facing docs.
+      const { apiDocs } = await importFresh({
+        turtleFixtures: {
+          'http://localhost/': `
+            @prefix dcat: <http://www.w3.org/ns/dcat#> .
+            <http://localhost/> dcat:endpointDescription <http://localhost/custom/openapi.json> .
+          `,
+        },
+        apiDocsImpl: async (url) => {
+          if (url === 'http://localhost/custom/openapi.json') return realDoc()
+          throw new Error(`unexpected fetch: ${url}`)
+        },
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/custom/openapi.json')
+      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+    })
+
+    it('leaves the readable page null when the document is the only candidate', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
+        apiDocsImpl: async () => realDoc(),
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+    })
+
+    it('still offers a candidate that answered when none is a usable document', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async () => '<html>not an OpenAPI doc</html>',
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      // This gates the footer warning.
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
+
+    it('does not offer a candidate that did not answer at all', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async () => {
+          throw new Error('HTTP 404')
+        },
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
+
+    it('treats an unparseable body as an answer, since it is still a page to open', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) => {
+          // Swagger UI is HTML, so response.json() rejects with SyntaxError.
+          if (url === 'http://localhost/swagger-ui.html')
+            throw new SyntaxError('Unexpected token <')
+          throw new Error('HTTP 404')
+        },
+      })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('settles even when the root Turtle itself cannot be fetched', async () => {
+      const { apiDocs } = await importFresh({ turtleRejects: new Error('network error') })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.apiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
+  })
 })

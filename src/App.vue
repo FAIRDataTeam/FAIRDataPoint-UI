@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth, loginAvailable } from './composables/useAuth'
 import { searchAvailable } from './composables/useSearch'
+import { apiDocsPageUrl, apiDocsUrl, apiDocsSettled } from './composables/apiDocs'
 import UserMenu from './components/UserMenu.vue'
 import { getBaseUrl } from '@/composables/urlUtils.ts'
 
@@ -125,6 +126,28 @@ async function openAbout() {
         <span class="app-footer__text">FAIR Data Point</span>
         <span class="app-footer__sep">·</span>
         <button type="button" class="app-footer__link" @click="openAbout">About</button>
+        <template v-if="apiDocsPageUrl">
+          <span class="app-footer__sep">·</span>
+          <a
+            class="app-footer__link"
+            :href="apiDocsPageUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            >API documentation</a
+          >
+        </template>
+        <template v-if="apiDocsUrl">
+          <span class="app-footer__sep">·</span>
+          <a class="app-footer__link" :href="apiDocsUrl" target="_blank" rel="noopener noreferrer"
+            >OpenAPI document</a
+          >
+        </template>
+        <template v-else-if="apiDocsSettled">
+          <span class="app-footer__sep">·</span>
+          <span class="app-footer__warning"
+            >OpenAPI document unavailable, so some features are hidden</span
+          >
+        </template>
       </div>
     </footer>
 
