@@ -4,7 +4,7 @@ import {
   createUser as apiCreateUser,
   deleteUser as apiDeleteUser,
 } from './fdpApi'
-import { isOperationOffered, bindOperation } from './apiDocs'
+import { isOperationOffered } from './apiDocs'
 
 /** Drives the "Users" menu link; the /users route guard checks the same operation. */
 export const getUsersAvailable = computed(() => isOperationOffered('getUsers'))
@@ -15,10 +15,15 @@ export const createUserAvailable = computed(() => isOperationOffered('createUser
 /** Controls whether the per-user delete button is shown. */
 export const deleteUserAvailable = computed(() => isOperationOffered('deleteUser'))
 
+// Save buttons are shown only when the matching current-user/admin update operation is advertised.
+export const putUserAvailable = (isCurrentUser: boolean) =>
+  isOperationOffered(isCurrentUser ? 'putUserCurrent' : 'putUser')
+export const putUserPasswordAvailable = (isCurrentUser: boolean) =>
+  isOperationOffered(isCurrentUser ? 'putUserCurrentPassword' : 'putUserPassword')
+
 /** Lists all users through the getUsers operation, resolved via api-docs. */
 export async function fetchUsers(): Promise<unknown[]> {
-  const { url } = await bindOperation('getUsers')
-  return apiFetchUsers(url)
+  return apiFetchUsers()
 }
 
 /** Creates a user through the createUser operation, resolved via api-docs. */
@@ -29,12 +34,10 @@ export async function createUser(data: {
   role: string
   password: string
 }): Promise<unknown> {
-  const { url, method } = await bindOperation('createUser')
-  return apiCreateUser(data, url, method)
+  return apiCreateUser(data)
 }
 
 /** Deletes a user through the deleteUser operation, resolved via api-docs. */
 export async function deleteUser(uuid: string): Promise<void> {
-  const { url, method } = await bindOperation('deleteUser', { uuid })
-  await apiDeleteUser(url, method)
+  await apiDeleteUser(uuid)
 }

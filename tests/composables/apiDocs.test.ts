@@ -2,35 +2,35 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfTurtle: vi.fn(), fetchApiDocs: vi.fn() }))
+vi.mock('../../src/composables/fetchUtils', () => ({ fetchRdfTurtle: vi.fn(), fetchJSON: vi.fn() }))
 
 const readFixture = (name: string) => readFileSync(resolve(__dirname, '../fixtures', name), 'utf-8')
 
 /**
- * apiDocsReady starts when apiDocs.ts is imported, so each test configures fdpApi mocks before
- * importing a fresh module instance. Reset only those fdpApi mocks between tests; resetAllMocks()
- * would also clear the shared @/config mock used by getRootUri().
+ * apiDocsReady starts when apiDocs.ts is imported, so each test configures fetchUtils mocks before
+ * importing a fresh module instance. Reset only those mocks between tests; resetAllMocks() would
+ * also clear the shared @/config mock used by getRootUri().
  */
 async function importFresh(options: {
   turtleFixtures?: Record<string, string>
   turtleRejects?: Error
   apiDocsImpl?: (url: string) => Promise<unknown>
 }) {
-  const fdpApi = await import('../../src/composables/fdpApi')
-  vi.mocked(fdpApi.fetchRdfTurtle).mockReset()
-  vi.mocked(fdpApi.fetchApiDocs).mockReset()
+  const fetchUtils = await import('../../src/composables/fetchUtils')
+  vi.mocked(fetchUtils.fetchRdfTurtle).mockReset()
+  vi.mocked(fetchUtils.fetchJSON).mockReset()
   const { turtleFixtures = {}, turtleRejects, apiDocsImpl } = options
   if (turtleRejects) {
-    vi.mocked(fdpApi.fetchRdfTurtle).mockRejectedValue(turtleRejects)
+    vi.mocked(fetchUtils.fetchRdfTurtle).mockRejectedValue(turtleRejects)
   } else {
-    vi.mocked(fdpApi.fetchRdfTurtle).mockImplementation(async (uri: string) => {
+    vi.mocked(fetchUtils.fetchRdfTurtle).mockImplementation(async (uri: string) => {
       const content = turtleFixtures[uri]
       if (!content) throw new Error(`No fixture for URI: ${uri}`)
       return content
     })
   }
-  if (apiDocsImpl) vi.mocked(fdpApi.fetchApiDocs).mockImplementation(apiDocsImpl)
-  return { fdpApi, apiDocs: await import('../../src/composables/apiDocs') }
+  if (apiDocsImpl) vi.mocked(fetchUtils.fetchJSON).mockImplementation(apiDocsImpl)
+  return { fetchUtils, apiDocs: await import('../../src/composables/apiDocs') }
 }
 
 beforeEach(() => {
@@ -181,7 +181,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
   })
 
   it('bounds both the root Turtle fetch and each candidate fetch with a timeout', async () => {
-    const { apiDocs, fdpApi } = await importFresh({
+    const { apiDocs, fetchUtils } = await importFresh({
       turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
       apiDocsImpl: async () => realDoc(),
     })
@@ -189,8 +189,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     await apiDocs.apiDocsReady
 
     // Verify timeout wiring without waiting for a real hang.
-    expect(fdpApi.fetchRdfTurtle).toHaveBeenCalledWith('http://localhost/', expect.any(Number))
-    expect(fdpApi.fetchApiDocs).toHaveBeenCalledWith(
+    expect(fetchUtils.fetchRdfTurtle).toHaveBeenCalledWith('http://localhost/', expect.any(Number))
+    expect(fetchUtils.fetchJSON).toHaveBeenCalledWith(
       'http://localhost/v3/api-docs',
       expect.any(Number),
     )
@@ -221,7 +221,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
   })
 
   it('refreshApiDocs re-resolves against the current state', async () => {
-    const { apiDocs, fdpApi } = await importFresh({
+    const { apiDocs, fetchUtils } = await importFresh({
       turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
       apiDocsImpl: async () => ({ paths: {} }),
     })
@@ -229,7 +229,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     await apiDocs.apiDocsReady
     expect(apiDocs.isOperationOffered('generateToken')).toBe(false)
 
-    vi.mocked(fdpApi.fetchApiDocs).mockResolvedValue(realDoc())
+    vi.mocked(fetchUtils.fetchJSON).mockResolvedValue(realDoc())
     await apiDocs.refreshApiDocs()
 
     expect(apiDocs.isOperationOffered('generateToken')).toBe(true)
@@ -253,7 +253,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
   it('resolves bindOperation against a root deployed under a subpath, not just the origin', async () => {
     // Deliberately overrides the global @/config mock (from tests/vitest.setup.ts) for this one
-    // test only, restored in `finally`. Unlike fetchRdfTurtle/fetchApiDocs, this mock is shared
+    // test only, restored in `finally`. Unlike fetchRdfTurtle/fetchJSON, this mock is shared
     // by every other test in this file via getRootUri(), so it must not leak past this test.
     const configModule = await import('@/config')
     vi.mocked(configModule.getClientConfig).mockReturnValue({

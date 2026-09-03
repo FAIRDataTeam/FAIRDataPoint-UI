@@ -2,8 +2,12 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
 import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
-import { isOperationOffered, bindOperation, type OperationBinding } from '../composables/apiDocs'
-import { createUser, createUserAvailable } from '../composables/useUsers'
+import {
+  createUser,
+  createUserAvailable,
+  putUserPasswordAvailable,
+  putUserAvailable,
+} from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
@@ -14,23 +18,10 @@ const { updateCurrentUser } = useAuth()
 
 // This view handles three routes: creating a new user (admin only), an admin
 // editing another user's profile (/users/:id), and editing the signed-in
-// user's profile (/users/current, isSelf), which also hides the role field.
+// user's profile (/users/current, isCurrent), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
-const isSelf = computed(() => route.name === 'user-profile')
-const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
-
-/**
- * For /users/current, the signed-in user's profile is edited via current-user operations.
- * Admin routes (/users/:id) use uuid-based user operations instead.
- */
-function selfOrUuidOperation(
-  selfOperationId: string,
-  uuidOperationId: string,
-): Promise<OperationBinding> {
-  return isSelf.value
-    ? bindOperation(selfOperationId)
-    : bindOperation(uuidOperationId, { uuid: userId.value })
-}
+const isCurrent = computed(() => route.name === 'user-current')
+const userId = computed(() => route.params.id as string | undefined)
 
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -59,20 +50,15 @@ const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
 
 // Save buttons are shown only when the matching current-user/admin update operation is advertised.
-const profileEditAvailable = computed(() =>
-  isOperationOffered(isSelf.value ? 'putUserCurrent' : 'putUser'),
-)
-const passwordEditAvailable = computed(() =>
-  isOperationOffered(isSelf.value ? 'putUserCurrentPassword' : 'putUserPassword'),
-)
+const profileEditAvailable = computed(() => putUserAvailable(isCurrent.value))
+const passwordEditAvailable = computed(() => putUserPasswordAvailable(isCurrent.value))
 
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
   loading.value = true
   loadError.value = null
   try {
-    const { url } = await selfOrUuidOperation('getUserCurrent', 'getUser')
-    const u = (await fetchUser(url)) as User
+    const u = (await fetchUser(userId.value)) as User
     firstName.value = u.firstName
     lastName.value = u.lastName
     email.value = u.email
@@ -134,7 +120,6 @@ async function submitProfile() {
   profileSuccess.value = null
   profileSaving.value = true
   try {
-    const { url, method } = await selfOrUuidOperation('putUserCurrent', 'putUser')
     await updateUser(
       {
         firstName: firstName.value,
@@ -142,11 +127,10 @@ async function submitProfile() {
         email: email.value,
         role: role.value,
       },
-      url,
-      method,
+      userId.value,
     )
     savedName.value = `${firstName.value} ${lastName.value}`
-    if (isSelf.value) {
+    if (isCurrent.value) {
       updateCurrentUser({
         uuid: savedUuid.value,
         firstName: firstName.value,
@@ -171,8 +155,7 @@ async function submitPassword() {
   passwordSuccess.value = null
   passwordSaving.value = true
   try {
-    const { url, method } = await selfOrUuidOperation('putUserCurrentPassword', 'putUserPassword')
-    await updateUserPassword(newPassword.value, url, method)
+    await updateUserPassword(newPassword.value, userId.value)
     newPassword.value = ''
     passwordConfirm.value = ''
     passwordSubmitted.value = false
@@ -191,7 +174,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <nav v-if="!isSelf" class="breadcrumbs" aria-label="Breadcrumb">
+  <nav v-if="!isCurrent" class="breadcrumbs" aria-label="Breadcrumb">
     <div class="breadcrumbs__inner">
       <RouterLink to="/users" class="breadcrumb-link">Users</RouterLink>
       <span class="breadcrumb-sep">/</span>
@@ -257,7 +240,7 @@ onMounted(() => {
             v-model:email="email"
             v-model:role="role"
             :submitted="profileSubmitted"
-            :hide-role="isSelf"
+            :hide-role="isCurrent"
           />
 
           <button

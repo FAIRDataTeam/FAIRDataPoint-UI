@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
-import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
-import { isOperationOffered, bindOperation } from './apiDocs'
+import { fetchToken, fetchUser } from './fdpApi'
+import { isOperationOffered } from './apiDocs'
+import { setAuthToken } from './fetchUtils'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -45,8 +46,7 @@ function clearSession() {
 export const authReady: Promise<void> = (async () => {
   if (!token.value) return
   try {
-    const { url } = await bindOperation('getUserCurrent')
-    user.value = (await fetchCurrentUser(url)) as User
+    user.value = (await fetchUser()) as User
   } catch {
     clearSession()
   }
@@ -79,12 +79,10 @@ export function userInitials(email: string | null): string {
 
 export function useAuth() {
   async function login(email: string, password: string): Promise<void> {
-    const { url, method } = await bindOperation('generateToken')
-    const newToken = await fetchToken(email, password, url, method)
+    const newToken = await fetchToken(email, password)
     setAuthToken(newToken)
     try {
-      const currentUserUrl = (await bindOperation('getUserCurrent')).url
-      const currentUser = (await fetchCurrentUser(currentUserUrl)) as User
+      const currentUser = (await fetchUser()) as User
       token.value = newToken
       userEmail.value = email
       user.value = currentUser

@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { fetchRdfTurtle, fetchApiDocs } from './fdpApi'
+import { fetchRdfTurtle, fetchJSON } from './fetchUtils'
 import { parseTurtle, resolveSubjectUri, getNodeRefs } from './rdfUtils'
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
 import { getRootUri } from './urlUtils'
@@ -47,7 +47,7 @@ async function resolveApiDocs(rootUri: string): Promise<OpenApiDoc> {
   const candidates = await discoverApiDocsUrls(rootUri, API_DOCS_TIMEOUT_MS)
   for (const url of candidates) {
     try {
-      const doc = await fetchApiDocs(url, API_DOCS_TIMEOUT_MS)
+      const doc = await fetchJSON(url, API_DOCS_TIMEOUT_MS)
       if (isOpenApiDoc(doc)) return doc
     } catch {
       // try the next candidate

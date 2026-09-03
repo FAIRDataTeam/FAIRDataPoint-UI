@@ -51,7 +51,7 @@ const router = createRouter({
     },
     {
       path: '/users/current',
-      name: 'user-profile',
+      name: 'user-current',
       component: UserFormView,
       meta: { requiresAuth: true, requiresOperation: 'getUserCurrent' },
     },
