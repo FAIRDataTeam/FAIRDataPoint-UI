@@ -30,7 +30,7 @@ async function importFresh(options: {
     })
   }
   if (apiDocsImpl) vi.mocked(fetchUtils.fetchJSON).mockImplementation(apiDocsImpl)
-  return { fetchUtils: fetchUtils, apiDocs: await import('../../src/composables/apiDocs') }
+  return { fetchUtils, apiDocs: await import('../../src/composables/apiDocs') }
 }
 
 beforeEach(() => {
@@ -180,7 +180,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     })
   })
 
-  it('bounds both the root Turtle fetchUtils and each candidate fetchUtils with a timeout', async () => {
+  it('bounds both the root Turtle fetch and each candidate fetch with a timeout', async () => {
     const { apiDocs, fetchUtils } = await importFresh({
       turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
       apiDocsImpl: async () => realDoc(),

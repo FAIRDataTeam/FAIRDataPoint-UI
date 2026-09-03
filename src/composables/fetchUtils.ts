@@ -33,7 +33,7 @@ export async function fetchRdfTurtle(uri: string, timeoutMs?: number): Promise<s
   return fetchRdf(uri, 'text/turtle', timeoutMs)
 }
 
-/** Fetches api-docs as JSON from the given URL. See fetchRdf for the optional timeoutMs. */
+/** Fetches JSON from the given URL. See fetchRdf for the optional timeoutMs. */
 export async function fetchJSON(uri: string, timeoutMs?: number): Promise<unknown> {
   const signal = timeoutMs ? AbortSignal.timeout(timeoutMs) : undefined
   const response = await request(uri, { headers: { Accept: 'application/json' }, signal })

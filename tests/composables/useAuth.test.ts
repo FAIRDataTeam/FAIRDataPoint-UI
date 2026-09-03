@@ -45,8 +45,8 @@ function mockLoginFetch(
 }
 
 // generateTokenBinding/getUserCurrentBinding are singletons resolved once, when useAuth.ts is
-// first imported, so a fetchUtils mock must be active *before* that import, not just before login()
-// is called, or the first resolution attempt hits a real, unmocked fetchUtils and caches a rejected
+// first imported, so a fetch mock must be active *before* that import, not just before login()
+// is called, or the first resolution attempt hits a real, unmocked fetch and caches a rejected
 // binding for that module instance. vi.resetModules() + a dynamic import per test (see
 // apiDocs.test.ts for the same pattern) ensures this. The default stub below covers describe
 // blocks that don't care about resolution at all (updateCurrentUser, userInitials).
