@@ -149,7 +149,7 @@ async function openAbout() {
         <template v-else-if="apiDocsSettled">
           <span class="app-footer__sep">·</span>
           <span class="app-footer__warning"
-            >OpenAPI document unavailable, so some features are hidden</span
+            >API docs (JSON) unavailable, so some features are hidden</span
           >
         </template>
       </div>
