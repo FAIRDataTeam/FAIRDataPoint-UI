@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { fetchRdfTurtle, fetchJSON } from './fetchUtils'
+import { fetchRdfTurtle, fetchJSON, request } from './fetchUtils'
 import { parseTurtle, resolveSubjectUri, getNodeRefs } from './rdfUtils'
 import { DCAT_ENDPOINT_DESCRIPTION } from './vocabularies'
 import { getRootUri } from './urlUtils'
@@ -32,13 +32,29 @@ export async function discoverApiDocsUrls(rootUri: string, timeoutMs?: number): 
 type OpenApiOperation = { operationId?: string }
 type OpenApiDoc = { paths?: Record<string, Record<string, OpenApiOperation>> }
 
-/** Duck-typing: If it looks like an OpenApiDoc, treat it as one. */
+/**
+ * Duck-typing: If it looks like an OpenApiDoc, treat it as one.
+ * Requires paths so we can resolve operations.
+ */
 function isOpenApiDoc(doc: unknown): doc is OpenApiDoc {
-  return typeof doc === 'object' && doc !== null && 'paths' in doc
+  return typeof doc === 'object' && doc !== null && 'openapi' in doc && 'paths' in doc
 }
 
 // Timeout per api-docs discovery/fetch attempt.
 const API_DOCS_TIMEOUT_MS = 10_000
+
+/**
+ * Checks whether the URL serves HTML successfully.
+ * Content-Type is CORS-safelisted, so it is readable cross-origin.
+ * A login or error page returned with HTTP 200 also passes.
+ */
+async function servesHtml(url: string): Promise<boolean> {
+  const response = await request(url, {
+    headers: { Accept: 'text/html' },
+    signal: AbortSignal.timeout(API_DOCS_TIMEOUT_MS),
+  })
+  return response.headers.get('content-type')?.toLowerCase().startsWith('text/html') ?? false
+}
 
 /**
  * Finds the path and HTTP method for a given operationId in already-fetched api-docs.
@@ -83,17 +99,53 @@ export const apiDocs = ref<OpenApiDoc | null>(null)
 export const jsonApiDocsUrl = ref<string | null>(null)
 
 /**
- * Human-facing API documentation URL, usually Swagger UI. Declared by the root, not verified: it
- * may not actually have been fetched. Null when the root declared no such page.
+ * Human-facing API documentation URL, usually Swagger UI, confirmed to serve an HTML document.
+ * Null when the root declared no such page, or when the declared one did not answer with HTML.
  */
 export const htmlApiDocsUrl = ref<string | null>(null)
 
 /** Whether the initial api-docs resolution attempt has finished. */
 export const apiDocsSettled = ref(false)
 
+/** The in-flight docs-page check, replaced by each load. Awaited only via whenDocsPageReady. */
+let docsPageCheck: Promise<void> = Promise.resolve()
+
+/**
+ * Waits for discovery and the current HTML docs check.
+ * Separate from apiDocsReady so footer verification does not delay app startup or operations.
+ */
+export async function whenDocsPageReady(): Promise<void> {
+  await apiDocsReady
+  await docsPageCheck
+}
+
+/** Identifies the newest docs-page check, so a slower older one cannot overwrite its result. */
+let docsPageGeneration = 0
+
+/**
+ * Picks the first candidate that serves HTML.
+ * Includes failed JSON candidates, which may still accept requests for HTML.
+ */
+async function verifyDocsPage(candidateUrls: string[]): Promise<void> {
+  const generation = ++docsPageGeneration
+  let docsPageUrl: string | null = null
+  for (const candidateUrl of candidateUrls) {
+    try {
+      if (await servesHtml(candidateUrl)) {
+        docsPageUrl = candidateUrl
+        break
+      }
+    } catch {
+      // Unreachable, so try the next candidate.
+    }
+  }
+  // Replacing docsPageCheck does not cancel this one, so a refresh may have finished meanwhile.
+  if (generation === docsPageGeneration) htmlApiDocsUrl.value = docsPageUrl
+}
+
 /**
  * Loads api-docs state in three steps: discover candidates, resolve the machine-readable OpenAPI
- * document, then expose footer links/status from the same result.
+ * document, then start deciding the footer's docs-page link without waiting for it.
  */
 async function loadApiDocs(): Promise<void> {
   const rootUri = getRootUri()
@@ -106,10 +158,9 @@ async function loadApiDocs(): Promise<void> {
     // Root itself is unreachable, so nothing is declared and nothing can be linked.
   }
 
-  // Try candidates until one parses as OpenAPI; remember hard failures so they are not linked later.
+  // Try candidates until one parses as OpenAPI.
   let openApiDoc: OpenApiDoc | null = null
   let openApiUrl: string | null = null
-  const failedUrls = new Set<string>()
   for (const candidateUrl of candidateUrls) {
     try {
       const candidateDoc = await fetchJSON(candidateUrl, API_DOCS_TIMEOUT_MS)
@@ -118,23 +169,19 @@ async function loadApiDocs(): Promise<void> {
         openApiUrl = candidateUrl
         break
       }
-    } catch (error) {
-      // A 200 HTML docs page throws SyntaxError from response.json(), but is still worth linking.
-      // Anything else (404, network error) means the candidate is confirmed dead.
-      if (!(error instanceof SyntaxError)) failedUrls.add(candidateUrl)
+    } catch {
+      // Not usable as JSON; whether it is a page worth linking is decided separately.
     }
   }
   // Fail closed when nothing resolved, same as an absent operation.
   apiDocs.value = openApiDoc
   jsonApiDocsUrl.value = openApiUrl
-
-  // Link the first non-fallback docs candidate that did not fail during resolution.
-  const docsPageCandidates = candidateUrls.filter(
-    (url) => url !== openApiUrl && url !== fallbackUrl,
-  )
-  htmlApiDocsUrl.value = docsPageCandidates.find((url) => !failedUrls.has(url)) ?? null
-
   apiDocsSettled.value = true
+
+  // Verify the advertised page in the background; Swagger UI may be disabled.
+  docsPageCheck = verifyDocsPage(
+    candidateUrls.filter((url) => url !== openApiUrl && url !== fallbackUrl),
+  )
 }
 
 /** Resolves once the initial api-docs resolution attempt has settled, success or failure. */
