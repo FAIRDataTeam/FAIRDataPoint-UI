@@ -124,6 +124,19 @@ describe('discoverApiDocsUrls', () => {
   })
 })
 
+describe('appendUrlPath', () => {
+  it('appends beneath a deployment prefix, whether or not the path has a leading slash', async () => {
+    const { apiDocs } = await importFresh({})
+    // new URL(path, base) would drop /fdp/ for the leading-slash form.
+    expect(apiDocs.appendUrlPath('https://example.org/fdp/', '/v3/api-docs')).toBe(
+      'https://example.org/fdp/v3/api-docs',
+    )
+    expect(apiDocs.appendUrlPath('https://example.org/fdp', 'v3/api-docs')).toBe(
+      'https://example.org/fdp/v3/api-docs',
+    )
+  })
+})
+
 describe('resolveOperation', () => {
   const doc: unknown = JSON.parse(readFixture('api-docs.json'))
 

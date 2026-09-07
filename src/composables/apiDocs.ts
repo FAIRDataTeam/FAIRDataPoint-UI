@@ -6,9 +6,10 @@ import { getRootUri } from './urlUtils'
 import { configReady } from '@/config'
 
 /**
- * Appends an FDP-relative path to a base URL without letting a leading slash reset to the origin.
+ * Appends a path beneath the base URL, preserving its deployment prefix.
+ * Leading slashes on path are ignored.
  */
-function joinUrl(base: string, path: string): string {
+export function appendUrlPath(base: string, path: string): string {
   return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`
 }
 
@@ -26,7 +27,7 @@ export async function discoverApiDocsUrls(rootUri: string, timeoutMs?: number): 
   const subjectUri = resolveSubjectUri(store, rootUri)
   const declaredUrls = subjectUri ? getNodeRefs(store, subjectUri, DCAT_ENDPOINT_DESCRIPTION) : []
   // Note that JavaScript Set preserves insertion order
-  return [...new Set([...declaredUrls, joinUrl(rootUri, FALLBACK_API_DOCS_PATH)])]
+  return [...new Set([...declaredUrls, appendUrlPath(rootUri, FALLBACK_API_DOCS_PATH)])]
 }
 
 type OpenApiOperation = { operationId?: string }
@@ -149,7 +150,7 @@ async function verifyDocsPage(candidateUrls: string[]): Promise<void> {
  */
 async function loadApiDocs(): Promise<void> {
   const rootUri = getRootUri()
-  const fallbackUrl = joinUrl(rootUri, FALLBACK_API_DOCS_PATH)
+  const fallbackUrl = appendUrlPath(rootUri, FALLBACK_API_DOCS_PATH)
 
   let candidateUrls: string[] = []
   try {
@@ -218,7 +219,7 @@ function getOperationOrThrow(
     throw new Error(`Operation '${operationId}' is not offered by this FDP's api-docs`)
   }
   const path = pathParams ? substitutePathParams(operation.path, pathParams) : operation.path
-  return { url: joinUrl(getRootUri(), path), method: operation.method }
+  return { url: appendUrlPath(getRootUri(), path), method: operation.method }
 }
 
 /**
