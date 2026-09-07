@@ -318,7 +318,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     )
   })
 
-  describe('apiDocsUrl / apiDocsPageUrl', () => {
+  describe('jsonApiDocsUrl / htmlApiDocsUrl', () => {
     it('separates the resolved OpenAPI document from the readable page', async () => {
       const { apiDocs } = await importFresh({
         turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
@@ -328,8 +328,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
-      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
     })
 
     it('offers the readable page from the declared candidates even when resolution never fetched it', async () => {
@@ -347,8 +347,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
-      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
       expect(fetchUtils.fetchJSON).not.toHaveBeenCalledWith(
         'http://localhost/swagger-ui.html',
         expect.any(Number),
@@ -372,8 +372,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
-      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
     })
 
     it('never offers the /v3/api-docs fallback as the readable page', async () => {
@@ -393,8 +393,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/custom/openapi.json')
-      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/custom/openapi.json')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
     })
 
     it('leaves the readable page null when the document is the only candidate', async () => {
@@ -405,8 +405,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBe('http://localhost/v3/api-docs')
-      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
     })
 
     it('still offers a candidate that answered when none is a usable document', async () => {
@@ -417,8 +417,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBeNull()
-      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
       // This gates the footer warning.
       expect(apiDocs.apiDocsSettled.value).toBe(true)
     })
@@ -433,8 +433,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBeNull()
-      expect(apiDocs.apiDocsPageUrl.value).toBeNull()
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
       expect(apiDocs.apiDocsSettled.value).toBe(true)
     })
 
@@ -451,8 +451,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBeNull()
-      expect(apiDocs.apiDocsPageUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
     })
 
     it('settles even when the root Turtle itself cannot be fetched', async () => {
@@ -460,7 +460,7 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
 
       await apiDocs.apiDocsReady
 
-      expect(apiDocs.apiDocsUrl.value).toBeNull()
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
       expect(apiDocs.apiDocsSettled.value).toBe(true)
     })
   })

@@ -3,7 +3,7 @@ import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
 import { useAuth, loginAvailable } from './composables/useAuth'
 import { searchAvailable } from './composables/useSearch'
-import { apiDocsPageUrl, apiDocsUrl, apiDocsSettled } from './composables/apiDocs'
+import { htmlApiDocsUrl, jsonApiDocsUrl, apiDocsSettled } from './composables/apiDocs'
 import UserMenu from './components/UserMenu.vue'
 import { getBaseUrl } from '@/composables/urlUtils.ts'
 
@@ -126,19 +126,23 @@ async function openAbout() {
         <span class="app-footer__text">FAIR Data Point</span>
         <span class="app-footer__sep">·</span>
         <button type="button" class="app-footer__link" @click="openAbout">About</button>
-        <template v-if="apiDocsPageUrl">
+        <template v-if="htmlApiDocsUrl">
           <span class="app-footer__sep">·</span>
           <a
             class="app-footer__link"
-            :href="apiDocsPageUrl"
+            :href="htmlApiDocsUrl"
             target="_blank"
             rel="noopener noreferrer"
             >API docs (HTML)</a
           >
         </template>
-        <template v-if="apiDocsUrl">
+        <template v-if="jsonApiDocsUrl">
           <span class="app-footer__sep">·</span>
-          <a class="app-footer__link" :href="apiDocsUrl" target="_blank" rel="noopener noreferrer"
+          <a
+            class="app-footer__link"
+            :href="jsonApiDocsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
             >API docs (JSON)</a
           >
         </template>

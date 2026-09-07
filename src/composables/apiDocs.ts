@@ -80,13 +80,13 @@ function substitutePathParams(path: string, pathParams: Record<string, string>):
 export const apiDocs = ref<OpenApiDoc | null>(null)
 
 /** Resolved OpenAPI document URL, or null when no usable api-docs were found. */
-export const apiDocsUrl = ref<string | null>(null)
+export const jsonApiDocsUrl = ref<string | null>(null)
 
 /**
  * Human-facing API documentation URL, usually Swagger UI. Declared by the root, not verified: it
  * may not actually have been fetched. Null when the root declared no such page.
  */
-export const apiDocsPageUrl = ref<string | null>(null)
+export const htmlApiDocsUrl = ref<string | null>(null)
 
 /** Whether the initial api-docs resolution attempt has finished. */
 export const apiDocsSettled = ref(false)
@@ -126,13 +126,13 @@ async function loadApiDocs(): Promise<void> {
   }
   // Fail closed when nothing resolved, same as an absent operation.
   apiDocs.value = openApiDoc
-  apiDocsUrl.value = openApiUrl
+  jsonApiDocsUrl.value = openApiUrl
 
   // Link the first non-fallback docs candidate that did not fail during resolution.
   const docsPageCandidates = candidateUrls.filter(
     (url) => url !== openApiUrl && url !== fallbackUrl,
   )
-  apiDocsPageUrl.value = docsPageCandidates.find((url) => !failedUrls.has(url)) ?? null
+  htmlApiDocsUrl.value = docsPageCandidates.find((url) => !failedUrls.has(url)) ?? null
 
   apiDocsSettled.value = true
 }
