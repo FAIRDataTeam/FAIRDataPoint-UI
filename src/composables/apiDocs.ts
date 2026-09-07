@@ -107,14 +107,14 @@ async function loadApiDocs(): Promise<void> {
   }
 
   // Try candidates until one parses as OpenAPI; remember hard failures so they are not linked later.
-  let doc: OpenApiDoc | null = null
+  let openApiDoc: OpenApiDoc | null = null
   let openApiUrl: string | null = null
   const failedUrls = new Set<string>()
   for (const candidateUrl of candidateUrls) {
     try {
       const candidateDoc = await fetchJSON(candidateUrl, API_DOCS_TIMEOUT_MS)
       if (isOpenApiDoc(candidateDoc)) {
-        doc = candidateDoc
+        openApiDoc = candidateDoc
         openApiUrl = candidateUrl
         break
       }
@@ -125,7 +125,7 @@ async function loadApiDocs(): Promise<void> {
     }
   }
   // Fail closed when nothing resolved, same as an absent operation.
-  apiDocs.value = doc
+  apiDocs.value = openApiDoc
   apiDocsUrl.value = openApiUrl
 
   // Link the first non-fallback docs candidate that did not fail during resolution.

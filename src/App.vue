@@ -133,13 +133,13 @@ async function openAbout() {
             :href="apiDocsPageUrl"
             target="_blank"
             rel="noopener noreferrer"
-            >API documentation</a
+            >API docs (HTML)</a
           >
         </template>
         <template v-if="apiDocsUrl">
           <span class="app-footer__sep">·</span>
           <a class="app-footer__link" :href="apiDocsUrl" target="_blank" rel="noopener noreferrer"
-            >OpenAPI document</a
+            >API docs (JSON)</a
           >
         </template>
         <template v-else-if="apiDocsSettled">
