@@ -2,7 +2,14 @@ import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-vi.mock('../../src/composables/fetchUtils', () => ({ fetchRdfTurtle: vi.fn(), fetchJSON: vi.fn() }))
+vi.mock('../../src/composables/fetchUtils', () => ({
+  fetchRdfTurtle: vi.fn(),
+  fetchJSON: vi.fn(),
+  request: vi.fn(),
+}))
+
+/** Successful HTML response for docs-page checks. */
+const htmlResponse = () => new Response('', { headers: { 'content-type': 'text/html' } })
 
 const readFixture = (name: string) => readFileSync(resolve(__dirname, '../fixtures', name), 'utf-8')
 
@@ -15,11 +22,13 @@ async function importFresh(options: {
   turtleFixtures?: Record<string, string>
   turtleRejects?: Error
   apiDocsImpl?: (url: string) => Promise<unknown>
+  docsPageImpl?: (url: string) => Promise<Response>
 }) {
   const fetchUtils = await import('../../src/composables/fetchUtils')
   vi.mocked(fetchUtils.fetchRdfTurtle).mockReset()
   vi.mocked(fetchUtils.fetchJSON).mockReset()
-  const { turtleFixtures = {}, turtleRejects, apiDocsImpl } = options
+  vi.mocked(fetchUtils.request).mockReset()
+  const { turtleFixtures = {}, turtleRejects, apiDocsImpl, docsPageImpl } = options
   if (turtleRejects) {
     vi.mocked(fetchUtils.fetchRdfTurtle).mockRejectedValue(turtleRejects)
   } else {
@@ -30,6 +39,13 @@ async function importFresh(options: {
     })
   }
   if (apiDocsImpl) vi.mocked(fetchUtils.fetchJSON).mockImplementation(apiDocsImpl)
+  // Tests expecting a docs link must supply a response.
+  vi.mocked(fetchUtils.request).mockImplementation(
+    docsPageImpl ??
+      (async (url: string) => {
+        throw new Error(`No docs-page fixture for URL: ${url}`)
+      }),
+  )
   return { fetchUtils, apiDocs: await import('../../src/composables/apiDocs') }
 }
 
@@ -108,6 +124,19 @@ describe('discoverApiDocsUrls', () => {
   })
 })
 
+describe('appendUrlPath', () => {
+  it('appends beneath the base path, whether or not the path has a leading slash', async () => {
+    const { apiDocs } = await importFresh({})
+    // new URL(path, base) would drop /fdp/ for the leading-slash form.
+    expect(apiDocs.appendUrlPath('https://example.org/fdp/', '/v3/api-docs')).toBe(
+      'https://example.org/fdp/v3/api-docs',
+    )
+    expect(apiDocs.appendUrlPath('https://example.org/fdp', 'v3/api-docs')).toBe(
+      'https://example.org/fdp/v3/api-docs',
+    )
+  })
+})
+
 describe('resolveOperation', () => {
   const doc: unknown = JSON.parse(readFixture('api-docs.json'))
 
@@ -159,6 +188,12 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     @prefix dcat: <http://www.w3.org/ns/dcat#> .
     <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
   `
+  // Matches FDP declaration order: OpenAPI resolves before Swagger UI is tried.
+  const rootTurtleWithApiDocsFirst = `
+    @prefix dcat: <http://www.w3.org/ns/dcat#> .
+    <http://localhost/> dcat:endpointDescription <http://localhost/v3/api-docs> .
+    <http://localhost/> dcat:endpointDescription <http://localhost/swagger-ui.html> .
+  `
   const realDoc = () => JSON.parse(readFixture('api-docs.json'))
 
   it('resolves a usable document, skipping a declared candidate that is not a usable OpenAPI document', async () => {
@@ -178,6 +213,21 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
       url: 'http://localhost/tokens',
       method: 'POST',
     })
+  })
+
+  it('skips a JSON body that has paths but no openapi field, which the spec requires', async () => {
+    const { apiDocs } = await importFresh({
+      turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+      apiDocsImpl: async (url) => {
+        if (url === 'http://localhost/swagger-ui.html') return { paths: { '/tokens': {} } }
+        if (url === 'http://localhost/v3/api-docs') return realDoc()
+        throw new Error(`unexpected fetch: ${url}`)
+      },
+    })
+
+    await apiDocs.apiDocsReady
+
+    expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
   })
 
   it('bounds both the root Turtle fetch and each candidate fetch with a timeout', async () => {
@@ -223,7 +273,8 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
   it('refreshApiDocs re-resolves against the current state', async () => {
     const { apiDocs, fetchUtils } = await importFresh({
       turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
-      apiDocsImpl: async () => ({ paths: {} }),
+      // Recognized document with no operations.
+      apiDocsImpl: async () => ({ openapi: '3.1.0', paths: {} }),
     })
 
     await apiDocs.apiDocsReady
@@ -316,5 +367,248 @@ describe('apiDocsReady / isOperationOffered / bindOperation', () => {
     await expect(apiDocs.bindOperation('deleteEverything')).rejects.toThrow(
       "Operation 'deleteEverything' is not offered",
     )
+  })
+
+  describe('jsonApiDocsUrl / htmlApiDocsUrl', () => {
+    it('separates the resolved OpenAPI document from the readable page', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: async () => htmlResponse(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('verifies the readable page separately when resolution never fetched it', async () => {
+      const { apiDocs, fetchUtils } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsFirst },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: async () => htmlResponse(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+      expect(fetchUtils.fetchJSON).not.toHaveBeenCalledWith(
+        'http://localhost/swagger-ui.html',
+        expect.any(Number),
+      )
+      expect(fetchUtils.request).toHaveBeenCalledWith(
+        'http://localhost/swagger-ui.html',
+        expect.anything(),
+      )
+    })
+
+    it('binds operations without waiting for the docs page to be verified', async () => {
+      // A slow docs page must not block apiDocsReady consumers.
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsFirst },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: () => new Promise<Response>(() => {}), // never settles
+      })
+
+      expect(await apiDocs.bindOperation('generateToken')).toEqual({
+        url: 'http://localhost/tokens',
+        method: 'POST',
+      })
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+    })
+
+    it('does not link a declared page that is advertised but no longer served', async () => {
+      // FDP advertises Swagger UI even when disabled; only the HTML check catches its 404.
+      const { apiDocs, fetchUtils } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsFirst },
+        apiDocsImpl: async (url) => {
+          if (url === 'http://localhost/v3/api-docs') return realDoc()
+          throw new Error(`unexpected fetch: ${url}`)
+        },
+        docsPageImpl: async () => {
+          throw new Error('HTTP 404')
+        },
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+      expect(fetchUtils.request).toHaveBeenCalledWith(
+        'http://localhost/swagger-ui.html',
+        expect.anything(),
+      )
+    })
+
+    it('still checks a candidate that failed as JSON, since that does not make the page dead', async () => {
+      // Rejecting JSON with 406 does not mean HTML is unavailable.
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) => {
+          if (url === 'http://localhost/v3/api-docs') return realDoc()
+          throw new Error('HTTP 406')
+        },
+        docsPageImpl: async () => htmlResponse(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('ignores a stale docs-page check that finishes after a refresh', async () => {
+      // The first check finishes after the refresh.
+      let releaseStale!: (response: Response) => void
+      const stale = new Promise<Response>((resolve) => {
+        releaseStale = resolve
+      })
+      let firstCheck = true
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsFirst },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: () => {
+          if (!firstCheck) return Promise.resolve(htmlResponse())
+          firstCheck = false
+          return stale
+        },
+      })
+
+      await apiDocs.apiDocsReady // first HTML check still pending
+      await apiDocs.refreshApiDocs()
+      await apiDocs.whenDocsPageReady()
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+
+      // A stale non-HTML response must not clear the refreshed link.
+      releaseStale(new Response('{}', { headers: { 'content-type': 'application/json' } }))
+      await new Promise((resolve) => setTimeout(resolve, 0))
+
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('does not link a declared page that answers with something other than HTML', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: async () =>
+          new Response('{}', { headers: { 'content-type': 'application/json' } }),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+    })
+
+    it('accepts a content type in any case and with a charset parameter', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) =>
+          url === 'http://localhost/v3/api-docs' ? realDoc() : '<html>swagger ui</html>',
+        docsPageImpl: async () =>
+          new Response('', { headers: { 'content-type': 'TEXT/HTML;charset=UTF-8' } }),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('never offers the /v3/api-docs fallback as the readable page', async () => {
+      // The fallback can resolve operations, but it was not advertised as human-facing docs.
+      const { apiDocs } = await importFresh({
+        turtleFixtures: {
+          'http://localhost/': `
+            @prefix dcat: <http://www.w3.org/ns/dcat#> .
+            <http://localhost/> dcat:endpointDescription <http://localhost/custom/openapi.json> .
+          `,
+        },
+        apiDocsImpl: async (url) => {
+          if (url === 'http://localhost/custom/openapi.json') return realDoc()
+          throw new Error(`unexpected fetch: ${url}`)
+        },
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/custom/openapi.json')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+    })
+
+    it('leaves the readable page null when the document is the only candidate', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithApiDocsOnly },
+        apiDocsImpl: async () => realDoc(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBe('http://localhost/v3/api-docs')
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+    })
+
+    it('still offers a verified page when no candidate is a usable document', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async () => '<html>not an OpenAPI doc</html>',
+        docsPageImpl: async () => htmlResponse(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+      // This gates the footer warning.
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
+
+    it('does not offer a candidate that did not answer at all', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async () => {
+          throw new Error('HTTP 404')
+        },
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
+
+    it('treats an unparseable body as an answer, then verifies it is a page', async () => {
+      const { apiDocs } = await importFresh({
+        turtleFixtures: { 'http://localhost/': rootTurtleWithBothCandidates },
+        apiDocsImpl: async (url) => {
+          // Swagger UI is HTML, so response.json() rejects with SyntaxError.
+          if (url === 'http://localhost/swagger-ui.html')
+            throw new SyntaxError('Unexpected token <')
+          throw new Error('HTTP 404')
+        },
+        docsPageImpl: async () => htmlResponse(),
+      })
+
+      await apiDocs.whenDocsPageReady()
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.htmlApiDocsUrl.value).toBe('http://localhost/swagger-ui.html')
+    })
+
+    it('settles even when the root Turtle itself cannot be fetched', async () => {
+      const { apiDocs } = await importFresh({ turtleRejects: new Error('network error') })
+
+      await apiDocs.apiDocsReady
+
+      expect(apiDocs.jsonApiDocsUrl.value).toBeNull()
+      expect(apiDocs.apiDocsSettled.value).toBe(true)
+    })
   })
 })

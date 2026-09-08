@@ -502,6 +502,7 @@ pre.raw-content code {
 
 .app-footer__inner {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
   gap: var(--fdp-space-3);
@@ -530,6 +531,10 @@ pre.raw-content code {
 
 .app-footer__link:hover {
   text-decoration: underline;
+}
+
+.app-footer__warning {
+  color: var(--fdp-color-danger);
 }
 
 /* --- About modal --- */
