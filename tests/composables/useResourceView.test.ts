@@ -3,9 +3,9 @@ import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { useRoute } from 'vue-router'
 import { useResourceView } from '../../src/composables/useResourceView'
-import { fetchRdfTurtle } from '../../src/composables/fdpApi'
+import { fetchRdfTurtle } from '../../src/composables/fetchUtils'
 
-vi.mock('../../src/composables/fdpApi', () => ({ fetchRdfTurtle: vi.fn() }))
+vi.mock('../../src/composables/fetchUtils', () => ({ fetchRdfTurtle: vi.fn() }))
 
 // Mock useRoute.
 vi.mock('vue-router', () => ({

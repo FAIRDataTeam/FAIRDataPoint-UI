@@ -11,7 +11,7 @@ import {
   resolveSubjectUri,
   parseTurtle,
 } from './rdfUtils'
-import { fetchRdfTurtle } from './fdpApi'
+import { fetchRdfTurtle } from './fetchUtils'
 
 export type ChildSummary = {
   uri: string

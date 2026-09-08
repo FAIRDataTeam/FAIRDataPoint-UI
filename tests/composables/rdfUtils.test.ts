@@ -12,12 +12,16 @@ import {
   resolveSubjectUri,
   getNodeRefs,
   uriLabel,
+  getMetadataRows,
 } from '../../src/composables/rdfUtils'
 import {
   DCT_TITLE,
   DCT_DESCRIPTION,
   DCT_PUBLISHER,
   DCT_LICENSE,
+  DCT_CONFORMS_TO,
+  DCAT_ENDPOINT_URL,
+  DCAT_ENDPOINT_DESCRIPTION,
   FDP_METADATA_ISSUED,
   FDP_METADATA_MODIFIED,
   FDP_METADATA_CATALOG,
@@ -329,5 +333,39 @@ describe('uriLabel', () => {
   it('falls back to the last URI path segment for an unrelated store', () => {
     const store = parseTurtle(`<http://ex/other> <${DCT_TITLE}> "Other" .`)
     expect(uriLabel(store, 'http://ex/some/resource')).toBe('resource')
+  })
+})
+
+describe('getMetadataRows', () => {
+  // isInternalUri() checks against the mocked base URL from tests/vitest.setup.ts.
+  const BASE_URI = 'http://localhost'
+
+  const find = (rows: ReturnType<typeof getMetadataRows>['rows'], predicate: string) =>
+    rows.find((r) => r.predicate === predicate)
+
+  it('marks a same-origin dcat:endpointURL as external', () => {
+    const store = parseTurtle(`<${BASE_URI}> <${DCAT_ENDPOINT_URL}> <${BASE_URI}> .`)
+    const { rows } = getMetadataRows(store, BASE_URI, [])
+    expect(find(rows, DCAT_ENDPOINT_URL)).toMatchObject({
+      values: [{ href: BASE_URI, internal: false }],
+    })
+  })
+
+  it('marks a same-origin dcat:endpointDescription as external', () => {
+    const store = parseTurtle(
+      `<${BASE_URI}> <${DCAT_ENDPOINT_DESCRIPTION}> <${BASE_URI}/v3/api-docs> .`,
+    )
+    const { rows } = getMetadataRows(store, BASE_URI, [])
+    expect(find(rows, DCAT_ENDPOINT_DESCRIPTION)).toMatchObject({
+      values: [{ href: `${BASE_URI}/v3/api-docs`, internal: false }],
+    })
+  })
+
+  it('still marks an ordinary same-origin link as internal', () => {
+    const store = parseTurtle(`<${BASE_URI}> <${DCT_CONFORMS_TO}> <${BASE_URI}/profile/1> .`)
+    const { rows } = getMetadataRows(store, BASE_URI, [])
+    expect(find(rows, DCT_CONFORMS_TO)).toMatchObject({
+      values: [{ href: `${BASE_URI}/profile/1`, internal: true }],
+    })
   })
 })

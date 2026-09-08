@@ -1,7 +1,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter, RouterLink } from 'vue-router'
-import { fetchUser, createUser, updateUser, updateUserPassword } from '../composables/fdpApi'
+import { fetchUser, updateUser, updateUserPassword } from '../composables/fdpApi'
+import {
+  createUser,
+  createUserAvailable,
+  putUserPasswordAvailable,
+  putUserAvailable,
+} from '../composables/useUsers'
 import { useAuth, type User } from '../composables/useAuth'
 import UserProfileFields from '../components/UserProfileFields.vue'
 import { isValidEmail } from '../composables/formUtils'
@@ -11,11 +17,11 @@ const router = useRouter()
 const { updateCurrentUser } = useAuth()
 
 // This view handles three routes: creating a new user (admin only), an admin
-// editing another user's profile (/users/:id), and a user editing their own
-// profile (/users/current, isSelf), which also hides the role field.
+// editing another user's profile (/users/:id), and editing the signed-in
+// user's profile (/users/current, isCurrent), which also hides the role field.
 const isCreate = computed(() => route.name === 'user-create')
-const isSelf = computed(() => route.name === 'user-profile')
-const userId = computed(() => (route.params.id as string | undefined) ?? 'current')
+const isCurrent = computed(() => route.name === 'user-current')
+const userId = computed(() => route.params.id as string | undefined)
 
 const loading = ref(false)
 const loadError = ref<string | null>(null)
@@ -42,6 +48,10 @@ const passwordSubmitted = ref(false)
 const savedName = ref('')
 const savedUuid = ref('')
 const pageTitle = computed(() => (isCreate.value ? 'Create user' : savedName.value || '…'))
+
+// Save buttons are shown only when the matching current-user/admin update operation is advertised.
+const profileEditAvailable = computed(() => putUserAvailable(isCurrent.value))
+const passwordEditAvailable = computed(() => putUserPasswordAvailable(isCurrent.value))
 
 /** Fetches the viewed/edited user's profile from the API and seeds the form fields. */
 async function loadUser() {
@@ -110,14 +120,17 @@ async function submitProfile() {
   profileSuccess.value = null
   profileSaving.value = true
   try {
-    await updateUser(userId.value, {
-      firstName: firstName.value,
-      lastName: lastName.value,
-      email: email.value,
-      role: role.value,
-    })
+    await updateUser(
+      {
+        firstName: firstName.value,
+        lastName: lastName.value,
+        email: email.value,
+        role: role.value,
+      },
+      userId.value,
+    )
     savedName.value = `${firstName.value} ${lastName.value}`
-    if (isSelf.value) {
+    if (isCurrent.value) {
       updateCurrentUser({
         uuid: savedUuid.value,
         firstName: firstName.value,
@@ -142,7 +155,7 @@ async function submitPassword() {
   passwordSuccess.value = null
   passwordSaving.value = true
   try {
-    await updateUserPassword(userId.value, newPassword.value)
+    await updateUserPassword(newPassword.value, userId.value)
     newPassword.value = ''
     passwordConfirm.value = ''
     passwordSubmitted.value = false
@@ -155,12 +168,13 @@ async function submitPassword() {
 }
 
 onMounted(() => {
-  if (!isCreate.value) void loadUser()
+  if (isCreate.value) return
+  void loadUser()
 })
 </script>
 
 <template>
-  <nav v-if="!isSelf" class="breadcrumbs" aria-label="Breadcrumb">
+  <nav v-if="!isCurrent" class="breadcrumbs" aria-label="Breadcrumb">
     <div class="breadcrumbs__inner">
       <RouterLink to="/users" class="breadcrumb-link">Users</RouterLink>
       <span class="breadcrumb-sep">/</span>
@@ -203,7 +217,12 @@ onMounted(() => {
         </p>
       </div>
 
-      <button type="submit" class="user-form__btn" :disabled="profileSaving">
+      <button
+        v-if="createUserAvailable"
+        type="submit"
+        class="user-form__btn"
+        :disabled="profileSaving"
+      >
         {{ profileSaving ? 'Creating…' : 'Create user' }}
       </button>
     </form>
@@ -221,10 +240,15 @@ onMounted(() => {
             v-model:email="email"
             v-model:role="role"
             :submitted="profileSubmitted"
-            :hide-role="isSelf"
+            :hide-role="isCurrent"
           />
 
-          <button type="submit" class="user-form__btn" :disabled="profileSaving">
+          <button
+            v-if="profileEditAvailable"
+            type="submit"
+            class="user-form__btn"
+            :disabled="profileSaving"
+          >
             {{ profileSaving ? 'Saving…' : 'Save profile' }}
           </button>
         </form>
@@ -262,7 +286,12 @@ onMounted(() => {
             </p>
           </div>
 
-          <button type="submit" class="user-form__btn" :disabled="passwordSaving">
+          <button
+            v-if="passwordEditAvailable"
+            type="submit"
+            class="user-form__btn"
+            :disabled="passwordSaving"
+          >
             {{ passwordSaving ? 'Updating…' : 'Update password' }}
           </button>
         </form>

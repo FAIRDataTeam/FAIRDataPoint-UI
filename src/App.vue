@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterView, useRouter } from 'vue-router'
-import { useAuth } from './composables/useAuth'
+import { useAuth, loginAvailable } from './composables/useAuth'
+import { searchAvailable } from './composables/useSearch'
+import { htmlApiDocsUrl, jsonApiDocsUrl, apiDocsSettled } from './composables/apiDocs'
 import UserMenu from './components/UserMenu.vue'
 import { getBaseUrl } from '@/composables/urlUtils.ts'
 
@@ -51,7 +53,12 @@ async function openAbout() {
           </span>
         </RouterLink>
 
-        <form class="header-search" role="search" @submit.prevent="submitSearch">
+        <form
+          v-if="searchAvailable"
+          class="header-search"
+          role="search"
+          @submit.prevent="submitSearch"
+        >
           <button type="submit" class="header-search__icon" aria-label="Search">
             <svg
               xmlns="http://www.w3.org/2000/svg"
@@ -101,9 +108,11 @@ async function openAbout() {
         </form>
 
         <nav class="app-header__nav">
-          <RouterLink v-if="!isLoggedIn" to="/login" class="header-login-btn">Log in</RouterLink>
+          <RouterLink v-if="loginAvailable && !isLoggedIn" to="/login" class="header-login-btn"
+            >Log in</RouterLink
+          >
 
-          <UserMenu v-else />
+          <UserMenu v-else-if="isLoggedIn" />
         </nav>
       </div>
     </header>
@@ -117,6 +126,32 @@ async function openAbout() {
         <span class="app-footer__text">FAIR Data Point</span>
         <span class="app-footer__sep">·</span>
         <button type="button" class="app-footer__link" @click="openAbout">About</button>
+        <template v-if="htmlApiDocsUrl">
+          <span class="app-footer__sep">·</span>
+          <a
+            class="app-footer__link"
+            :href="htmlApiDocsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            >API docs (HTML)</a
+          >
+        </template>
+        <template v-if="jsonApiDocsUrl">
+          <span class="app-footer__sep">·</span>
+          <a
+            class="app-footer__link"
+            :href="jsonApiDocsUrl"
+            target="_blank"
+            rel="noopener noreferrer"
+            >API docs (JSON)</a
+          >
+        </template>
+        <template v-else-if="apiDocsSettled">
+          <span class="app-footer__sep">·</span>
+          <span class="app-footer__warning"
+            >API docs (JSON) unavailable, so some features are hidden</span
+          >
+        </template>
       </div>
     </footer>
 

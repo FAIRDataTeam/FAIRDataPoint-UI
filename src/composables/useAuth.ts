@@ -1,5 +1,7 @@
 import { ref, computed } from 'vue'
-import { fetchToken, fetchCurrentUser, setAuthToken } from './fdpApi'
+import { fetchToken, fetchUser } from './fdpApi'
+import { isOperationOffered } from './apiDocs'
+import { setAuthToken } from './fetchUtils'
 
 // Mirrors UserDTO from the backend; role values come from the UserRole enum: ADMIN, USER.
 export type User = {
@@ -22,6 +24,15 @@ const isAdmin = computed(() => user.value?.role === 'ADMIN')
 
 setAuthToken(token.value)
 
+/** Drives the "Edit profile" affordance; the /users/current route guard checks the same operation. */
+export const getUserCurrentAvailable = computed(() => isOperationOffered('getUserCurrent'))
+
+/**
+ * Drives the login button; the /login route guard checks the same operation, i.e. whether this
+ * FDP's api-docs advertise token-based login.
+ */
+export const loginAvailable = computed(() => isOperationOffered('generateToken'))
+
 function clearSession() {
   token.value = null
   userEmail.value = null
@@ -32,13 +43,14 @@ function clearSession() {
 }
 
 /** Resolves once the current user is loaded for an existing session; app mounting waits on this. */
-export const authReady: Promise<void> = token.value
-  ? fetchCurrentUser()
-      .then((u) => {
-        user.value = u as User
-      })
-      .catch(() => clearSession())
-  : Promise.resolve()
+export const authReady: Promise<void> = (async () => {
+  if (!token.value) return
+  try {
+    user.value = (await fetchUser()) as User
+  } catch {
+    clearSession()
+  }
+})()
 
 /**
  * Derives a deterministic two-tone gradient from an email, used as an avatar background.
@@ -70,7 +82,7 @@ export function useAuth() {
     const newToken = await fetchToken(email, password)
     setAuthToken(newToken)
     try {
-      const currentUser = (await fetchCurrentUser()) as User
+      const currentUser = (await fetchUser()) as User
       token.value = newToken
       userEmail.value = email
       user.value = currentUser
@@ -86,7 +98,7 @@ export function useAuth() {
     clearSession()
   }
 
-  /** Updates the cached current user after a self-service profile edit. */
+  /** Updates the cached current user after /users/current profile edits. */
   function updateCurrentUser(updated: User) {
     user.value = updated
     userEmail.value = updated.email

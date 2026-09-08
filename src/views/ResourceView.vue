@@ -203,8 +203,8 @@ const {
             <button type="button" class="unknown-toggle" @click="showUnknown = !showUnknown">
               {{
                 showUnknown
-                  ? `Hide non-DASH rows (${unknownMetadataRows.length})`
-                  : `Show non-DASH rows (${unknownMetadataRows.length})`
+                  ? `Hide additional metadata (${unknownMetadataRows.length})`
+                  : `Show additional metadata (${unknownMetadataRows.length})`
               }}
             </button>
 

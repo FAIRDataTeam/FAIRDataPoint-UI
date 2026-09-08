@@ -1,38 +1,31 @@
-import { getBaseUrl } from './urlUtils'
+import { bindOperation, type OperationBinding } from './apiDocs'
+import { authHeaders, request } from './fetchUtils'
 
-let authToken: string | null = null
-
-/** Stores the JWT token to be included in subsequent requests as a Bearer header. */
-export function setAuthToken(token: string | null): void {
-  authToken = token
-}
-
-/** Low-level fetch for any RDF resource; callers specify the Accept header. */
-export async function fetchRdf(uri: string, accept: string): Promise<string> {
-  const headers: Record<string, string> = { Accept: accept }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(uri, { headers })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return response.text()
-}
-
-/** Fetches an RDF resource as Turtle, the only format used by this client. */
-export async function fetchRdfTurtle(uri: string): Promise<string> {
-  return fetchRdf(uri, 'text/turtle')
+/**
+ * For /users/current, the signed-in user's profile is edited via current-user operations.
+ * Admin routes (/users/:id) use uuid-based user operations instead.
+ */
+function bindUserOperation(
+  currentUserOperationId: string,
+  uuidUserOperationId: string,
+  uuid?: string,
+): Promise<OperationBinding> {
+  return !uuid
+    ? bindOperation(currentUserOperationId)
+    : bindOperation(uuidUserOperationId, { uuid })
 }
 
 /** Searches resources via the FDP full-text search endpoint. */
 // TODO: currently limited to the first 20 results; consider pagination or a larger page size.
 export async function searchResources(query: string): Promise<unknown[]> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/search?page=0&size=20`, {
-    method: 'POST',
-    headers,
+  // search_1, not search: springdoc renames one of the two backend search() methods on collision.
+  const { url, method } = await bindOperation('search_1')
+  const searchUrl = new URL(url)
+  searchUrl.searchParams.set('page', '0')
+  searchUrl.searchParams.set('size', '20')
+  const response = await fetch(searchUrl.toString(), {
+    method,
+    headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
     body: JSON.stringify({ query }),
   })
   if (!response.ok) throw new Error(`Search failed (HTTP ${response.status})`)
@@ -41,30 +34,21 @@ export async function searchResources(query: string): Promise<unknown[]> {
 
 /** Lists all users registered on the FDP. */
 export async function fetchUsers(): Promise<unknown[]> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users`, { headers })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const { url } = await bindOperation('getUsers')
+  const response = await request(url, { headers: { Accept: 'application/json' } })
   return response.json() as Promise<unknown[]>
 }
 
-/** Deletes a user by UUID. */
+/** Deletes a user. */
 export async function deleteUser(uuid: string): Promise<void> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = {}
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, { method: 'DELETE', headers })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  const { url, method } = await bindOperation('deleteUser', { uuid })
+  await request(url, { method })
 }
 
-/** Fetches a single user's profile by UUID. */
-export async function fetchUser(uuid: string): Promise<unknown> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, { headers })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+/** Fetches a single user's profile. */
+export async function fetchUser(uuid?: string): Promise<unknown> {
+  const { url } = await bindUserOperation('getUserCurrent', 'getUser', uuid)
+  const response = await request(url, { headers: { Accept: 'application/json' } })
   return response.json()
 }
 
@@ -79,15 +63,10 @@ export async function createUser(data: {
   role: string
   password: string
 }): Promise<unknown> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users`, {
-    method: 'POST',
-    headers,
+  const { url, method } = await bindOperation('createUser')
+  const response = await fetch(url, {
+    method,
+    headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
     body: JSON.stringify(data),
   })
   if (!response.ok) {
@@ -99,18 +78,13 @@ export async function createUser(data: {
 
 /** Updates a user's profile fields; body mirrors the backend's UserChangeDTO. */
 export async function updateUser(
-  uuid: string,
   data: { firstName: string; lastName: string; email: string; role: string },
+  uuid?: string,
 ): Promise<unknown> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}`, {
-    method: 'PUT',
-    headers,
+  const { url, method } = await bindUserOperation('putUserCurrent', 'putUser', uuid)
+  const response = await fetch(url, {
+    method,
+    headers: authHeaders({ 'Content-Type': 'application/json', Accept: 'application/json' }),
     body: JSON.stringify(data),
   })
   if (!response.ok) {
@@ -121,13 +95,11 @@ export async function updateUser(
 }
 
 /** Updates a user's password. */
-export async function updateUserPassword(uuid: string, password: string): Promise<void> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/${uuid}/password`, {
-    method: 'PUT',
-    headers,
+export async function updateUserPassword(password: string, uuid?: string): Promise<void> {
+  const { url, method } = await bindUserOperation('putUserCurrentPassword', 'putUserPassword', uuid)
+  const response = await fetch(url, {
+    method,
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ password }),
   })
   if (!response.ok) {
@@ -136,21 +108,11 @@ export async function updateUserPassword(uuid: string, password: string): Promis
   }
 }
 
-/** Fetches the currently authenticated user's profile. */
-export async function fetchCurrentUser(): Promise<unknown> {
-  const base = getBaseUrl()
-  const headers: Record<string, string> = { Accept: 'application/json' }
-  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
-  const response = await fetch(`${base}/users/current`, { headers })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
-  return response.json()
-}
-
 /** Authenticates with the FDP and returns a JWT token. */
 export async function fetchToken(email: string, password: string): Promise<string> {
-  const base = getBaseUrl()
-  const response = await fetch(`${base}/tokens`, {
-    method: 'POST',
+  const { url, method } = await bindOperation('generateToken')
+  const response = await fetch(url, {
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ email, password }),
   })
