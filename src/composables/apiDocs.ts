@@ -6,7 +6,7 @@ import { getRootUri } from './urlUtils'
 import { configReady } from '@/config'
 
 /**
- * Appends a path beneath the base URL, preserving its deployment prefix.
+ * Appends a path beneath the base URL, preserving the base path where the FDP is served (e.g. /fdp/).
  * Leading slashes on path are ignored.
  */
 export function appendUrlPath(base: string, path: string): string {

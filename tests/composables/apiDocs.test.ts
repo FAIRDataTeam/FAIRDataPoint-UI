@@ -125,7 +125,7 @@ describe('discoverApiDocsUrls', () => {
 })
 
 describe('appendUrlPath', () => {
-  it('appends beneath a deployment prefix, whether or not the path has a leading slash', async () => {
+  it('appends beneath the base path, whether or not the path has a leading slash', async () => {
     const { apiDocs } = await importFresh({})
     // new URL(path, base) would drop /fdp/ for the leading-slash form.
     expect(apiDocs.appendUrlPath('https://example.org/fdp/', '/v3/api-docs')).toBe(
