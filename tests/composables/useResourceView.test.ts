@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { effectScope, reactive, type EffectScope } from 'vue'
 import { useRoute } from 'vue-router'
 import { useResourceView } from '../../src/composables/useResourceView'
 import { fetchRdfTurtle } from '../../src/composables/fetchUtils'
@@ -49,6 +50,47 @@ describe('useResourceView', () => {
   })
 
   // FDP root
+  describe('resource identifier', () => {
+    const CATALOG_ID = '37691d1d-94b4-4376-80a9-e49cab8e676f'
+    let scope: EffectScope
+
+    beforeEach(() => {
+      scope = effectScope()
+      vi.mocked(fetchRdfTurtle).mockResolvedValue(EMPTY_TTL)
+    })
+
+    afterEach(() => {
+      scope.stop()
+    })
+
+    it('is null for the root, with the root URI', () => {
+      mockRoute({})
+      const { resource, resourceUri } = scope.run(() => useResourceView())!
+      expect(resource.value).toBeNull()
+      expect(resourceUri.value).toBe(ROOT_URI)
+    })
+
+    it('holds the type and id of a resource, with its URI built from them', () => {
+      mockRoute({ resourceType: 'catalog', id: CATALOG_ID })
+      const { resource, resourceUri } = scope.run(() => useResourceView())!
+      expect(resource.value).toEqual({ resourceType: 'catalog', id: CATALOG_ID })
+      expect(resourceUri.value).toBe(CATALOG_URI)
+    })
+
+    it('keeps the same object when the route changes but the resource does not', () => {
+      const route = reactive({ params: { resourceType: 'catalog', id: CATALOG_ID } })
+      vi.mocked(useRoute).mockReturnValue(route as unknown as ReturnType<typeof useRoute>)
+      const { resource } = scope.run(() => useResourceView())!
+      const first = resource.value
+
+      route.params = { resourceType: 'catalog', id: CATALOG_ID }
+      expect(resource.value).toBe(first)
+
+      route.params = { resourceType: 'catalog', id: 'another-id' }
+      expect(resource.value).toEqual({ resourceType: 'catalog', id: 'another-id' })
+    })
+  })
+
   describe('FDP root', () => {
     beforeEach(() => {
       mockRoute({})

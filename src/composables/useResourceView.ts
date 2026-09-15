@@ -15,6 +15,7 @@ import {
 } from './rdfUtils'
 import { useRdfLoader, type ChildSummary } from './useRdfLoader'
 import { getBaseUrl } from './urlUtils'
+import type { ResourceIdentifier } from './fdpApi'
 
 export type { ChildSummary }
 
@@ -28,16 +29,22 @@ export function useResourceView() {
 
   const fdpUri = `${fdpBaseUri}/`
 
-  const resourceUri = computed(() => {
+  const resource = computed<ResourceIdentifier>((previous) => {
     const resourceType = route.params.resourceType
     const id = route.params.id
 
     if (typeof resourceType === 'string' && typeof id === 'string') {
-      return `${fdpBaseUri}/${resourceType}/${id}`
+      // Same resource, same object: watchers compare by identity and would refetch.
+      if (previous?.resourceType === resourceType && previous.id === id) return previous
+      return { resourceType, id }
     }
 
-    return `${fdpBaseUri}/`
+    return null
   })
+
+  const resourceUri = computed(() =>
+    resource.value ? `${fdpBaseUri}/${resource.value.resourceType}/${resource.value.id}` : fdpUri,
+  )
 
   const {
     loading,
@@ -133,6 +140,7 @@ export function useResourceView() {
     loading,
     error,
     rawTurtle,
+    resource,
     resourceUri,
     currentNodeUri,
     title,
