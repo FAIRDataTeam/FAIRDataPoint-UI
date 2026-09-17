@@ -12,9 +12,9 @@ import {
   getParentUri,
   getChildSections,
   getMetadataRows,
-  getEditableFields,
   uriLabel,
 } from './rdfUtils'
+import { getShapePropertyMap, getEditableFields } from './shaclUtils'
 import { useRdfLoader, type ChildSummary } from './useRdfLoader'
 import { getBaseUrl } from './urlUtils'
 import type { ResourceIdentifier } from './fdpApi'
@@ -93,17 +93,20 @@ export function useResourceView({
 
   const childSections = computed(() => getChildSections(quads.value, currentNodeUri.value))
 
+  // Share the computed shape map between metadata display and editable-field selection.
+  const shapeProperties = computed(() =>
+    getShapePropertyMap(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
+  )
+
   const allMetadataRows = computed(() =>
-    getMetadataRows(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
+    getMetadataRows(quads.value, currentNodeUri.value, shapeProperties.value),
   )
 
   const metadataRows = computed(() => allMetadataRows.value.rows)
   const unknownMetadataRows = computed(() => allMetadataRows.value.unknownRows)
 
-  // Same shapes as the metadata table, filtered by dash:editor instead of dash:viewer.
-  const editableFields = computed(() =>
-    getEditableFields(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
-  )
+  // The same properties as the metadata table, filtered by dash:editor instead of dash:viewer.
+  const editableFields = computed(() => getEditableFields(shapeProperties.value))
 
   watch(
     resourceUri,
