@@ -17,7 +17,14 @@ export async function request(
 ): Promise<Response> {
   const { headers, ...rest } = init
   const response = await fetch(url, { ...rest, headers: authHeaders(headers) })
-  if (!response.ok) throw new Error(`HTTP ${response.status}`)
+  if (!response.ok) {
+    try {
+      await response.body?.cancel()
+    } catch {
+      // Releasing the unread body can fail; preserve the original HTTP status.
+    }
+    throw new Error(`HTTP ${response.status}`)
+  }
   return response
 }
 
