@@ -1,11 +1,19 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { effectScope, nextTick, ref, type EffectScope } from 'vue'
 import { useMeta } from '../../src/composables/useMeta'
-import { fetchMeta, type ResourceMeta } from '../../src/composables/fdpApi'
+import { fetchMeta, getResourceOperation, type ResourceMeta } from '../../src/composables/fdpApi'
+import { isOperationOffered } from '../../src/composables/apiDocs'
 
 const auth = vi.hoisted(() => ({ isLoggedIn: { value: false }, isAdmin: { value: false } }))
 
-vi.mock('../../src/composables/fdpApi', () => ({ fetchMeta: vi.fn() }))
+vi.mock('../../src/composables/fdpApi', () => ({
+  fetchMeta: vi.fn(),
+  getResourceOperation: vi.fn(),
+}))
+vi.mock('../../src/composables/apiDocs', () => ({
+  apiDocsReady: Promise.resolve(),
+  isOperationOffered: vi.fn(),
+}))
 vi.mock('../../src/composables/useAuth', async () => {
   const { ref } = await import('vue')
   auth.isLoggedIn = ref(false)
@@ -24,6 +32,8 @@ let scope: EffectScope
 beforeEach(() => {
   scope = effectScope()
   vi.mocked(fetchMeta).mockReset()
+  vi.mocked(getResourceOperation).mockReset().mockResolvedValue({ operationId: 'putCatalog' })
+  vi.mocked(isOperationOffered).mockReset().mockReturnValue(false)
   auth.isLoggedIn.value = false
   auth.isAdmin.value = false
 })
@@ -54,6 +64,131 @@ describe('useMeta', () => {
     expect(fetchMeta).toHaveBeenCalledWith({ resourceType: 'catalog', id: 'abc' })
     expect(membershipName.value).toBe('Owner')
     expect(canWrite.value).toBe(true)
+  })
+
+  it('can edit only when it can write and the put operation is advertised', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { canWrite, canEdit } = scope.run(() =>
+      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
+    )!
+    await flushPromises()
+    expect(getResourceOperation).toHaveBeenCalledWith({ resourceType: 'catalog', id: 'abc' }, 'put')
+    expect(canWrite.value).toBe(true)
+    expect(canEdit.value).toBe(true)
+    // canEdit is a lazy computed: isOperationOffered is only called once something reads it.
+    expect(isOperationOffered).toHaveBeenCalledWith('putCatalog')
+  })
+
+  it('cannot edit when it can write but the put operation is not advertised', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
+    const { canWrite, canEdit } = scope.run(() =>
+      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
+    )!
+    await flushPromises()
+    expect(canWrite.value).toBe(true)
+    expect(canEdit.value).toBe(false)
+  })
+
+  it('reacts to PUT availability changes without fetching metadata again', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
+    const offeredOperations = ref<string[]>([])
+    vi.mocked(isOperationOffered).mockImplementation((operationId) =>
+      offeredOperations.value.includes(operationId),
+    )
+    const { canEdit } = scope.run(() => useMeta(ref({ resourceType: 'catalog', id: 'abc' })))!
+    await flushPromises()
+    expect(canEdit.value).toBe(false)
+
+    offeredOperations.value = ['putCatalog']
+    await nextTick()
+    expect(canEdit.value).toBe(true)
+
+    offeredOperations.value = []
+    await nextTick()
+    expect(canEdit.value).toBe(false)
+    expect(fetchMeta).toHaveBeenCalledTimes(1)
+    expect(getResourceOperation).toHaveBeenCalledTimes(1)
+  })
+
+  it.each([true, false])(
+    'admin editing without membership follows PUT availability (%s)',
+    async (offered) => {
+      auth.isLoggedIn.value = true
+      auth.isAdmin.value = true
+      vi.mocked(fetchMeta).mockResolvedValue(metaWith(null))
+      vi.mocked(isOperationOffered).mockReturnValue(offered)
+      const { canEdit } = scope.run(() => useMeta(ref(null)))!
+      await flushPromises()
+      expect(canEdit.value).toBe(offered)
+    },
+  )
+
+  it('cannot edit with read-only membership even when PUT is advertised', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockResolvedValue(metaWith('Reader', ['R']))
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { canEdit } = scope.run(() => useMeta(ref({ resourceType: 'catalog', id: 'abc' })))!
+    await flushPromises()
+    expect(canEdit.value).toBe(false)
+  })
+
+  it('keeps editing unavailable to an admin when metadata fails', async () => {
+    auth.isLoggedIn.value = true
+    auth.isAdmin.value = true
+    vi.mocked(fetchMeta).mockRejectedValue(new Error('HTTP 403'))
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { canWrite, canEdit, loading, error } = scope.run(() => useMeta(ref(null)))!
+    await flushPromises()
+    expect(canWrite.value).toBe(true)
+    expect(canEdit.value).toBe(false)
+    expect(loading.value).toBe(false)
+    expect(error.value).toBe('HTTP 403')
+  })
+
+  it('clears editing availability on logout', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { canEdit } = scope.run(() => useMeta(ref(null)))!
+    await flushPromises()
+    expect(canEdit.value).toBe(true)
+    auth.isLoggedIn.value = false
+    await nextTick()
+    expect(canEdit.value).toBe(false)
+  })
+
+  it('clears editing during navigation and ignores stale writable metadata', async () => {
+    auth.isLoggedIn.value = true
+    const stale = Promise.withResolvers<ResourceMeta>()
+    const current = Promise.withResolvers<ResourceMeta>()
+    vi.mocked(fetchMeta)
+      .mockResolvedValueOnce(metaWith('Owner', ['W']))
+      .mockReturnValueOnce(stale.promise)
+      .mockReturnValueOnce(current.promise)
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const resource = ref({ resourceType: 'catalog', id: 'first' })
+    const { canEdit, loading } = scope.run(() => useMeta(resource))!
+    await flushPromises()
+    expect(canEdit.value).toBe(true)
+
+    resource.value = { resourceType: 'catalog', id: 'second' }
+    await nextTick()
+    expect(loading.value).toBe(true)
+    expect(canEdit.value).toBe(false)
+    resource.value = { resourceType: 'catalog', id: 'third' }
+    await nextTick()
+    stale.resolve(metaWith('Owner', ['W']))
+    await flushPromises()
+    expect(loading.value).toBe(true)
+    expect(canEdit.value).toBe(false)
+    current.resolve(metaWith('Reader', ['R']))
+    await flushPromises()
+    expect(loading.value).toBe(false)
+    expect(canEdit.value).toBe(false)
   })
 
   it('shows the membership but cannot write without W', async () => {

@@ -52,17 +52,18 @@ function fetchRootDefinition(): Promise<ResourceDefinition> {
  */
 export async function getResourceOperation(
   resource: ResourceIdentifier,
-  action: 'meta' | 'members',
+  action: 'meta' | 'members' | 'put',
 ) {
-  const suffix = action === 'meta' ? 'Meta' : 'Members'
+  const prefix = action === 'put' ? 'put' : 'get'
+  const suffix = action === 'meta' ? 'Meta' : action === 'members' ? 'Members' : ''
   if (resource === null) {
     const root = await fetchRootDefinition()
-    return { operationId: `get${root.name}${suffix}` }
+    return { operationId: `${prefix}${root.name}${suffix}` }
   }
 
   const { resourceType, id } = resource
   const resourceName = resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
-  return { operationId: `get${resourceName}${suffix}`, pathParams: { uuid: id } }
+  return { operationId: `${prefix}${resourceName}${suffix}`, pathParams: { uuid: id } }
 }
 
 /**

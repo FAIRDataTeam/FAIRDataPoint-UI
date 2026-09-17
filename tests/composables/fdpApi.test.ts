@@ -142,6 +142,39 @@ describe('resource operations', () => {
     expect(isOperationOffered(absent.operationId)).toBe(false)
   })
 
+  it('resolves put operation IDs the same way, with no suffix', async () => {
+    vi.stubGlobal('fetch', mockApiFetch(okJson(definitions), resourceApiDocs))
+    const { getResourceOperation } = await import('../../src/composables/fdpApi')
+    const { apiDocsReady, isOperationOffered } = await import('../../src/composables/apiDocs')
+    await apiDocsReady
+
+    const typed = await getResourceOperation({ resourceType: 'catalog', id: 'abc' }, 'put')
+    expect(typed.operationId).toBe('putCatalog')
+    expect(isOperationOffered(typed.operationId)).toBe(false)
+  })
+
+  it('resolves root PUT from the configured definition name without path parameters', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockApiFetch(okJson(definitions), {
+        ...resourceApiDocs,
+        paths: {
+          ...resourceApiDocs.paths,
+          '/root-update': { put: { operationId: 'putResearch Hub' } },
+        },
+      }),
+    )
+    const { getResourceOperation } = await import('../../src/composables/fdpApi')
+    const { bindOperation } = await import('../../src/composables/apiDocs')
+
+    const operation = await getResourceOperation(null, 'put')
+    expect(operation).toEqual({ operationId: 'putResearch Hub' })
+    expect(await bindOperation(operation.operationId)).toEqual({
+      url: 'http://localhost/root-update',
+      method: 'PUT',
+    })
+  })
+
   it('refuses an unadvertised operation even if a conventional endpoint path exists', async () => {
     const handleRequest = vi.fn(okJson(meta))
     vi.stubGlobal(

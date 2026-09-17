@@ -8,6 +8,7 @@ import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
 import OwnersBadge from '../components/OwnersBadge.vue'
+import IconEdit from '../assets/icons/edit.svg?component'
 
 const {
   loading,
@@ -29,9 +30,13 @@ const {
   resourceLabel,
 } = useResourceView()
 
-const { membershipName } = useMeta(resource)
+const { membershipName, canEdit } = useMeta(resource)
 const { otherOwnerNames, loaded: ownersLoaded } = useMembers(resource)
 const isOwner = computed(() => membershipName.value === 'Owner')
+
+const editRoute = computed(() =>
+  resource.value ? { name: 'resource-edit', params: resource.value } : { name: 'fdp-root-edit' },
+)
 
 const showUnknown = ref(false)
 const showGraph = ref(false)
@@ -88,18 +93,24 @@ const {
           <section class="resource-header">
             <div class="resource-title-row">
               <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
-              <div v-if="membershipName || otherOwnerNames.length" class="resource-badges">
-                <!-- Owner memberships are shown by OwnersBadge, with owner details on hover. -->
-                <span v-if="membershipName && !isOwner" class="membership-badge">{{
-                  membershipName
-                }}</span>
-                <OwnersBadge
-                  v-if="isOwner || otherOwnerNames.length"
-                  :names="otherOwnerNames"
-                  :is-owner="isOwner"
-                  :owners-loaded="ownersLoaded"
-                  :resource-type="resource?.resourceType ?? null"
-                />
+              <div class="resource-title-actions">
+                <div v-if="membershipName || otherOwnerNames.length" class="resource-badges">
+                  <!-- Owner memberships are shown by OwnersBadge, with owner details on hover. -->
+                  <span v-if="membershipName && !isOwner" class="membership-badge">{{
+                    membershipName
+                  }}</span>
+                  <OwnersBadge
+                    v-if="isOwner || otherOwnerNames.length"
+                    :names="otherOwnerNames"
+                    :is-owner="isOwner"
+                    :owners-loaded="ownersLoaded"
+                    :resource-type="resource?.resourceType ?? null"
+                  />
+                </div>
+                <router-link v-if="canEdit" :to="editRoute" class="resource-edit-link">
+                  <IconEdit />
+                  Edit
+                </router-link>
               </div>
             </div>
             <p v-if="description" class="resource-description">{{ description }}</p>
