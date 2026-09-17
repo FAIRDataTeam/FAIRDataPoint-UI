@@ -1,5 +1,6 @@
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { Store } from 'n3'
 import {
   getTitle,
   getBreadcrumbs,
@@ -11,6 +12,7 @@ import {
   getParentUri,
   getChildSections,
   getMetadataRows,
+  getEditableFields,
   uriLabel,
 } from './rdfUtils'
 import { useRdfLoader, type ChildSummary } from './useRdfLoader'
@@ -23,7 +25,9 @@ export type { ChildSummary }
  * Derives all display data for ResourceView from the current route: resolves the resource URI,
  * delegates fetching to useRdfLoader, and exposes computed title, breadcrumbs, metadata rows, and child sections.
  */
-export function useResourceView() {
+export function useResourceView({
+  loadChildSummaries = true,
+}: { loadChildSummaries?: boolean } = {}) {
   const route = useRoute()
   const fdpBaseUri = getBaseUrl()
 
@@ -53,12 +57,15 @@ export function useResourceView() {
     rawTurtle,
     childSummaries,
     parentSummaries,
-    shapeGraphs,
     loadResource,
     loadChildSummary,
     loadParentChain,
     loadProfile,
   } = useRdfLoader()
+
+  const shapeGraphs = ref<Record<string, Store>>({})
+  const shapesLoading = ref(false)
+  const shapesError = ref<string | null>(null)
 
   function resourceLabel(uri: string): string {
     return uriLabel(quads.value, uri)
@@ -93,6 +100,11 @@ export function useResourceView() {
   const metadataRows = computed(() => allMetadataRows.value.rows)
   const unknownMetadataRows = computed(() => allMetadataRows.value.unknownRows)
 
+  // Same shapes as the metadata table, filtered by dash:editor instead of dash:viewer.
+  const editableFields = computed(() =>
+    getEditableFields(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
+  )
+
   watch(
     resourceUri,
     async (uri) => {
@@ -101,17 +113,20 @@ export function useResourceView() {
     { immediate: true },
   )
 
-  watch(
-    childSections,
-    (sections) => {
-      sections
-        .flatMap((section) => section.items)
-        .forEach((uri) => {
-          void loadChildSummary(uri)
-        })
-    },
-    { immediate: true },
-  )
+  // The edit page needs breadcrumbs, but not child summaries.
+  if (loadChildSummaries) {
+    watch(
+      childSections,
+      (sections) => {
+        sections
+          .flatMap((section) => section.items)
+          .forEach((uri) => {
+            void loadChildSummary(uri)
+          })
+      },
+      { immediate: true },
+    )
+  }
 
   watch(
     currentNodeUri,
@@ -128,15 +143,38 @@ export function useResourceView() {
 
   watch(
     currentNodeUri,
-    (uri) => {
+    async (uri, _previous, onCleanup) => {
+      let cancelled = false
+      onCleanup(() => {
+        cancelled = true
+      })
+      shapeGraphs.value = {}
+      shapesError.value = null
+      shapesLoading.value = false
       if (!uri) return
       const profileUri = getConformsTo(quads.value, uri)
-      if (profileUri) void loadProfile(profileUri)
+      if (!profileUri) return
+      shapesLoading.value = true
+      try {
+        const result = await loadProfile(profileUri)
+        if (!cancelled) {
+          shapeGraphs.value = result.graphs
+          shapesError.value = result.error
+        }
+      } catch (err) {
+        if (!cancelled) {
+          shapesError.value = err instanceof Error ? err.message : 'Unable to load resource shapes.'
+        }
+      } finally {
+        if (!cancelled) shapesLoading.value = false
+      }
     },
     { immediate: true },
   )
 
   return {
+    shapesLoading,
+    shapesError,
     loading,
     error,
     rawTurtle,
@@ -151,6 +189,7 @@ export function useResourceView() {
     quads,
     metadataRows,
     unknownMetadataRows,
+    editableFields,
     childSections,
     childSummaries,
     resourceLabel,

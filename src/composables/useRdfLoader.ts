@@ -35,7 +35,6 @@ export function useRdfLoader() {
   const rawTurtle = ref<string | null>(null)
   const childSummaries = ref<Record<string, ChildSummary>>({})
   const parentSummaries = ref<Record<string, ChildSummary>>({})
-  const shapeGraphs = ref<Record<string, Store>>({})
 
   /** Fetches and parses the primary resource, populating quads and rawTurtle. */
   async function loadResource(uri: string) {
@@ -82,30 +81,30 @@ export function useRdfLoader() {
     }
   }
 
-  /** Fetches a profile and calls loadShapeDocument for each of its SHACL artifacts. */
-  async function loadProfile(uri: string): Promise<void> {
-    if (shapeGraphs.value[uri]) return
-
-    try {
-      const store = parseTurtle(await fetchRdfTurtle(uri))
-      for (const artifactUri of getArtifactUris(store)) {
-        void loadShapeDocument(artifactUri)
+  /** Fetches a profile and its SHACL artifacts, retaining successful results and reporting failures. */
+  async function loadProfile(uri: string): Promise<{
+    graphs: Record<string, Store>
+    error: string | null
+  }> {
+    const store = parseTurtle(await fetchRdfTurtle(uri))
+    const results = await Promise.allSettled(
+      getArtifactUris(store).map(async (artifactUri) => {
+        const graph = parseTurtle(await fetchRdfTurtle(artifactUri))
+        return [artifactUri, graph] as const
+      }),
+    )
+    const graphs: Record<string, Store> = {}
+    let error: string | null = null
+    for (const result of results) {
+      if (result.status === 'fulfilled') {
+        const [artifactUri, graph] = result.value
+        graphs[artifactUri] = graph
+      } else {
+        error ??=
+          result.reason instanceof Error ? result.reason.message : 'Unable to load resource shapes.'
       }
-    } catch (err) {
-      console.warn(`Failed to load profile ${uri}`, err)
     }
-  }
-
-  /** Fetches and parses a SHACL shape document into shapeGraphs, used for property ordering and rendering hints. */
-  async function loadShapeDocument(uri: string): Promise<void> {
-    if (shapeGraphs.value[uri]) return
-
-    try {
-      const store = parseTurtle(await fetchRdfTurtle(uri))
-      shapeGraphs.value[uri] = store
-    } catch (err) {
-      console.warn(`Failed to load shape document ${uri}`, err)
-    }
+    return { graphs, error }
   }
 
   /** Fetches a child resource and stores a display summary (title, description, dates, theme) in childSummaries. */
@@ -136,7 +135,6 @@ export function useRdfLoader() {
     rawTurtle,
     childSummaries,
     parentSummaries,
-    shapeGraphs,
     loadResource,
     loadChildSummary,
     loadParentChain,

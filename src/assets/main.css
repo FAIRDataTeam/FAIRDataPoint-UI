@@ -279,6 +279,16 @@ a:hover {
   padding-left: 1.1rem;
 }
 
+.editable-field__required {
+  color: var(--fdp-color-danger);
+}
+
+.editable-field__meta {
+  margin-left: var(--fdp-space-3);
+  color: var(--fdp-color-muted);
+  font-weight: 400;
+}
+
 .text-link {
   border: none;
   background: none;

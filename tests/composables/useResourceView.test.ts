@@ -811,3 +811,156 @@ describe('useResourceView', () => {
     })
   })
 })
+
+describe('editable shape loading', () => {
+  let scope: EffectScope
+  const profileUri = 'http://localhost/profile/edit'
+  const shapeUri = 'http://localhost/shapes/edit'
+  const resource = `<http://localhost/> a <http://ex/Class>;
+    <http://purl.org/dc/terms/conformsTo> <${profileUri}> .`
+  const profile = `<${profileUri}> <http://www.w3.org/ns/dx/prof/hasArtifact> <${shapeUri}> .`
+  const shape = `@prefix sh: <http://www.w3.org/ns/shacl#> .
+    <http://ex/Shape> a sh:NodeShape; sh:targetClass <http://ex/Class>;
+      sh:property [ sh:path <http://ex/title>;
+        <http://datashapes.org/dash#editor> <http://datashapes.org/dash#TextFieldEditor> ] .`
+
+  beforeEach(() => {
+    scope = effectScope()
+    mockRoute({})
+  })
+  afterEach(() => {
+    scope.stop()
+    vi.clearAllMocks()
+  })
+
+  it('waits for both the profile and its shapes before exposing the fields', async () => {
+    const pendingProfile = Promise.withResolvers<string>()
+    const pendingShape = Promise.withResolvers<string>()
+    vi.mocked(fetchRdfTurtle).mockImplementation(async (uri) => {
+      if (uri === ROOT_URI) return resource
+      if (uri === profileUri) return pendingProfile.promise
+      if (uri === shapeUri) return pendingShape.promise
+      throw new Error(`Unexpected URI: ${uri}`)
+    })
+    const view = scope.run(() => useResourceView())!
+    await flushPromises()
+    expect(view.loading.value).toBe(false)
+    expect(view.shapesLoading.value).toBe(true)
+    pendingProfile.resolve(profile)
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(true)
+    expect(view.editableFields.value).toEqual([])
+    pendingShape.resolve(shape)
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(false)
+    expect(view.shapesError.value).toBeNull()
+    expect(view.editableFields.value.map((field) => field.path)).toEqual(['http://ex/title'])
+  })
+
+  it.each([profileUri, shapeUri])('reports a failed request for %s', async (failedUri) => {
+    vi.mocked(fetchRdfTurtle).mockImplementation(async (uri) => {
+      if (uri === failedUri) throw new Error('HTTP 503')
+      if (uri === ROOT_URI) return resource
+      return profile
+    })
+    const view = scope.run(() => useResourceView())!
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(false)
+    expect(view.shapesError.value).toBe('HTTP 503')
+    expect(view.editableFields.value).toEqual([])
+  })
+
+  it('preserves successful shapes for metadata display when another artifact fails', async () => {
+    const brokenUri = 'http://localhost/shapes/broken'
+    const pending = Promise.withResolvers<string>()
+    vi.mocked(fetchRdfTurtle).mockImplementation(async (uri) => {
+      if (uri === ROOT_URI)
+        return (
+          resource +
+          `
+        <http://localhost/> <http://ex/title> "Title"; <http://ex/other> "Other" .`
+        )
+      if (uri === profileUri)
+        return (
+          profile +
+          `
+        <${profileUri}> <http://www.w3.org/ns/dx/prof/hasArtifact> <${brokenUri}> .`
+        )
+      if (uri === brokenUri) throw new Error('HTTP 503')
+      if (uri === shapeUri) return pending.promise
+      throw new Error(`Unexpected URI: ${uri}`)
+    })
+    const view = scope.run(() => useResourceView())!
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(true)
+    pending.resolve(
+      shape.replace(
+        'sh:path <http://ex/title>;',
+        'sh:path <http://ex/title>; <http://datashapes.org/dash#viewer> <http://datashapes.org/dash#LiteralViewer>;',
+      ),
+    )
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(false)
+    expect(view.shapesError.value).toBe('HTTP 503')
+    expect(view.metadataRows.value.map((row) => row.predicate)).toEqual(['http://ex/title'])
+    expect(view.unknownMetadataRows.value.map((row) => row.predicate)).toContain('http://ex/other')
+  })
+
+  it.each([true, false])(
+    'always loads parents and optionally loads child summaries (%s)',
+    async (loadChildSummaries) => {
+      mockRoute({ resourceType: 'catalog', id: CATALOG_URI.split('/').pop()! })
+      vi.mocked(fetchRdfTurtle).mockImplementation(async (uri) =>
+        uri === CATALOG_URI ? readFixture('catalog.ttl') : EMPTY_TTL,
+      )
+      scope.run(() => useResourceView({ loadChildSummaries }))
+      await flushPromises()
+      const requestedUris = vi.mocked(fetchRdfTurtle).mock.calls.map(([uri]) => uri)
+      expect(requestedUris).toContain(CATALOG_URI)
+      expect(requestedUris).toContain(CATALOG_PROFILE_URI)
+      expect(requestedUris).toContain(ROOT_URI_NO_TRAILING_SLASH)
+      expect(requestedUris.includes(DATASET_URI)).toBe(loadChildSummaries)
+      if (!loadChildSummaries) expect(requestedUris).toHaveLength(3)
+    },
+  )
+
+  it('builds ancestor breadcrumbs when child summaries are disabled', async () => {
+    mockRoute({ resourceType: 'dataset', id: DATASET_URI.split('/').pop()! })
+    setupFetchFixtures({
+      [DATASET_URI]: readFixture('dataset.ttl'),
+      [CATALOG_URI]: readFixture('catalog.ttl'),
+      [ROOT_URI_NO_TRAILING_SLASH]: EMPTY_TTL,
+      [DATASET_PROFILE_URI]: EMPTY_TTL,
+    })
+    const view = scope.run(() => useResourceView({ loadChildSummaries: false }))!
+    await flushPromises()
+    expect(view.breadcrumbs.value).toEqual([
+      { text: 'FAIR Data Point', uri: ROOT_URI },
+      { text: 'A catalog', uri: CATALOG_URI },
+      { text: 'A dataset', uri: DATASET_URI },
+    ])
+    expect(vi.mocked(fetchRdfTurtle).mock.calls.map(([uri]) => uri)).not.toContain(DISTRIBUTION_URI)
+  })
+
+  it('ignores shapes that finish after navigation to a resource without a profile', async () => {
+    const pending = Promise.withResolvers<string>()
+    const route = reactive({ params: {} as Record<string, string> })
+    vi.mocked(useRoute).mockReturnValue(route as unknown as ReturnType<typeof useRoute>)
+    vi.mocked(fetchRdfTurtle).mockImplementation(async (uri) => {
+      if (uri === ROOT_URI) return resource
+      if (uri === profileUri) return profile
+      if (uri === shapeUri) return pending.promise
+      return '<http://localhost/catalog/next> a <http://ex/Class> .'
+    })
+    const view = scope.run(() => useResourceView())!
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(true)
+    route.params = { resourceType: 'catalog', id: 'next' }
+    await flushPromises()
+    pending.resolve(shape)
+    await flushPromises()
+    expect(view.shapesLoading.value).toBe(false)
+    expect(view.shapesError.value).toBeNull()
+    expect(view.editableFields.value).toEqual([])
+  })
+})

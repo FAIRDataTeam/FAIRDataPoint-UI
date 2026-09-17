@@ -26,6 +26,7 @@ import {
   SIO_IS_RELATED_TO,
   DASH_URI_VIEWER,
   DASH_VIEWER,
+  DASH_EDITOR,
   SHACL_IRI,
   SHACL_NODE_SHAPE,
   SHACL_TARGET_CLASS,
@@ -33,7 +34,12 @@ import {
   SHACL_NODE_KIND,
   SHACL_PATH,
   SHACL_NAME,
+  SHACL_DESCRIPTION,
   SHACL_ORDER,
+  SHACL_DATATYPE,
+  SHACL_NODE,
+  SHACL_MIN_COUNT,
+  SHACL_MAX_COUNT,
   prefixes,
   XSD_DATE,
   XSD_DATETIME,
@@ -62,13 +68,26 @@ export type MetadataRow = {
   blankNodes?: BlankNodeProperty[][]
 }
 
-type ShapeProperty = {
+/**
+ * One SHACL property shape. `viewer` drives display, `editor` drives editing: a property is
+ * offered in a given UI only when the shape declares the matching DASH hint.
+ */
+export type ShapeProperty = {
   path: string
   label: string | null
+  description: string | null
   order: number
   viewer: string | null
+  editor: string | null
   nodeKind: string | null
+  datatype: string | null
+  /** IRI of the nested shape referenced by sh:node. */
+  node: string | null
+  minCount: number | null
+  maxCount: number | null
 }
+
+export type EditableField = ShapeProperty & { editor: string }
 
 // --- Low-level helpers ---
 
@@ -357,6 +376,14 @@ function getObjectNamedNode(store: Store, subject: Term, predicate: string): str
   )
 }
 
+/** Parses a SHACL cardinality literal; absent or unparseable means no constraint. */
+function readCount(shapeGraph: Store, propTerm: Term, predicate: string): number | null {
+  const raw = getObjectLiteral(shapeGraph, propTerm, predicate)
+  if (raw === null) return null
+  const count = parseInt(raw, 10)
+  return Number.isNaN(count) ? null : count
+}
+
 /**
  * Reads a SHACL property shape node into a ShapeProperty struct.
  * Returns null if the node has no shacl:path.
@@ -366,31 +393,75 @@ function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | n
   const path = getObjectNamedNode(shapeGraph, propTerm, SHACL_PATH)
   if (!path) return null
 
-  const label = getObjectLiteral(shapeGraph, propTerm, SHACL_NAME)
   const orderStr = getObjectLiteral(shapeGraph, propTerm, SHACL_ORDER)
-  const order = orderStr ? parseInt(orderStr, 10) : Number.MAX_SAFE_INTEGER
-  const viewer = getObjectNamedNode(shapeGraph, propTerm, DASH_VIEWER)
-  const nodeKind = getObjectNamedNode(shapeGraph, propTerm, SHACL_NODE_KIND)
 
-  return { path, label, order, viewer, nodeKind }
+  return {
+    path,
+    label: getObjectLiteral(shapeGraph, propTerm, SHACL_NAME),
+    description: getObjectLiteral(shapeGraph, propTerm, SHACL_DESCRIPTION),
+    order: orderStr ? parseInt(orderStr, 10) : Number.MAX_SAFE_INTEGER,
+    viewer: getObjectNamedNode(shapeGraph, propTerm, DASH_VIEWER),
+    editor: getObjectNamedNode(shapeGraph, propTerm, DASH_EDITOR),
+    nodeKind: getObjectNamedNode(shapeGraph, propTerm, SHACL_NODE_KIND),
+    datatype: getObjectNamedNode(shapeGraph, propTerm, SHACL_DATATYPE),
+    node: getObjectNamedNode(shapeGraph, propTerm, SHACL_NODE),
+    minCount: readCount(shapeGraph, propTerm, SHACL_MIN_COUNT),
+    maxCount: readCount(shapeGraph, propTerm, SHACL_MAX_COUNT),
+  }
+}
+
+/** Returns the stricter of two cardinality bounds; null means the shape set no bound. */
+function mergeCardinalityBound(
+  a: number | null,
+  b: number | null,
+  pick: (x: number, y: number) => number,
+) {
+  if (a === null) return b
+  if (b === null) return a
+  return pick(a, b)
+}
+
+/**
+ * Merges shapes for one path using the strictest cardinality bounds.
+ * Each hint comes from the lowest-order shape that declares it;
+ * ties use encounter order.
+ */
+function mergeShapeProperties(properties: ShapeProperty[]): ShapeProperty {
+  return [...properties]
+    .sort((a, b) => a.order - b.order)
+    .reduce((merged, prop) => ({
+      path: merged.path,
+      label: merged.label ?? prop.label,
+      description: merged.description ?? prop.description,
+      order: merged.order,
+      viewer: merged.viewer ?? prop.viewer,
+      editor: merged.editor ?? prop.editor,
+      nodeKind: merged.nodeKind ?? prop.nodeKind,
+      datatype: merged.datatype ?? prop.datatype,
+      node: merged.node ?? prop.node,
+      minCount: mergeCardinalityBound(merged.minCount, prop.minCount, Math.max),
+      maxCount: mergeCardinalityBound(merged.maxCount, prop.maxCount, Math.min),
+    }))
 }
 
 /**
  * Builds a map of shacl:path -> ShapeProperty for the current resource's RDF types.
  * Searches all provided shape graphs for NodeShapes whose shacl:targetClass matches one of
- * the resource's types. When multiple shapes define the same path, the lower shacl:order wins;
- * missing fields are filled from the superseded entry.
+ * the resource's types. Shapes that constrain the same path are merged, see
+ * mergeShapeProperties.
  */
-function getShapePropertyMap(
+export function getShapePropertyMap(
   resourceStore: Store,
   subjectUri: string | null,
   shapeGraphs: Store[],
 ): Map<string, ShapeProperty> {
-  const map = new Map<string, ShapeProperty>()
-  if (!subjectUri) return map
+  if (!subjectUri) return new Map()
 
   const currentTypes = new Set<string>(getNodeRefs(resourceStore, subjectUri, RDF_TYPE))
-  if (currentTypes.size === 0) return map
+  if (currentTypes.size === 0) return new Map()
+
+  // Collect per path first so hints can be merged in shacl:order.
+  const byPath = new Map<string, ShapeProperty[]>()
 
   for (const shapeGraph of shapeGraphs) {
     for (const subject of shapeGraph.getSubjects(
@@ -410,21 +481,28 @@ function getShapePropertyMap(
         const prop = readShapeProperty(shapeGraph, propTerm)
         if (!prop) continue
 
-        // Lower order wins; if the new entry lacks a field, preserve it from the superseded one.
-        const existing = map.get(prop.path)
-        if (!existing || prop.order < existing.order) {
-          map.set(prop.path, {
-            path: prop.path,
-            label: prop.label ?? existing?.label ?? null,
-            order: prop.order,
-            viewer: prop.viewer ?? existing?.viewer ?? null,
-            nodeKind: prop.nodeKind ?? existing?.nodeKind ?? null,
-          })
-        }
+        const collected = byPath.get(prop.path)
+        if (collected) collected.push(prop)
+        else byPath.set(prop.path, [prop])
       }
     }
   }
-  return map
+
+  return new Map([...byPath].map(([path, properties]) => [path, mergeShapeProperties(properties)]))
+}
+
+/**
+ * Shape properties an edit form offers, in shacl:order. A property is editable only when the
+ * shape declares a dash:editor, as dash:viewer decides what the metadata table shows.
+ */
+export function getEditableFields(
+  resourceStore: Store,
+  subjectUri: string | null,
+  shapeGraphs: Store[],
+): EditableField[] {
+  return [...getShapePropertyMap(resourceStore, subjectUri, shapeGraphs).values()]
+    .filter((property): property is EditableField => property.editor !== null)
+    .sort((a, b) => a.order - b.order)
 }
 
 // --- Metadata rows ---

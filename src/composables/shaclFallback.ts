@@ -1,4 +1,6 @@
 import {
+  DCT_TITLE,
+  DCT_DESCRIPTION,
   DCT_CONFORMS_TO,
   DCT_LANGUAGE,
   DCT_LICENSE,
@@ -59,6 +61,9 @@ import { compactUri } from './rdfUtils'
 // Human-readable labels for known predicates.
 // Unknown predicates fall back to their compacted URI.
 const labelMap: Record<string, string> = {
+  // The metadata table renders title and description outside the rows, but a form labels them.
+  [DCT_TITLE]: 'Title',
+  [DCT_DESCRIPTION]: 'Description',
   [DCT_CONFORMS_TO]: 'Conforms to',
   [DCT_LANGUAGE]: 'Language',
   [DCT_LICENSE]: 'License',
