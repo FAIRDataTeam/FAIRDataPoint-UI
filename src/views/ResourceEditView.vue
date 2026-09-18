@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
-import { predicateLabel } from '../composables/shaclFallback'
-import { compactUri } from '../composables/rdfUtils'
+import { useShapeForm } from '../composables/shapeForm'
 import { internalHref } from '../composables/urlUtils'
+import ShapeFormFields from '../components/ShapeFormFields.vue'
 
 const {
   resource,
+  quads,
+  title,
   currentNodeUri,
   breadcrumbs,
   loading,
@@ -22,11 +24,7 @@ const backTo = computed(() =>
   resource.value ? { name: 'resource', params: resource.value } : { name: 'fdp-root' },
 )
 
-const fieldLabel = (field: { label: string | null; path: string }) =>
-  field.label ?? predicateLabel(field.path)
-
-const cardinality = (field: { minCount: number | null; maxCount: number | null }) =>
-  `${field.minCount ?? 0}..${field.maxCount ?? '*'}`
+const formValues = useShapeForm(quads, currentNodeUri, editableFields)
 </script>
 
 <template>
@@ -43,7 +41,9 @@ const cardinality = (field: { minCount: number | null; maxCount: number | null }
       </div>
     </nav>
     <main class="page-container">
-      <h1>Edit {{ resource?.resourceType ?? 'FAIR Data Point' }}</h1>
+      <h1 class="user-form__title">
+        Edit {{ title ?? resource?.resourceType ?? 'FAIR Data Point' }}
+      </h1>
 
       <p v-if="loading || shapesLoading">Loading…</p>
       <p v-else-if="error || shapesError" class="alert alert-danger">
@@ -51,25 +51,11 @@ const cardinality = (field: { minCount: number | null; maxCount: number | null }
       </p>
 
       <template v-else>
-        <p>Editing is not implemented yet. The shape offers these fields:</p>
+        <p class="user-form__note">Saving is not implemented yet.</p>
 
-        <section v-if="editableFields.length > 0" class="metadata-table">
-          <div v-for="field in editableFields" :key="field.path" class="metadata-row">
-            <div class="metadata-label">
-              {{ fieldLabel(field) }}
-              <span
-                v-if="(field.minCount ?? 0) > 0"
-                class="editable-field__required"
-                aria-label="required"
-                >*</span
-              >
-            </div>
-            <div class="metadata-value">
-              {{ compactUri(field.editor) }}
-              <span class="editable-field__meta">{{ cardinality(field) }}</span>
-            </div>
-          </div>
-        </section>
+        <form v-if="editableFields.length > 0" @submit.prevent>
+          <ShapeFormFields :fields="editableFields" :values="formValues" />
+        </form>
         <p v-else>No editable fields are declared for this resource.</p>
       </template>
 

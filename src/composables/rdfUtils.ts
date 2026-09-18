@@ -1,5 +1,5 @@
 import { Store, Parser, DataFactory } from 'n3'
-import type { Literal } from 'n3'
+import type { Literal, Term } from 'n3'
 import {
   DCT_TITLE,
   DCT_DESCRIPTION,
@@ -125,6 +125,16 @@ export function getNodeRefs(store: Store, subjectUri: string, predicate: string)
     .getObjects(DataFactory.namedNode(subjectUri), DataFactory.namedNode(predicate), null)
     .filter((obj) => obj.termType === 'NamedNode' || obj.termType === 'BlankNode')
     .map((obj) => (obj.termType === 'BlankNode' ? `_:${obj.value}` : obj.value))
+}
+
+/**
+ * Returns all object terms without display formatting, preserving RDF term types,
+ * datatypes, and language tags for editing.
+ */
+export function getObjectTerms(store: Store, subject: Term | string, predicate: string): Term[] {
+  // Accept a Term so nested records with blank-node subjects can be read too.
+  const subjectTerm = typeof subject === 'string' ? DataFactory.namedNode(subject) : subject
+  return store.getObjects(subjectTerm, DataFactory.namedNode(predicate), null)
 }
 
 /**

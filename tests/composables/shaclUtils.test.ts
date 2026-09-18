@@ -11,9 +11,8 @@ import {
   SHACL_PROPERTY,
   SHACL_PATH,
   SHACL_NAME,
-  SHACL_DESCRIPTION,
-  SHACL_ORDER,
   SHACL_DATATYPE,
+  SHACL_ORDER,
   SHACL_NODE,
   SHACL_MIN_COUNT,
   SHACL_MAX_COUNT,
@@ -30,6 +29,8 @@ describe('getShapePropertyMap', () => {
   const TEXT_FIELD_EDITOR = 'http://datashapes.org/dash#TextFieldEditor'
   const URI_EDITOR = 'http://datashapes.org/dash#URIEditor'
   const AGENT_SHAPE = 'http://fairdatapoint.org/AgentShape'
+  const BLANK_NODE_EDITOR = 'http://datashapes.org/dash#BlankNodeEditor'
+  const FOAF_NAME = 'http://xmlns.com/foaf/0.1/name'
 
   const resourceStore = () => parseTurtle(`<${RESOURCE}> a <${CATALOG}> .`)
 
@@ -45,7 +46,6 @@ describe('getShapePropertyMap', () => {
     const shape = shapeGraph(`
       <${SHACL_PATH}> <${DCT_TITLE}> ;
       <${SHACL_NAME}> "Title" ;
-      <${SHACL_DESCRIPTION}> "The resource title" ;
       <${SHACL_ORDER}> 1 ;
       <${SHACL_DATATYPE}> <${XSD_STRING}> ;
       <${SHACL_MIN_COUNT}> 1 ;
@@ -56,7 +56,6 @@ describe('getShapePropertyMap', () => {
     expect(getShapePropertyMap(resourceStore(), RESOURCE, [shape]).get(DCT_TITLE)).toEqual({
       path: DCT_TITLE,
       label: 'Title',
-      description: 'The resource title',
       order: 1,
       viewer: DASH_LABEL_VIEWER,
       editor: TEXT_FIELD_EDITOR,
@@ -65,6 +64,7 @@ describe('getShapePropertyMap', () => {
       node: null,
       minCount: 1,
       maxCount: 1,
+      nested: new Map(),
     })
   })
 
@@ -94,14 +94,13 @@ describe('getShapePropertyMap', () => {
     const strict = shapeGraph(`
       <${SHACL_PATH}> <${DCT_TITLE}> ;
       <${SHACL_ORDER}> 9 ;
-      <${SHACL_DESCRIPTION}> "Only the stricter shape describes it" ;
+      <${SHACL_NAME}> "Only the stricter shape names it" ;
       <${SHACL_MIN_COUNT}> 2 ;
       <${SHACL_MAX_COUNT}> 3
     `)
     expect(getShapePropertyMap(resourceStore(), RESOURCE, [loose, strict]).get(DCT_TITLE)).toEqual({
       path: DCT_TITLE,
-      label: null,
-      description: 'Only the stricter shape describes it',
+      label: 'Only the stricter shape names it',
       order: 1,
       viewer: null,
       editor: TEXT_FIELD_EDITOR,
@@ -110,6 +109,7 @@ describe('getShapePropertyMap', () => {
       node: null,
       minCount: 2,
       maxCount: 3,
+      nested: new Map(),
     })
   })
 
@@ -156,6 +156,49 @@ describe('getShapePropertyMap', () => {
         <${SHACL_PROPERTY}> [ <${SHACL_PATH}> <${DCT_TITLE}> ; <${DASH_EDITOR}> <${TEXT_FIELD_EDITOR}> ] .
     `)
     expect(getShapePropertyMap(resourceStore(), RESOURCE, [shape]).size).toBe(0)
+  })
+
+  it("resolves sh:node into the referenced shape's own properties", () => {
+    const shapes = parseTurtle(`
+      <http://ex/Shape1> a <${SHACL_NODE_SHAPE}> ;
+        <${SHACL_TARGET_CLASS}> <${CATALOG}> ;
+        <${SHACL_PROPERTY}> [
+          <${SHACL_PATH}> <${DCT_PUBLISHER}> ;
+          <${SHACL_NODE}> <${AGENT_SHAPE}> ;
+          <${DASH_EDITOR}> <${BLANK_NODE_EDITOR}>
+        ] .
+      <${AGENT_SHAPE}> a <${SHACL_NODE_SHAPE}> ;
+        <${SHACL_TARGET_CLASS}> <http://xmlns.com/foaf/0.1/Agent> ;
+        <${SHACL_PROPERTY}> [
+          <${SHACL_PATH}> <${FOAF_NAME}> ;
+          <${SHACL_MIN_COUNT}> 1 ;
+          <${DASH_EDITOR}> <${TEXT_FIELD_EDITOR}>
+        ] .
+    `)
+    const publisher = getShapePropertyMap(resourceStore(), RESOURCE, [shapes]).get(DCT_PUBLISHER)
+    expect([...(publisher?.nested.keys() ?? [])]).toEqual([FOAF_NAME])
+    expect(publisher?.nested.get(FOAF_NAME)).toMatchObject({
+      minCount: 1,
+      editor: TEXT_FIELD_EDITOR,
+    })
+  })
+
+  it('stops following sh:node at the depth limit rather than looping', () => {
+    // A shape that references itself would recurse forever without the bound.
+    const shapes = parseTurtle(`
+      <http://ex/Shape1> a <${SHACL_NODE_SHAPE}> ;
+        <${SHACL_TARGET_CLASS}> <${CATALOG}> ;
+        <${SHACL_PROPERTY}> [ <${SHACL_PATH}> <${DCT_PUBLISHER}> ; <${SHACL_NODE}> <${AGENT_SHAPE}> ] .
+      <${AGENT_SHAPE}> a <${SHACL_NODE_SHAPE}> ;
+        <${SHACL_PROPERTY}> [ <${SHACL_PATH}> <${DCT_PUBLISHER}> ; <${SHACL_NODE}> <${AGENT_SHAPE}> ] .
+    `)
+    let level = getShapePropertyMap(resourceStore(), RESOURCE, [shapes]).get(DCT_PUBLISHER)
+    let depth = 0
+    while (level && level.nested.size > 0) {
+      level = level.nested.get(DCT_PUBLISHER)
+      depth += 1
+    }
+    expect(depth).toBe(2)
   })
 
   describe('getEditableFields', () => {

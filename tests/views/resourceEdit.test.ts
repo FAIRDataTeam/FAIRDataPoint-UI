@@ -3,6 +3,7 @@ import { createSSRApp, h } from 'vue'
 import { renderToString } from 'vue/server-renderer'
 import { RouterView } from 'vue-router'
 import router from '../../src/router'
+import { parseTurtle } from '../../src/composables/rdfUtils'
 
 // Exercise the production routes and RouterLinks in Node without browser history.
 vi.mock('vue-router', async (importOriginal) => {
@@ -25,16 +26,11 @@ vi.mock('../../src/components/RdfGraph.vue', () => ({ default: {} }))
 
 const state = vi.hoisted(() => ({
   canEdit: false,
+  quads: [] as import('n3').Quad[],
   breadcrumbs: [] as { text: string; uri: string }[],
   shapesLoading: false,
   shapesError: null as string | null,
-  editableFields: [] as {
-    path: string
-    label: string | null
-    editor: string | null
-    minCount: number | null
-    maxCount: number | null
-  }[],
+  editableFields: [] as import('../../src/composables/shaclUtils').EditableField[],
 }))
 vi.mock('../../src/composables/useMeta', () => ({
   useMeta: () => ({ membershipName: null, canEdit: state.canEdit }),
@@ -44,6 +40,7 @@ vi.mock('../../src/composables/useMembers', () => ({
 }))
 vi.mock('../../src/composables/useResourceView', async () => {
   const { computed, ref } = await import('vue')
+  const { Store } = await import('n3')
   const { useRoute } = await import('vue-router')
   return {
     useResourceView: () => {
@@ -63,6 +60,7 @@ vi.mock('../../src/composables/useResourceView', async () => {
         title: 'Test resource',
         description: null,
         rawTurtle: ref(null),
+        quads: ref(new Store(state.quads)),
         breadcrumbs: computed(() => state.breadcrumbs),
         metadataRows: [],
         unknownMetadataRows: [],
@@ -95,11 +93,12 @@ beforeEach(() => {
   state.shapesLoading = false
   state.shapesError = null
   state.editableFields = []
+  state.quads = []
 })
 
 describe.each([
-  { resourcePath: '/', editPath: '/edit', heading: 'Edit FAIR Data Point' },
-  { resourcePath: '/catalog/abc', editPath: '/catalog/abc/edit', heading: 'Edit catalog' },
+  { resourcePath: '/', editPath: '/edit', heading: 'Edit Test resource' },
+  { resourcePath: '/catalog/abc', editPath: '/catalog/abc/edit', heading: 'Edit Test resource' },
 ])('resource editing from $resourcePath', ({ resourcePath, editPath, heading }) => {
   it('hides the Edit link when editing is unavailable', async () => {
     await router.push(resourcePath)
@@ -117,8 +116,8 @@ describe.each([
 
     await router.push(editHref)
     const placeholder = await renderRoute()
-    expect(placeholder).toContain(`<h1>${heading}</h1>`)
-    expect(placeholder).toContain('Editing is not implemented yet.')
+    expect(placeholder).toContain(heading)
+    expect(placeholder).toContain('Saving is not implemented yet.')
     const cancelHref = linkHref(placeholder, 'Cancel')
     expect(cancelHref).toBe(resourcePath)
 
@@ -155,6 +154,7 @@ describe.each([
         editor: 'http://datashapes.org/dash#TextFieldEditor',
         minCount: 1,
         maxCount: 1,
+        nested: [],
       },
       {
         // No sh:name, so the label comes from shaclFallback's curated map.
@@ -163,6 +163,7 @@ describe.each([
         editor: 'http://datashapes.org/dash#TextFieldEditor',
         minCount: null,
         maxCount: null,
+        nested: [],
       },
     ]
     await router.push(editPath)
@@ -170,9 +171,9 @@ describe.each([
 
     expect(html).toContain('Title')
     expect(html).toContain('Keyword')
-    expect(html).toContain('dash:TextFieldEditor')
-    expect(html).toContain('1..1')
-    expect(html).toContain('0..*')
+    // A TextFieldEditor renders an input; the editor IRI is only shown for widgets not built yet.
+    expect(html).not.toContain('dash:TextFieldEditor')
+    expect(html.match(/<input[^>]*type="text"/g)).toHaveLength(2)
   })
 
   it('shows loading instead of an empty field list while shapes are pending', async () => {
@@ -200,12 +201,165 @@ describe.each([
         editor: 'http://datashapes.org/dash#TextFieldEditor',
         minCount: null,
         maxCount: null,
+        nested: [],
       },
     ]
     await router.push(editPath)
     const html = await renderRoute()
     expect(html).toContain('Error: HTTP 503')
     expect(html).not.toContain('Partial field')
+  })
+
+  it('seeds each text input from the graph, one input per value', async () => {
+    state.canEdit = true
+    // The mock derives currentNodeUri from the edit route's own path.
+    const subject = `http://localhost${editPath}`
+    state.quads = parseTurtle(`
+      <${subject}> <http://purl.org/dc/terms/title> "Health & Biomedical Research" ;
+        <http://www.w3.org/ns/dcat#keyword> "one", "two", "three" .
+    `).getQuads(null, null, null, null)
+    state.editableFields = [
+      {
+        path: 'http://purl.org/dc/terms/title',
+        label: 'Title',
+        editor: 'http://datashapes.org/dash#TextFieldEditor',
+        minCount: 1,
+        maxCount: 1,
+        nested: [],
+      },
+      {
+        path: 'http://www.w3.org/ns/dcat#keyword',
+        label: null,
+        editor: 'http://datashapes.org/dash#TextFieldEditor',
+        minCount: null,
+        maxCount: null,
+        nested: [],
+      },
+    ]
+    await router.push(editPath)
+    const html = await renderRoute()
+
+    expect(html).toContain('value="Health &amp; Biomedical Research"')
+    // One input for the single title, three for the multi-valued keyword.
+    expect(html.match(/<input[^>]*type="text"/g)).toHaveLength(4)
+    for (const keyword of ['one', 'two', 'three']) {
+      expect(html).toContain(`value="${keyword}"`)
+    }
+  })
+
+  it('offers Add and Remove only where the cardinality allows it', async () => {
+    state.canEdit = true
+    const textField = 'http://datashapes.org/dash#TextFieldEditor'
+    state.editableFields = [
+      // [0..*]: may grow, and the last value may go.
+      {
+        path: 'http://www.w3.org/ns/dcat#keyword',
+        label: 'Keyword',
+        editor: textField,
+        minCount: null,
+        maxCount: null,
+        nested: [],
+      },
+      // [1..*]: may grow, but one value must remain.
+      {
+        path: 'http://www.w3.org/ns/dcat#theme',
+        label: 'Theme',
+        editor: textField,
+        minCount: 1,
+        maxCount: null,
+        nested: [],
+      },
+      // [1..1]: not a list at all.
+      {
+        path: 'http://purl.org/dc/terms/title',
+        label: 'Title',
+        editor: textField,
+        minCount: 1,
+        maxCount: 1,
+        nested: [],
+      },
+      // [0..1]: optional but still single, so it is cleared rather than removed.
+      {
+        path: 'http://purl.org/dc/terms/description',
+        label: 'Description',
+        editor: textField,
+        minCount: null,
+        maxCount: 1,
+        nested: [],
+      },
+    ] as typeof state.editableFields
+    await router.push(editPath)
+    const html = await renderRoute()
+
+    const groups = html.split('class="user-form__group"')
+    const [, keyword, theme, titleGroup, description] = groups
+    expect(keyword).toContain('user-form__add')
+    expect(keyword).toContain('user-form__remove')
+    expect(theme).toContain('user-form__add')
+    expect(theme).not.toContain('user-form__remove')
+    expect(titleGroup).not.toContain('user-form__add')
+    expect(titleGroup).not.toContain('user-form__remove')
+    expect(description).not.toContain('user-form__add')
+    expect(description).not.toContain('user-form__remove')
+  })
+
+  it.each([
+    { count: 2, canAdd: true },
+    { count: 3, canAdd: false },
+  ])('offers Add=$canAdd with $count entries and maxCount 3', async ({ count, canAdd }) => {
+    state.canEdit = true
+    const path = 'http://www.w3.org/ns/dcat#keyword'
+    const literals = ['"one"', '"two"', '"three"'].slice(0, count).join(', ')
+    state.quads = parseTurtle(`<http://localhost${editPath}> <${path}> ${literals} .`).getQuads(
+      null,
+      null,
+      null,
+      null,
+    )
+    state.editableFields = [
+      {
+        path,
+        label: 'Keyword',
+        editor: 'http://datashapes.org/dash#TextFieldEditor',
+        minCount: 0,
+        maxCount: 3,
+        nested: [],
+      },
+    ] as typeof state.editableFields
+
+    await router.push(editPath)
+    const html = await renderRoute()
+
+    expect(html.match(/<input[^>]*type="text"/g)).toHaveLength(count)
+    expect(html.includes('user-form__add')).toBe(canAdd)
+  })
+
+  it('shows Add and Remove for a repeatable nested record', async () => {
+    state.canEdit = true
+    const nameField = {
+      path: 'http://xmlns.com/foaf/0.1/name',
+      label: 'Name',
+      editor: 'http://datashapes.org/dash#TextFieldEditor',
+      minCount: 1,
+      maxCount: 1,
+      nested: [],
+    }
+    state.editableFields = [
+      {
+        path: 'http://purl.org/dc/terms/publisher',
+        label: 'Publisher',
+        editor: 'http://datashapes.org/dash#BlankNodeEditor',
+        minCount: null,
+        maxCount: null,
+        nested: [nameField],
+      },
+    ] as typeof state.editableFields
+    await router.push(editPath)
+    const html = await renderRoute()
+
+    // A repeatable sh:node field must offer Add, or removing its last record is a dead end.
+    expect(html).toContain('user-form__add')
+    expect(html).toContain('user-form__remove')
   })
 
   it('says so when the shape declares no editable fields', async () => {

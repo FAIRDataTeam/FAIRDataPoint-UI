@@ -4,10 +4,9 @@ import {
   DASH_EDITOR,
   DASH_VIEWER,
   RDF_TYPE,
-  SHACL_DATATYPE,
-  SHACL_DESCRIPTION,
   SHACL_MAX_COUNT,
   SHACL_MIN_COUNT,
+  SHACL_DATATYPE,
   SHACL_NAME,
   SHACL_NODE,
   SHACL_NODE_KIND,
@@ -19,14 +18,10 @@ import {
 } from './vocabularies'
 import { formatLiteralValue, getNodeRefs } from './rdfUtils'
 
-/**
- * One SHACL property shape. `viewer` drives display, `editor` drives editing: a property is
- * offered in a given UI only when the shape declares the matching DASH hint.
- */
+/** SHACL constraints and UI hints for one property path. */
 export type ShapeProperty = {
   path: string
   label: string | null
-  description: string | null
   order: number
   viewer: string | null
   editor: string | null
@@ -34,13 +29,19 @@ export type ShapeProperty = {
   datatype: string | null
   /** IRI of the nested shape referenced by sh:node. */
   node: string | null
+  /** Resolved properties of the referenced shape; empty when unavailable or at the depth limit. */
+  nested: ReadonlyMap<string, ShapeProperty>
   minCount: number | null
   maxCount: number | null
 }
 
-export type EditableField = ShapeProperty & { editor: string }
+/** An editor-enabled property with recursively filtered and ordered nested fields. */
+export type EditableField = Omit<ShapeProperty, 'nested'> & {
+  editor: string
+  nested: EditableField[]
+}
 
-/** Like getFirstLiteral but takes an N3 Term as subject; used when iterating SHACL shape nodes. */
+/** Returns the first literal's formatted value, accepting named or blank-node subjects. */
 function getObjectLiteral(store: Store, subject: Term, predicate: string): string | null {
   const obj = store
     .getObjects(subject, DataFactory.namedNode(predicate), null)
@@ -48,7 +49,7 @@ function getObjectLiteral(store: Store, subject: Term, predicate: string): strin
   return obj ? formatLiteralValue(obj as Literal) : null
 }
 
-/** Like getNodeRefs but takes an N3 Term as subject and returns only the first named node value. */
+/** Returns the first named-node object's IRI. */
 function getObjectNamedNode(store: Store, subject: Term, predicate: string): string | null {
   return (
     store
@@ -66,9 +67,8 @@ function readCount(shapeGraph: Store, propTerm: Term, predicate: string): number
 }
 
 /**
- * Reads a SHACL property shape node into a ShapeProperty struct.
- * Returns null if the node has no shacl:path.
- * shacl:order defaults to MAX_SAFE_INTEGER when absent, so unordered properties sort last.
+ * Reads a SHACL property shape, returning null unless sh:path is a named node.
+ * sh:order defaults to MAX_SAFE_INTEGER when absent, so unordered properties sort last.
  */
 function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | null {
   const path = getObjectNamedNode(shapeGraph, propTerm, SHACL_PATH)
@@ -79,7 +79,6 @@ function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | n
   return {
     path,
     label: getObjectLiteral(shapeGraph, propTerm, SHACL_NAME),
-    description: getObjectLiteral(shapeGraph, propTerm, SHACL_DESCRIPTION),
     order: orderStr ? parseInt(orderStr, 10) : Number.MAX_SAFE_INTEGER,
     viewer: getObjectNamedNode(shapeGraph, propTerm, DASH_VIEWER),
     editor: getObjectNamedNode(shapeGraph, propTerm, DASH_EDITOR),
@@ -88,6 +87,7 @@ function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | n
     node: getObjectNamedNode(shapeGraph, propTerm, SHACL_NODE),
     minCount: readCount(shapeGraph, propTerm, SHACL_MIN_COUNT),
     maxCount: readCount(shapeGraph, propTerm, SHACL_MAX_COUNT),
+    nested: new Map(),
   }
 }
 
@@ -113,7 +113,6 @@ function mergeShapeProperties(properties: ShapeProperty[]): ShapeProperty {
     .reduce((merged, prop) => ({
       path: merged.path,
       label: merged.label ?? prop.label,
-      description: merged.description ?? prop.description,
       order: merged.order,
       viewer: merged.viewer ?? prop.viewer,
       editor: merged.editor ?? prop.editor,
@@ -122,26 +121,18 @@ function mergeShapeProperties(properties: ShapeProperty[]): ShapeProperty {
       node: merged.node ?? prop.node,
       minCount: mergeCardinalityBound(merged.minCount, prop.minCount, Math.max),
       maxCount: mergeCardinalityBound(merged.maxCount, prop.maxCount, Math.min),
+      nested: merged.nested,
     }))
 }
 
-/**
- * Builds a map of shacl:path -> ShapeProperty for the current resource's RDF types.
- * Searches all provided shape graphs for NodeShapes whose shacl:targetClass matches one of
- * the resource's types. Shapes that constrain the same path are merged, see
- * mergeShapeProperties.
- */
-export function getShapePropertyMap(
-  resourceStore: Store,
-  subjectUri: string | null,
+/** Bounds nested-shape traversal, including cyclic references. */
+const MAX_SHAPE_DEPTH = 2
+
+/** Groups property shapes by path for NodeShapes accepted by the selection callback. */
+function collectByPath(
   shapeGraphs: Store[],
-): Map<string, ShapeProperty> {
-  if (!subjectUri) return new Map()
-
-  const currentTypes = new Set<string>(getNodeRefs(resourceStore, subjectUri, RDF_TYPE))
-  if (currentTypes.size === 0) return new Map()
-
-  // Collect per path first so hints can be merged in shacl:order.
+  accepts: (shapeGraph: Store, shapeIri: string) => boolean,
+): Map<string, ShapeProperty[]> {
   const byPath = new Map<string, ShapeProperty[]>()
 
   for (const shapeGraph of shapeGraphs) {
@@ -151,8 +142,7 @@ export function getShapePropertyMap(
       null,
     )) {
       if (subject.termType !== 'NamedNode') continue
-      const targetClasses = getNodeRefs(shapeGraph, subject.value, SHACL_TARGET_CLASS)
-      if (!targetClasses.some((tc) => currentTypes.has(tc))) continue
+      if (!accepts(shapeGraph, subject.value)) continue
 
       for (const propTerm of shapeGraph.getObjects(
         subject,
@@ -169,17 +159,60 @@ export function getShapePropertyMap(
     }
   }
 
-  return new Map([...byPath].map(([path, properties]) => [path, mergeShapeProperties(properties)]))
+  return byPath
+}
+
+/** Merges constraints by path, then resolves the selected sh:node recursively up to the depth limit. */
+function buildPropertyMap(
+  shapeGraphs: Store[],
+  accepts: (shapeGraph: Store, shapeIri: string) => boolean,
+  depth: number,
+): Map<string, ShapeProperty> {
+  return new Map(
+    [...collectByPath(shapeGraphs, accepts)].map(([path, properties]) => {
+      const merged = mergeShapeProperties(properties)
+      const nested =
+        merged.node && depth < MAX_SHAPE_DEPTH
+          ? buildPropertyMap(shapeGraphs, (_graph, iri) => iri === merged.node, depth + 1)
+          : new Map<string, ShapeProperty>()
+      return [path, { ...merged, nested }]
+    }),
+  )
 }
 
 /**
- * Shape properties an edit form offers, in shacl:order. A property is editable only when the
- * shape declares a dash:editor, as dash:viewer decides what the metadata table shows.
+ * Builds a map of sh:path -> ShapeProperty for the current resource's RDF types.
+ * Searches all provided shape graphs for NodeShapes whose sh:targetClass matches one of
+ * the resource's types. Shapes that constrain the same path are merged, see
+ * mergeShapeProperties.
+ */
+export function getShapePropertyMap(
+  resourceStore: Store,
+  subjectUri: string | null,
+  shapeGraphs: Store[],
+): Map<string, ShapeProperty> {
+  if (!subjectUri) return new Map()
+
+  const currentTypes = new Set<string>(getNodeRefs(resourceStore, subjectUri, RDF_TYPE))
+  if (currentTypes.size === 0) return new Map()
+
+  return buildPropertyMap(
+    shapeGraphs,
+    (shapeGraph, shapeIri) =>
+      getNodeRefs(shapeGraph, shapeIri, SHACL_TARGET_CLASS).some((tc) => currentTypes.has(tc)),
+    0,
+  )
+}
+
+/**
+ * Selects properties with dash:editor and sorts them by sh:order,
+ * recursively including nested fields.
  */
 export function getEditableFields(
   shapePropertyMap: ReadonlyMap<string, ShapeProperty>,
 ): EditableField[] {
   return [...shapePropertyMap.values()]
-    .filter((property): property is EditableField => property.editor !== null)
+    .filter((property): property is ShapeProperty & { editor: string } => property.editor !== null)
     .sort((a, b) => a.order - b.order)
+    .map((property) => ({ ...property, nested: getEditableFields(property.nested) }))
 }

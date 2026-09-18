@@ -109,7 +109,6 @@ export const SHACL_NODE_KIND = `${SH}nodeKind`
 export const SHACL_MIN_COUNT = `${SH}minCount`
 export const SHACL_MAX_COUNT = `${SH}maxCount`
 export const SHACL_NAME = `${SH}name`
-export const SHACL_DESCRIPTION = `${SH}description`
 export const SHACL_ORDER = `${SH}order`
 export const SHACL_NODE = `${SH}node`
 
@@ -133,6 +132,10 @@ export const DASH_VIEWER = `${DASH}viewer`
 export const DASH_LABEL_VIEWER = `${DASH}LabelViewer`
 export const DASH_URI_VIEWER = `${DASH}URIViewer`
 export const DASH_EDITOR = `${DASH}editor`
+export const DASH_TEXT_FIELD_EDITOR = `${DASH}TextFieldEditor`
+export const DASH_TEXT_AREA_EDITOR = `${DASH}TextAreaEditor`
+export const DASH_URI_EDITOR = `${DASH}URIEditor`
+export const DASH_BLANK_NODE_EDITOR = `${DASH}BlankNodeEditor`
 
 export const prefixes: Record<string, string> = {
   [DCT]: 'dct',
