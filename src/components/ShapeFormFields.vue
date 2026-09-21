@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, useId } from 'vue'
+import DateInput from './DateInput.vue'
 import type { EditableField } from '../composables/shaclUtils'
 import {
   emptyValues,
@@ -11,7 +12,10 @@ import {
 } from '../composables/shapeForm'
 import { predicateLabel } from '../composables/shaclFallback'
 import { compactUri } from '../composables/rdfUtils'
+import { dateZoneLabel, toDateInputValue, toDateTimeInputValue } from '../composables/formUtils'
 import {
+  DASH_DATE_PICKER_EDITOR,
+  DASH_DATE_TIME_PICKER_EDITOR,
   DASH_TEXT_AREA_EDITOR,
   DASH_TEXT_FIELD_EDITOR,
   DASH_URI_EDITOR,
@@ -44,7 +48,23 @@ const cardinality = (field: EditableField) => `${field.minCount ?? 0}..${field.m
 const isTextField = (editor: string) => editor === DASH_TEXT_FIELD_EDITOR
 const isTextArea = (editor: string) => editor === DASH_TEXT_AREA_EDITOR
 const isUri = (editor: string) => editor === DASH_URI_EDITOR
-const isBuilt = (editor: string) => isTextField(editor) || isTextArea(editor) || isUri(editor)
+const isDatePicker = (editor: string) => editor === DASH_DATE_PICKER_EDITOR
+const isDateTimePicker = (editor: string) => editor === DASH_DATE_TIME_PICKER_EDITOR
+const isBuilt = (editor: string) =>
+  isTextField(editor) ||
+  isTextArea(editor) ||
+  isUri(editor) ||
+  isDatePicker(editor) ||
+  isDateTimePicker(editor)
+
+const pickerValue = (editor: string) =>
+  isDatePicker(editor) ? toDateInputValue : isDateTimePicker(editor) ? toDateTimeInputValue : null
+
+/** Use the original value so the input type stays fixed while editing. Blank entries use a picker. */
+function usesPicker(editor: string, entry: TermValue): boolean {
+  const format = pickerValue(editor)
+  return format !== null && format(entry.originalTerm?.value ?? '') !== null
+}
 
 /** Single-value fields are cleared in place; repeatable fields use Add/Remove. */
 const isList = (field: EditableField) => field.maxCount !== 1
@@ -171,6 +191,38 @@ const inputRequired = (row: Row) =>
           v-model="entry.value"
           type="text"
           placeholder="Enter IRI"
+          :id="controlId(row.field.path, index)"
+          :aria-required="inputRequired(row)"
+        />
+        <template v-else-if="isDatePicker(row.field.editor) && usesPicker(row.field.editor, entry)">
+          <DateInput
+            v-model="entry.value"
+            type="date"
+            :id="controlId(row.field.path, index)"
+            :aria-describedby="
+              dateZoneLabel(entry.value) ? `${controlId(row.field.path, index)}-zone` : undefined
+            "
+            :aria-required="inputRequired(row)"
+          />
+          <span
+            v-if="dateZoneLabel(entry.value)"
+            :id="`${controlId(row.field.path, index)}-zone`"
+            class="user-form__zone"
+            >{{ dateZoneLabel(entry.value) }}</span
+          >
+        </template>
+        <DateInput
+          v-else-if="isDateTimePicker(row.field.editor) && usesPicker(row.field.editor, entry)"
+          v-model="entry.value"
+          type="datetime-local"
+          :id="controlId(row.field.path, index)"
+          :aria-required="inputRequired(row)"
+        />
+        <!-- A stored date no native picker can show is edited as text rather than shown blank. -->
+        <input
+          v-else
+          v-model="entry.value"
+          type="text"
           :id="controlId(row.field.path, index)"
           :aria-required="inputRequired(row)"
         />

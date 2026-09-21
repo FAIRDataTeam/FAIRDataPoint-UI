@@ -1334,6 +1334,19 @@ fieldset.user-form__group {
   flex: 1;
 }
 
+.user-form__zone {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--fdp-color-muted);
+  font-size: var(--fdp-font-size-sm);
+}
+
+/* Fixed-width digits, so dates in consecutive fields line up. */
+.user-form__group input[type='date'],
+.user-form__group input[type='datetime-local'] {
+  font-variant-numeric: tabular-nums;
+}
+
 .user-form__remove {
   flex-shrink: 0;
   border: none;

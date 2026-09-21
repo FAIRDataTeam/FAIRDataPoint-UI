@@ -136,6 +136,8 @@ export const DASH_TEXT_FIELD_EDITOR = `${DASH}TextFieldEditor`
 export const DASH_TEXT_AREA_EDITOR = `${DASH}TextAreaEditor`
 export const DASH_URI_EDITOR = `${DASH}URIEditor`
 export const DASH_BLANK_NODE_EDITOR = `${DASH}BlankNodeEditor`
+export const DASH_DATE_PICKER_EDITOR = `${DASH}DatePickerEditor`
+export const DASH_DATE_TIME_PICKER_EDITOR = `${DASH}DateTimePickerEditor`
 
 export const prefixes: Record<string, string> = {
   [DCT]: 'dct',
