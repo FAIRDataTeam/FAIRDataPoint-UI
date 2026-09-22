@@ -99,6 +99,13 @@ export const PROF_HAS_ROLE = `${PROF}hasRole`
 export const PROF_HAS_ARTIFACT = `${PROF}hasArtifact`
 
 // SHACL
+export const SHACL_VALIDATION_REPORT = `${SH}ValidationReport`
+export const SHACL_RESULT = `${SH}result`
+export const SHACL_DETAIL = `${SH}detail`
+export const SHACL_FOCUS_NODE = `${SH}focusNode`
+export const SHACL_RESULT_PATH = `${SH}resultPath`
+export const SHACL_RESULT_MESSAGE = `${SH}resultMessage`
+export const SHACL_SOURCE_CONSTRAINT_COMPONENT = `${SH}sourceConstraintComponent`
 export const SHACL_IRI = `${SH}IRI`
 export const SHACL_NODE_SHAPE = `${SH}NodeShape`
 export const SHACL_TARGET_CLASS = `${SH}targetClass`

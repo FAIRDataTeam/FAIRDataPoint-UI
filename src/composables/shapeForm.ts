@@ -25,6 +25,16 @@ export type NestedValue = {
 }
 export type FieldValue = TermValue | NestedValue
 
+export function requiredFieldMessage(
+  field: Pick<EditableField, 'minCount' | 'maxCount'>,
+  label: string,
+): string {
+  const minimum = field.minCount ?? 0
+  return field.maxCount === 1
+    ? `${label} is required.`
+    : `${label} requires at least ${minimum} ${minimum === 1 ? 'value' : 'values'}.`
+}
+
 /**
  * Renders a nested record only for BlankNodeEditor with resolved nested fields.
  * sh:node alone can also constrain a URIEditor's target.

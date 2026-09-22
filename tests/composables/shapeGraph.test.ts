@@ -7,7 +7,7 @@ import {
   type NodeValues,
   type TermValue,
 } from '../../src/composables/shapeForm'
-import { buildResourceGraph } from '../../src/composables/shapeGraph'
+import { buildResourceGraph, RequiredFieldsError } from '../../src/composables/shapeGraph'
 
 const SUBJECT = 'urn:resource'
 const TITLE = 'urn:title'
@@ -60,10 +60,72 @@ describe('buildResourceGraph', () => {
       { minCount: 1, label: 'Title' },
     )
     ;(values[TITLE]![0] as TermValue).value = ''
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Title requires at least 1 value.',
-    )
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow('Title is required.')
     expect(store.getObjects(SUBJECT, TITLE, null)[0]?.value).toBe('Old title')
+  })
+
+  it('exposes the failing field on the thrown error, for a top-level focus node', () => {
+    const { store, fields, values } = setup(RESOURCE)
+    Object.assign(
+      fields.find((field) => field.path === TITLE)!,
+      { minCount: 1, label: 'Title' },
+    )
+    ;(values[TITLE]![0] as TermValue).value = ''
+    let error: unknown
+    try {
+      buildResourceGraph(store, SUBJECT, fields, values)
+    } catch (err) {
+      error = err
+    }
+    expect(error).toBeInstanceOf(RequiredFieldsError)
+    expect((error as RequiredFieldsError).results).toMatchObject([
+      {
+        focusNode: { termType: 'NamedNode', value: SUBJECT },
+        path: { termType: 'NamedNode', value: TITLE },
+        messages: ['Title is required.'],
+      },
+    ])
+  })
+
+  it('omits the focus node for a nested required field, whose subject is a blank node', () => {
+    const { store, fields, values } = setup(RESOURCE)
+    const publisher = fields.find((field) => field.path === PUBLISHER)!
+    publisher.label = 'Publisher'
+    Object.assign(publisher.nested[0]!, { minCount: 1, label: 'Name' })
+    ;((values[PUBLISHER]![0] as NestedValue).values[NAME]![0] as TermValue).value = ''
+    let error: unknown
+    try {
+      buildResourceGraph(store, SUBJECT, fields, values)
+    } catch (err) {
+      error = err
+    }
+    expect((error as RequiredFieldsError).results).toMatchObject([
+      { focusNode: undefined, path: { termType: 'NamedNode', value: NAME } },
+    ])
+  })
+
+  it('reports every missing required field, not just the first', () => {
+    const { store, fields, values } = setup(RESOURCE)
+    Object.assign(
+      fields.find((field) => field.path === TITLE)!,
+      { minCount: 1, label: 'Title' },
+    )
+    Object.assign(
+      fields.find((field) => field.path === LINK)!,
+      { minCount: 1, label: 'Link' },
+    )
+    ;(values[TITLE]![0] as TermValue).value = ''
+    ;(values[LINK]![0] as TermValue).value = ''
+    let error: unknown
+    try {
+      buildResourceGraph(store, SUBJECT, fields, values)
+    } catch (err) {
+      error = err
+    }
+    expect((error as RequiredFieldsError).results).toMatchObject([
+      { path: { value: TITLE }, messages: ['Title is required.'] },
+      { path: { value: LINK }, messages: ['Link is required.'] },
+    ])
   })
 
   it('counts distinct saved values for repeatable required fields', () => {
@@ -87,7 +149,7 @@ describe('buildResourceGraph', () => {
     Object.assign(publisher.nested[0]!, { minCount: 1, label: 'Name' })
     ;((values[PUBLISHER]![0] as NestedValue).values[NAME]![0] as TermValue).value = ''
     expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Publisher: Name requires at least 1 value.',
+      'Publisher: Name is required.',
     )
   })
 

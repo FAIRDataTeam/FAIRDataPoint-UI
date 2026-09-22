@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceView } from '../composables/useResourceView'
 import { useMeta } from '../composables/useMeta'
-import { useShapeForm } from '../composables/shapeForm'
-import { buildResourceGraph } from '../composables/shapeGraph'
+import {
+  isNestedField,
+  useShapeForm,
+  type NestedValue,
+  type NodeValues,
+} from '../composables/shapeForm'
+import type { EditableField } from '../composables/shaclUtils'
+import { buildResourceGraph, RequiredFieldsError } from '../composables/shapeGraph'
 import { serializeTurtle } from '../composables/rdfUtils'
-import { putResource } from '../composables/fdpApi'
+import { putResource, ResourceSaveError } from '../composables/fdpApi'
 import { internalHref } from '../composables/urlUtils'
+import { parseValidationReport, type ValidationResult } from '../composables/validationReport'
+import { predicateLabel } from '../composables/shaclFallback'
 import ShapeFormFields from '../components/ShapeFormFields.vue'
 
 const router = useRouter()
@@ -35,6 +43,59 @@ const { canEdit, loading: accessLoading, error: accessError } = useMeta(resource
 
 const saving = ref(false)
 const saveError = ref<string | null>(null)
+const validationResults = ref<ValidationResult[]>([])
+const rawResponse = ref('')
+const formEl = useTemplateRef<HTMLFormElement>('formEl')
+const alertEl = useTemplateRef<HTMLElement>('alertEl')
+
+function isShownInline(
+  result: ValidationResult,
+  subjectUri: string | undefined,
+  fields: EditableField[],
+  values: NodeValues,
+): boolean {
+  if (result.focusNode?.termType !== 'NamedNode' || result.path?.termType !== 'NamedNode')
+    return false
+  if (
+    result.focusNode.value === subjectUri &&
+    fields.some((field) => field.path === result.path?.value)
+  )
+    return true
+  return fields.some(
+    (field) =>
+      isNestedField(field) &&
+      (values[field.path] ?? []).some((entry) => {
+        const record = entry as NestedValue
+        return isShownInline(
+          result,
+          record.originalTerm?.termType === 'NamedNode' ? record.originalTerm.value : undefined,
+          field.nested,
+          record.values,
+        )
+      }),
+  )
+}
+
+/** Show errors in the summary when no field displays them inline. */
+const unattachedResults = computed(() =>
+  validationResults.value.filter(
+    (result) =>
+      !isShownInline(
+        result,
+        currentNodeUri.value ?? undefined,
+        editableFields.value,
+        formValues.value,
+      ),
+  ),
+)
+
+function clearSaveErrors() {
+  saveError.value = null
+  validationResults.value = []
+  rawResponse.value = ''
+}
+
+watch(formValues, clearSaveErrors, { deep: true })
 
 /** Rebuilds the resource's graph from the form state and saves it, then returns to the view page. */
 async function save() {
@@ -50,7 +111,7 @@ async function save() {
     shapesError.value
   )
     return
-  saveError.value = null
+  clearSaveErrors()
   saving.value = true
   try {
     const graph = buildResourceGraph(
@@ -62,9 +123,26 @@ async function save() {
     await putResource(resource.value, await serializeTurtle(graph))
     await router.push(backTo.value)
   } catch (err) {
-    saveError.value = err instanceof Error ? err.message : 'Unable to save changes.'
+    if (err instanceof ResourceSaveError) {
+      rawResponse.value = err.body
+      validationResults.value = parseValidationReport(err.body)
+      saveError.value = validationResults.value.length
+        ? 'The resource could not be saved. Please review the validation errors.'
+        : `Unable to save changes (HTTP ${err.status}).`
+    } else if (err instanceof RequiredFieldsError) {
+      validationResults.value = err.results
+      saveError.value = 'The resource could not be saved. Please review the validation errors.'
+    } else {
+      saveError.value = err instanceof Error ? err.message : 'Unable to save changes.'
+    }
   } finally {
     saving.value = false
+  }
+  if (saveError.value) {
+    // Wait for Vue to re-enable the fieldset before focusing an input.
+    await nextTick()
+    const invalidField = formEl.value?.querySelector<HTMLElement>('[aria-invalid="true"]')
+    ;(invalidField ?? alertEl.value)?.focus()
   }
 }
 </script>
@@ -94,11 +172,30 @@ async function save() {
       <p v-else-if="!canEdit" class="alert alert-danger">You cannot edit this resource.</p>
 
       <template v-else>
-        <p v-if="saveError" class="alert alert-danger" role="alert">{{ saveError }}</p>
+        <div v-if="saveError" ref="alertEl" class="alert alert-danger" role="alert" tabindex="-1">
+          <p>{{ saveError }}</p>
+          <ul v-if="unattachedResults.length">
+            <li v-for="(result, index) in unattachedResults" :key="index">
+              <strong v-if="result.path?.termType === 'NamedNode'"
+                >{{ predicateLabel(result.path.value) }}:
+              </strong>
+              {{ result.messages.join(' ') }}
+            </li>
+          </ul>
+          <details v-if="rawResponse">
+            <summary>Response details</summary>
+            <pre class="validation-response">{{ rawResponse }}</pre>
+          </details>
+        </div>
 
-        <form v-if="editableFields.length > 0" @submit.prevent="save">
+        <form v-if="editableFields.length > 0" ref="formEl" @submit.prevent="save">
           <fieldset class="user-form__fields" :disabled="saving" aria-label="Resource details">
-            <ShapeFormFields :fields="editableFields" :values="formValues" />
+            <ShapeFormFields
+              :fields="editableFields"
+              :values="formValues"
+              :subject-uri="currentNodeUri ?? undefined"
+              :validation-results="validationResults"
+            />
             <div class="action-row">
               <button type="submit" class="user-form__btn" :disabled="saving">
                 {{ saving ? 'Saving…' : 'Save' }}

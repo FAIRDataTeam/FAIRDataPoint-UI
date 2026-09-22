@@ -73,8 +73,10 @@ describe('putResource', () => {
       'fetch',
       mockApiFetch(() => ({ ok: false, status: 504, text: async () => body }), docs),
     )
-    const { putResource } = await import('../../src/composables/fdpApi')
-    await expect(putResource(resource, turtle)).rejects.toThrow(body || 'HTTP 504')
+    const { putResource, ResourceSaveError } = await import('../../src/composables/fdpApi')
+    const result = putResource(resource, turtle)
+    await expect(result).rejects.toBeInstanceOf(ResourceSaveError)
+    await expect(result).rejects.toMatchObject({ status: 504, body, message: body || 'HTTP 504' })
   })
 
   it.each(['put', 'definitions', 'error body'])(

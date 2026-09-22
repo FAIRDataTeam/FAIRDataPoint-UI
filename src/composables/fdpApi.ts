@@ -137,6 +137,16 @@ export async function fetchMembers(resource: ResourceIdentifier): Promise<Resour
   return response.json() as Promise<ResourceMember[]>
 }
 
+export class ResourceSaveError extends Error {
+  constructor(
+    readonly status: number,
+    readonly body: string,
+  ) {
+    super(body || `HTTP ${status}`)
+    this.name = 'ResourceSaveError'
+  }
+}
+
 /**
  * Saves the resource as Turtle, preserving error response bodies for display.
  * The timeout covers endpoint discovery, the PUT, and reading error responses.
@@ -169,7 +179,7 @@ export async function putResource(
     if (!response.ok) {
       const body = await response.text().catch(() => '')
       signal.throwIfAborted()
-      throw new Error(body || `HTTP ${response.status}`)
+      throw new ResourceSaveError(response.status, body)
     }
   }
   try {

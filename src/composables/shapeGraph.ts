@@ -4,17 +4,40 @@ import type { EditableField } from './shaclUtils'
 import {
   isSupportedValueEditor,
   isNestedField,
+  requiredFieldMessage,
   type NestedValue,
   type NodeValues,
   type TermValue,
 } from './shapeForm'
 import { DASH_URI_EDITOR } from './vocabularies'
 import { predicateLabel } from './shaclFallback'
+import type { ValidationResult } from './validationReport'
 
 const { namedNode, literal, blankNode, quad } = DataFactory
 
 /** A record's own subject: never a literal, so it can hold further triples about itself. */
 type RecordSubject = NamedNode | BlankNode
+
+const keepsLeafEntry = (entry: TermValue) => entry.value !== '' || entry.originalTerm?.value === ''
+
+/** Checks sh:minCount using the distinct RDF terms that saving would keep. */
+export function satisfiesLeafMinCount(field: EditableField, entries: TermValue[]): boolean {
+  const terms: (NamedNode | Literal)[] = []
+  for (const entry of entries) {
+    if (!keepsLeafEntry(entry)) continue
+    const term = termFor(entry, field)
+    if (!terms.some((stored) => stored.equals(term))) terms.push(term)
+  }
+  return terms.length >= (field.minCount ?? 0)
+}
+
+/** Carries local validation failures in the same format as parsed server results. */
+export class RequiredFieldsError extends Error {
+  constructor(readonly results: ValidationResult[]) {
+    super(results[0]!.messages[0])
+    this.name = 'RequiredFieldsError'
+  }
+}
 
 /**
  * Applies supported form edits to a copy of the graph, preserving literal language and datatype.
@@ -28,7 +51,9 @@ export function buildResourceGraph(
 ): Store {
   const graph = new Store(store.getQuads(null, null, null, null))
   replaceFields(graph, namedNode(subjectUri), fields, values)
-  checkRequiredFields(graph, namedNode(subjectUri), fields)
+  const results: ValidationResult[] = []
+  checkRequiredFields(graph, namedNode(subjectUri), fields, results)
+  if (results.length) throw new RequiredFieldsError(results)
   return graph
 }
 
@@ -37,6 +62,7 @@ function checkRequiredFields(
   store: Store,
   subject: RecordSubject,
   fields: EditableField[],
+  results: ValidationResult[],
   parentLabel = '',
 ) {
   for (const field of fields) {
@@ -46,14 +72,16 @@ function checkRequiredFields(
     const terms = store.getObjects(subject, namedNode(field.path), null)
     const minimum = field.minCount ?? 0
     if (terms.length < minimum) {
-      throw new Error(
-        `${label} requires at least ${minimum} ${minimum === 1 ? 'value' : 'values'}.`,
-      )
+      results.push({
+        focusNode: subject.termType === 'NamedNode' ? subject : undefined,
+        path: namedNode(field.path),
+        messages: [requiredFieldMessage(field, label)],
+      })
     }
     if (nested) {
       for (const term of terms) {
         const child = asRecordSubject(term)
-        if (child) checkRequiredFields(store, child, field.nested, `${label}: `)
+        if (child) checkRequiredFields(store, child, field.nested, results, `${label}: `)
       }
     }
   }
@@ -93,7 +121,7 @@ function replaceFields(
     } else {
       for (const entry of entries as TermValue[]) {
         // Omit blank inputs, but preserve originally empty literals.
-        if (entry.value !== '' || entry.originalTerm?.value === '') {
+        if (keepsLeafEntry(entry)) {
           store.addQuad(quad(subject, path, termFor(entry, field)))
         }
       }
