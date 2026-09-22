@@ -4,6 +4,7 @@ import type { EditableField } from './shaclUtils'
 import {
   isSupportedValueEditor,
   isNestedField,
+  invalidUriMessage,
   requiredFieldMessage,
   type NestedValue,
   type NodeValues,
@@ -11,6 +12,7 @@ import {
 } from './shapeForm'
 import { DASH_URI_EDITOR } from './vocabularies'
 import { predicateLabel } from './shaclFallback'
+import { isAbsoluteIri } from './urlUtils'
 import type { ValidationResult } from './validationReport'
 
 const { namedNode, literal, blankNode, quad } = DataFactory
@@ -52,13 +54,16 @@ export function buildResourceGraph(
   const graph = new Store(store.getQuads(null, null, null, null))
   replaceFields(graph, namedNode(subjectUri), fields, values)
   const results: ValidationResult[] = []
-  checkRequiredFields(graph, namedNode(subjectUri), fields, results)
+  checkFieldConstraints(graph, namedNode(subjectUri), fields, results)
   if (results.length) throw new RequiredFieldsError(results)
   return graph
 }
 
-/** Checks required values in the outgoing RDF graph, where omitted blanks and duplicate values are already resolved. */
-function checkRequiredFields(
+/**
+ * Checks required-count and absolute-IRI constraints in the outgoing RDF graph, where omitted
+ * blanks and duplicate values are already resolved.
+ */
+function checkFieldConstraints(
   store: Store,
   subject: RecordSubject,
   fields: EditableField[],
@@ -78,10 +83,19 @@ function checkRequiredFields(
         messages: [requiredFieldMessage(field, label)],
       })
     }
+    // A namedNode built from non-absolute text (see termFor) would otherwise be silently
+    // resolved into an unrelated absolute URI by the server's Turtle parser on save.
+    if (field.editor === DASH_URI_EDITOR && terms.some((term) => !isAbsoluteIri(term.value))) {
+      results.push({
+        focusNode: subject.termType === 'NamedNode' ? subject : undefined,
+        path: namedNode(field.path),
+        messages: [invalidUriMessage(label)],
+      })
+    }
     if (nested) {
       for (const term of terms) {
         const child = asRecordSubject(term)
-        if (child) checkRequiredFields(store, child, field.nested, results, `${label}: `)
+        if (child) checkFieldConstraints(store, child, field.nested, results, `${label}: `)
       }
     }
   }

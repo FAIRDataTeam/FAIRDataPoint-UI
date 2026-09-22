@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { isInternalUri, internalHref } from '../../src/composables/urlUtils'
+import { isInternalUri, internalHref, isAbsoluteIri } from '../../src/composables/urlUtils'
 
 describe('isInternalUri', () => {
   it('returns true for the base URL', () => {
@@ -25,6 +25,22 @@ describe('isInternalUri', () => {
   it('returns false for an invalid URI', () => {
     expect(isInternalUri('not-a-url')).toBe(false)
   })
+})
+
+describe('isAbsoluteIri', () => {
+  it.each(['https://example.org/valid', 'urn:example:value', 'https://example.org/café'])(
+    'accepts %s',
+    (value) => expect(isAbsoluteIri(value)).toBe(true),
+  )
+
+  it.each([
+    'not-a-uri',
+    '/relative',
+    'https://example.org/has space',
+    'https://example.org/a>b',
+    'https://example.org/a{b}',
+    'https://example.org/a\nb',
+  ])('rejects %s', (value) => expect(isAbsoluteIri(value)).toBe(false))
 })
 
 describe('internalHref', () => {

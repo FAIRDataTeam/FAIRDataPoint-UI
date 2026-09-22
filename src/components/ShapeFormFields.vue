@@ -8,6 +8,7 @@ import {
   createEmptyEntry,
   isSupportedValueEditor,
   isNestedField,
+  invalidUriMessage,
   requiredFieldMessage,
   type FieldValue,
   type NodeValues,
@@ -16,6 +17,7 @@ import {
 } from '../composables/shapeForm'
 import { predicateLabel } from '../composables/shaclFallback'
 import { compactUri } from '../composables/rdfUtils'
+import { isAbsoluteIri } from '../composables/urlUtils'
 import { dateZoneLabel, toDateInputValue, toDateTimeInputValue } from '../composables/formUtils'
 import {
   DASH_DATE_PICKER_EDITOR,
@@ -65,6 +67,18 @@ const showRequiredHint = (row: Row) =>
 
 const requiredHintText = (row: Row) => requiredFieldMessage(row.field, fieldLabel(row.field))
 
+const isInvalidUriEntry = (entry: TermValue) => entry.value !== '' && !isAbsoluteIri(entry.value)
+
+/** Show the hint after blur when a URI cannot be saved as a Turtle IRI. */
+const showInvalidUriHint = (row: Row) =>
+  row.kind === 'leaf' &&
+  row.field.editor === DASH_URI_EDITOR &&
+  touchedFields.has(row.field.path) &&
+  row.entries.some(isInvalidUriEntry) &&
+  !fieldErrors(row.field.path).length
+
+const invalidUriHintText = (row: Row) => invalidUriMessage(fieldLabel(row.field))
+
 /** New entries start blank; existing entries are compared with their stored value. */
 const isChanged = (entry: TermValue) => entry.value !== (entry.originalTerm?.value ?? '')
 
@@ -75,11 +89,13 @@ function restoreEntry(field: EditableField, entry: TermValue) {
 }
 
 /** Connects the control to its requirement, hint, errors and optional date-zone description. */
-function describedBy(row: Row, extra?: string): string | undefined {
+function describedBy(row: Row, extra?: string, entry?: TermValue): string | undefined {
   return (
     [
       isGroup(row) && isRequired(row.field) ? requirementId(row.field.path) : '',
-      showRequiredHint(row) ? hintId(row.field.path) : '',
+      showRequiredHint(row) || (showInvalidUriHint(row) && (!entry || isInvalidUriEntry(entry)))
+        ? hintId(row.field.path)
+        : '',
       extra ?? '',
       errorDescription(row.field.path) ?? '',
     ]
@@ -266,9 +282,13 @@ const inputRequired = (row: Row) =>
           :id="controlId(row.field.path, index)"
           :aria-required="inputRequired(row)"
           :aria-invalid="
-            fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+            fieldErrors(row.field.path).length ||
+            showRequiredHint(row) ||
+            (showInvalidUriHint(row) && isInvalidUriEntry(entry))
+              ? true
+              : undefined
           "
-          :aria-describedby="describedBy(row)"
+          :aria-describedby="describedBy(row, undefined, entry)"
         />
         <template v-else-if="isDatePicker(row.field.editor) && usesPicker(row.field.editor, entry)">
           <DateInput
@@ -345,6 +365,9 @@ const inputRequired = (row: Row) =>
 
     <p v-if="showRequiredHint(row)" :id="hintId(row.field.path)" class="user-form__hint">
       {{ requiredHintText(row) }}
+    </p>
+    <p v-else-if="showInvalidUriHint(row)" :id="hintId(row.field.path)" class="user-form__hint">
+      {{ invalidUriHintText(row) }}
     </p>
     <div v-else-if="fieldErrors(row.field.path).length" :id="errorId(row.field.path)">
       <p

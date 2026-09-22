@@ -279,6 +279,10 @@ function mountFields(fields: EditableField[], values: NodeValues) {
     markTouched: (path: string) => void
     showRequiredHint: (row: LeafRow) => boolean
     requiredHintText: (row: LeafRow) => string
+    showInvalidUriHint: (row: LeafRow) => boolean
+    invalidUriHintText: (row: LeafRow) => string
+    isInvalidUriEntry: (entry: TermValue) => boolean
+    describedBy: (row: LeafRow, extra?: string, entry?: TermValue) => string | undefined
     nestedEntryKey: (entry: NestedValue) => number
     removeEntry: (field: EditableField, index: number) => void
     isChanged: (entry: TermValue) => boolean
@@ -360,6 +364,81 @@ describe('ShapeFormFields required hint (touched)', () => {
       expect(
         state.requiredHintText({ field: repeatable, kind: 'leaf' as const, entries: [] }),
       ).toBe('Keyword requires at least 2 values.')
+    } finally {
+      unmount()
+    }
+  })
+})
+
+describe('ShapeFormFields invalid URI hint (touched)', () => {
+  const path = 'http://example.org/link'
+  const field = {
+    path,
+    label: 'Link',
+    editor: 'http://datashapes.org/dash#URIEditor',
+    minCount: 0,
+    maxCount: 1,
+    nested: [],
+  }
+  const row = (value: string) => ({
+    field,
+    kind: 'leaf' as const,
+    entries: [{ value } as TermValue],
+  })
+
+  it('stays hidden until the field has been left, then shows once it is', () => {
+    const { state, unmount } = mountFields([field], { [path]: [{ value: 'not-a-uri' }] })
+    try {
+      expect(state.showInvalidUriHint(row('not-a-uri'))).toBe(false)
+      state.markTouched(path)
+      expect(state.showInvalidUriHint(row('not-a-uri'))).toBe(true)
+    } finally {
+      unmount()
+    }
+  })
+
+  it('hides for a blank entry, an absolute URI, and a non-URIEditor field', () => {
+    const { state, unmount } = mountFields([field], { [path]: [{ value: '' }] })
+    try {
+      state.markTouched(path)
+      expect(state.showInvalidUriHint(row(''))).toBe(false)
+      expect(state.showInvalidUriHint(row('http://example.org/target'))).toBe(false)
+      const textField = { ...field, editor: 'http://datashapes.org/dash#TextFieldEditor' }
+      expect(
+        state.showInvalidUriHint({
+          field: textField,
+          kind: 'leaf',
+          entries: [{ value: 'not-a-uri' } as TermValue],
+        }),
+      ).toBe(false)
+    } finally {
+      unmount()
+    }
+  })
+
+  it('names the field in the message', () => {
+    const { state, unmount } = mountFields([field], { [path]: [{ value: 'not-a-uri' }] })
+    try {
+      expect(state.invalidUriHintText(row('not-a-uri'))).toBe('Link must be a valid absolute IRI.')
+    } finally {
+      unmount()
+    }
+  })
+
+  it('marks and describes only the invalid value in a repeatable field', () => {
+    const repeatable = { ...field, maxCount: 3 }
+    const valid = { value: 'https://example.org/valid' } as TermValue
+    const invalid = { value: 'https://example.org/has space' } as TermValue
+    const entries = [valid, invalid]
+    const { state, unmount } = mountFields([repeatable], { [path]: entries })
+    try {
+      state.markTouched(path)
+      const current = { field: repeatable, kind: 'leaf' as const, entries }
+      expect(state.showInvalidUriHint(current)).toBe(true)
+      expect(state.isInvalidUriEntry(valid)).toBe(false)
+      expect(state.isInvalidUriEntry(invalid)).toBe(true)
+      expect(state.describedBy(current, undefined, valid)).toBeUndefined()
+      expect(state.describedBy(current, undefined, invalid)).toContain('hint')
     } finally {
       unmount()
     }
@@ -448,9 +527,9 @@ describe('ShapeFormFields restore', () => {
     try {
       state.restoreEntry(requiredField, entry)
       expect(entry.value).toBe('')
-      expect(
-        state.showRequiredHint({ field: requiredField, kind: 'leaf', entries: [entry] }),
-      ).toBe(true)
+      expect(state.showRequiredHint({ field: requiredField, kind: 'leaf', entries: [entry] })).toBe(
+        true,
+      )
     } finally {
       unmount()
     }

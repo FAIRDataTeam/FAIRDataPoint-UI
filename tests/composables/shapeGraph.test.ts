@@ -153,6 +153,30 @@ describe('buildResourceGraph', () => {
     )
   })
 
+  it('rejects a non-absolute value entered into a URIEditor field', () => {
+    const { store, fields, values } = setup(RESOURCE)
+    Object.assign(
+      fields.find((field) => field.path === LINK)!,
+      { label: 'Link' },
+    )
+    ;(values[LINK]![0] as TermValue).value = 'not-a-uri'
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
+      'Link must be a valid absolute IRI.',
+    )
+  })
+
+  it('rejects an absolute URI that would produce invalid Turtle', () => {
+    const { store, fields, values } = setup(RESOURCE)
+    Object.assign(
+      fields.find((field) => field.path === LINK)!,
+      { label: 'Link' },
+    )
+    ;(values[LINK]![0] as TermValue).value = 'https://example.org/has space'
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
+      'Link must be a valid absolute IRI.',
+    )
+  })
+
   it('leaves validation of unsupported editors to the server', () => {
     const { store, fields, values } = setup(RESOURCE)
     fields.push({

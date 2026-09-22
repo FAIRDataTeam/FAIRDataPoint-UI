@@ -35,6 +35,10 @@ export function requiredFieldMessage(
     : `${label} requires at least ${minimum} ${minimum === 1 ? 'value' : 'values'}.`
 }
 
+export function invalidUriMessage(label: string): string {
+  return `${label} must be a valid absolute IRI.`
+}
+
 /**
  * Renders a nested record only for BlankNodeEditor with resolved nested fields.
  * sh:node alone can also constrain a URIEditor's target.
