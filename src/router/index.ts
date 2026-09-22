@@ -25,13 +25,13 @@ const router = createRouter({
       path: '/edit',
       name: 'fdp-root-edit',
       component: ResourceEditView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/:resourceType/:id/edit',
       name: 'resource-edit',
       component: ResourceEditView,
-      meta: { requiresAuth: true },
+      meta: { requiresAuth: true, requiresEdit: true },
     },
     {
       path: '/login',

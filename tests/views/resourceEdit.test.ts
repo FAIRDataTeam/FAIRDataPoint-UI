@@ -34,6 +34,10 @@ const state = vi.hoisted(() => ({
   shapesError: null as string | null,
   editableFields: [] as import('../../src/composables/shaclUtils').EditableField[],
 }))
+// The router guard's own access check, independent of the page's reactive useMeta state below:
+// it decides whether ResourceEditView renders at all, so it defaults to allowing every test
+// through, and is only overridden by the tests that exercise the guard's redirect itself.
+const canEditResource = vi.hoisted(() => vi.fn().mockResolvedValue(true))
 vi.mock('../../src/composables/useMeta', async () => {
   const { computed, ref } = await import('vue')
   return {
@@ -43,6 +47,7 @@ vi.mock('../../src/composables/useMeta', async () => {
       loading: computed(() => state.accessLoading),
       error: computed(() => state.accessError),
     }),
+    canEditResource,
   }
 })
 vi.mock('../../src/composables/useMembers', () => ({
@@ -106,6 +111,7 @@ beforeEach(() => {
   state.shapesError = null
   state.editableFields = []
   state.quads = []
+  canEditResource.mockReset().mockResolvedValue(true)
 })
 
 describe.each([
@@ -135,6 +141,16 @@ describe.each([
     expect(html).not.toContain('<form')
     expect(html).not.toContain('type="submit"')
     expect(linkHref(html, 'Cancel')).toBe(resourcePath)
+  })
+
+  it('redirects a direct visit to the edit URL to /not-allowed when the guard denies it', async () => {
+    canEditResource.mockResolvedValue(false)
+    // A prior test may have already left the router on editPath; push elsewhere first so this
+    // push is a real navigation and actually re-runs the guard.
+    await router.push('/login')
+    await router.push(editPath)
+    expect(router.currentRoute.value.path).toBe('/not-allowed')
+    expect(await renderRoute()).toContain('Not allowed')
   })
 
   it('hides the Edit link when editing is unavailable', async () => {

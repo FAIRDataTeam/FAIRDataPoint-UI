@@ -122,10 +122,18 @@ export async function deleteUser(uuid: string): Promise<void> {
  * Fetches a resource's meta; pass null for the root.
  * ResourceMeta describes only the membership fields currently used by the client.
  */
-export async function fetchMeta(resource: ResourceIdentifier): Promise<ResourceMeta> {
+export async function fetchMeta(
+  resource: ResourceIdentifier,
+  signal?: AbortSignal,
+): Promise<ResourceMeta> {
   const { operationId, pathParams } = await getResourceOperation(resource, 'meta')
   const { url, method } = await bindOperation(operationId, pathParams)
-  const response = await request(url, { method, headers: { Accept: 'application/json' } })
+  signal?.throwIfAborted()
+  const response = await request(url, {
+    method,
+    headers: { Accept: 'application/json' },
+    ...(signal ? { signal } : {}),
+  })
   return response.json() as Promise<ResourceMeta>
 }
 

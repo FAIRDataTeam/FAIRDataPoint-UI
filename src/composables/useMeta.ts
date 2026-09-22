@@ -3,6 +3,48 @@ import { fetchMeta, getResourceOperation, type ResourceIdentifier } from './fdpA
 import { apiDocsReady, isOperationOffered } from './apiDocs'
 import { useAuth } from './useAuth'
 
+type EditAccess = {
+  membershipName: string | null
+  hasWrite: boolean
+  operationId: string
+}
+
+const ACCESS_TIMEOUT_MS = 10_000
+
+async function loadEditAccess(resource: ResourceIdentifier): Promise<EditAccess> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    // The deadline also bounds shared API discovery, which this request must not abort.
+    const [meta, { operationId }] = await Promise.race([
+      Promise.all([
+        fetchMeta(resource, controller.signal),
+        getResourceOperation(resource, 'put'),
+        apiDocsReady,
+      ]),
+      new Promise<never>((_resolve, reject) => {
+        timer = setTimeout(() => {
+          const error = new Error('Checking edit access timed out. Please try again.')
+          controller.abort(error)
+          reject(error)
+        }, ACCESS_TIMEOUT_MS)
+      }),
+    ])
+    const membership = meta.member?.membership
+    return {
+      membershipName: membership?.name ?? null,
+      hasWrite: membership?.permissions.some((permission) => permission.code === 'W') ?? false,
+      operationId,
+    }
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
+function permitsEdit(hasWrite: boolean, operationId: string, admin: boolean): boolean {
+  return (admin || hasWrite) && isOperationOffered(operationId)
+}
+
 /**
  * The current user's membership on the resource (null for the root), whether they may write it,
  * and whether editing is possible at all. Admins may write everything; others need W in their
@@ -22,7 +64,9 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
   const canWrite = computed(() => isLoggedIn.value && (isAdmin.value || hasWrite.value))
   const canEdit = computed(
     () =>
-      canWrite.value && putOperationId.value !== null && isOperationOffered(putOperationId.value),
+      isLoggedIn.value &&
+      putOperationId.value !== null &&
+      permitsEdit(hasWrite.value, putOperationId.value, isAdmin.value),
   )
 
   // Identifies the newest check, so a slower older one cannot overwrite its result.
@@ -42,16 +86,11 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
       loading.value = loggedIn
       if (!loggedIn) return
       try {
-        const [meta, { operationId }] = await Promise.all([
-          fetchMeta(currentResource),
-          getResourceOperation(currentResource, 'put'),
-        ])
-        await apiDocsReady
+        const access = await loadEditAccess(currentResource)
         if (current !== generation) return
-        const membership = meta.member?.membership
-        membershipName.value = membership?.name ?? null
-        hasWrite.value = membership?.permissions.some((p) => p.code === 'W') ?? false
-        putOperationId.value = operationId
+        membershipName.value = access.membershipName
+        hasWrite.value = access.hasWrite
+        putOperationId.value = access.operationId
       } catch (err) {
         if (current === generation) {
           error.value = err instanceof Error ? err.message : 'Unable to get resource metadata.'
@@ -64,4 +103,12 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
   )
 
   return { membershipName, canWrite, canEdit, loading, error }
+}
+
+/** Checks route access; request failures propagate so they are not mistaken for denial. */
+export async function canEditResource(resource: ResourceIdentifier): Promise<boolean> {
+  const { isLoggedIn, isAdmin } = useAuth()
+  if (!isLoggedIn.value) return false
+  const access = await loadEditAccess(resource)
+  return isLoggedIn.value && permitsEdit(access.hasWrite, access.operationId, isAdmin.value)
 }

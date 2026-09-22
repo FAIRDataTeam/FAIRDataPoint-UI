@@ -1,10 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { effectScope, nextTick, ref, type EffectScope } from 'vue'
-import { useMeta } from '../../src/composables/useMeta'
+import { useMeta, canEditResource } from '../../src/composables/useMeta'
 import { fetchMeta, getResourceOperation, type ResourceMeta } from '../../src/composables/fdpApi'
 import { isOperationOffered } from '../../src/composables/apiDocs'
 
-const auth = vi.hoisted(() => ({ isLoggedIn: { value: false }, isAdmin: { value: false } }))
+const auth = vi.hoisted(() => ({
+  isLoggedIn: { value: false },
+  isAdmin: { value: false },
+}))
 
 vi.mock('../../src/composables/fdpApi', () => ({
   fetchMeta: vi.fn(),
@@ -61,7 +64,10 @@ describe('useMeta', () => {
     )!
     await flushPromises()
     expect(fetchMeta).toHaveBeenCalledTimes(1)
-    expect(fetchMeta).toHaveBeenCalledWith({ resourceType: 'catalog', id: 'abc' })
+    expect(fetchMeta).toHaveBeenCalledWith(
+      { resourceType: 'catalog', id: 'abc' },
+      expect.any(AbortSignal),
+    )
     expect(membershipName.value).toBe('Owner')
     expect(canWrite.value).toBe(true)
   })
@@ -219,7 +225,7 @@ describe('useMeta', () => {
     vi.mocked(fetchMeta).mockResolvedValue(metaWith(null))
     const { membershipName, canWrite } = scope.run(() => useMeta(ref(null)))!
     await flushPromises()
-    expect(fetchMeta).toHaveBeenCalledWith(null)
+    expect(fetchMeta).toHaveBeenCalledWith(null, expect.any(AbortSignal))
     expect(membershipName.value).toBeNull()
     expect(canWrite.value).toBe(true)
   })
@@ -316,5 +322,68 @@ describe('useMeta', () => {
     await flushPromises()
     expect(membershipName.value).toBeNull()
     expect(canWrite.value).toBe(false)
+  })
+})
+
+describe('canEditResource', () => {
+  it('returns false without requesting meta when logged out', async () => {
+    expect(await canEditResource(null)).toBe(false)
+    expect(fetchMeta).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    { admin: false, codes: ['W'], offered: true, allowed: true },
+    { admin: false, codes: ['W'], offered: false, allowed: false },
+    { admin: false, codes: ['R'], offered: true, allowed: false },
+    { admin: true, codes: [], offered: true, allowed: true },
+  ])(
+    'returns $allowed for admin=$admin, permissions=$codes, PUT=$offered',
+    async ({ admin, codes, offered, allowed }) => {
+      auth.isLoggedIn.value = true
+      auth.isAdmin.value = admin
+      vi.mocked(fetchMeta).mockResolvedValue(metaWith(codes.length ? 'Member' : null, codes))
+      vi.mocked(isOperationOffered).mockReturnValue(offered)
+      expect(await canEditResource(null)).toBe(allowed)
+    },
+  )
+
+  it('lets the page fetch fresh access after the guard check', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    vi.mocked(fetchMeta)
+      .mockResolvedValueOnce(metaWith('Owner', ['W']))
+      .mockResolvedValueOnce(metaWith('Reader', ['R']))
+    const resource = { resourceType: 'catalog', id: 'abc' }
+    expect(await canEditResource(resource)).toBe(true)
+    const { canEdit } = scope.run(() => useMeta(ref(resource)))!
+    await flushPromises()
+    expect(canEdit.value).toBe(false)
+    expect(fetchMeta).toHaveBeenCalledTimes(2)
+  })
+
+  it('propagates a request failure rather than treating it as denied', async () => {
+    auth.isLoggedIn.value = true
+    vi.mocked(fetchMeta).mockRejectedValue(new Error('HTTP 503'))
+    await expect(canEditResource(null)).rejects.toThrow('HTTP 503')
+  })
+
+  it('bounds both guard and page checks when metadata stalls', async () => {
+    vi.useFakeTimers()
+    try {
+      auth.isLoggedIn.value = true
+      vi.mocked(fetchMeta).mockImplementation(() => new Promise(() => {}))
+      const rejection = expect(canEditResource(null)).rejects.toThrow('timed out')
+      await vi.advanceTimersByTimeAsync(10_000)
+      await rejection
+      expect(vi.mocked(fetchMeta).mock.calls[0]![1]?.aborted).toBe(true)
+      const { error, loading, canEdit } = scope.run(() => useMeta(ref(null)))!
+      await vi.advanceTimersByTimeAsync(10_000)
+      expect(error.value).toContain('timed out')
+      expect(loading.value).toBe(false)
+      expect(canEdit.value).toBe(false)
+      expect(vi.mocked(fetchMeta).mock.calls[1]![1]?.aborted).toBe(true)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
