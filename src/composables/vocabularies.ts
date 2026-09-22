@@ -74,6 +74,8 @@ export const LDP_HAS_MEMBER_RELATION = `${LDP}hasMemberRelation`
 // FOAF
 export const FOAF_NAME = `${FOAF}name`
 export const FOAF_HOMEPAGE = `${FOAF}homepage`
+// FDP shapes also use this nonstandard casing.
+export const FOAF_HOME_PAGE = `${FOAF}homePage`
 
 // FDP
 export const FDP_METADATA_ISSUED = `${FDP}metadataIssued`
