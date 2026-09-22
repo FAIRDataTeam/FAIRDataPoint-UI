@@ -1276,6 +1276,13 @@ pre.raw-content code {
   margin-bottom: 1.5rem;
 }
 
+.user-form__fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
 fieldset.user-form__group {
   border: 0;
   padding: 0;

@@ -29,7 +29,127 @@ beforeEach(() => {
   vi.resetModules()
 })
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
+})
+
+describe('putResource', () => {
+  const docs = {
+    openapi: '3.0.1',
+    paths: {
+      '/definitions': { get: { operationId: 'getResourceDefinitions' } },
+      '/root-update': { put: { operationId: 'putResearch Hub' } },
+      '/update/{uuid}': { put: { operationId: 'putCatalog' } },
+      '/root-meta': { get: { operationId: 'getResearch HubMeta' } },
+    },
+  }
+  const definitions = [{ uuid: 'root', name: 'Research Hub', urlPrefix: '' }]
+  const resource = { resourceType: 'catalog', id: 'abc' }
+  const turtle = '<urn:resource> <urn:title> "Edited" .'
+
+  it.each([
+    { target: resource, url: 'http://localhost/update/abc' },
+    { target: null, url: 'http://localhost/root-update' },
+  ])('saves Turtle to $url with authentication', async ({ target, url }) => {
+    const fetch = mockApiFetch(
+      (url) => (url.endsWith('/definitions') ? okJson(definitions)() : { ok: true }),
+      docs,
+    )
+    vi.stubGlobal('fetch', fetch)
+    const { putResource } = await import('../../src/composables/fdpApi')
+    const { setAuthToken } = await import('../../src/composables/fetchUtils')
+    setAuthToken('test-token')
+    await putResource(target, turtle)
+    expect(fetch).toHaveBeenCalledWith(url, {
+      method: 'PUT',
+      body: turtle,
+      signal: expect.any(AbortSignal),
+      headers: { 'Content-Type': 'text/turtle', Authorization: 'Bearer test-token' },
+    })
+  })
+
+  it.each(['Gateway timed out', ''])('reports an HTTP timeout response (%s)', async (body) => {
+    vi.stubGlobal(
+      'fetch',
+      mockApiFetch(() => ({ ok: false, status: 504, text: async () => body }), docs),
+    )
+    const { putResource } = await import('../../src/composables/fdpApi')
+    await expect(putResource(resource, turtle)).rejects.toThrow(body || 'HTTP 504')
+  })
+
+  it.each(['put', 'definitions', 'error body'])(
+    'bounds a stalled %s and permits a subsequent save',
+    async (stage) => {
+      let release!: (value: unknown) => void
+      const stalled = new Promise((resolve) => {
+        release = resolve
+      })
+      let hanging = true
+      let requestSignal: AbortSignal | undefined
+      const fetch = mockApiFetch((url, init) => {
+        const isDefinition = url.endsWith('/definitions')
+        if (hanging && (stage === 'definitions') === isDefinition) {
+          requestSignal = init?.signal ?? undefined
+          if (stage === 'error body') return { ok: false, status: 504, text: () => stalled }
+          return stalled
+        }
+        return isDefinition ? okJson(definitions)() : { ok: true }
+      }, docs)
+      vi.stubGlobal('fetch', fetch)
+      const { putResource } = await import('../../src/composables/fdpApi')
+      const { apiDocsReady } = await import('../../src/composables/apiDocs')
+      await apiDocsReady
+      vi.useFakeTimers()
+      const target = stage === 'definitions' ? null : resource
+      const result = expect(putResource(target, turtle, 100)).rejects.toThrow(
+        'The save request timed out. Check the resource before retrying.',
+      )
+      await vi.advanceTimersByTimeAsync(100)
+      await result
+      expect(requestSignal?.aborted).toBe(true)
+      // Even a late response must not start a PUT after the deadline.
+      release(stage === 'error body' ? 'Late error' : await okJson(definitions)())
+      await vi.advanceTimersByTimeAsync(0)
+      if (stage === 'definitions') {
+        expect(fetch.mock.calls.some(([, init]) => init?.method === 'PUT')).toBe(false)
+      }
+      hanging = false
+      await expect(putResource(target, turtle, 100)).resolves.toBeUndefined()
+      expect(vi.getTimerCount()).toBe(0)
+    },
+  )
+
+  it('keeps a concurrent read independent of the save timeout', async () => {
+    let release!: (value: unknown) => void
+    const stalled = new Promise((resolve) => {
+      release = resolve
+    })
+    // Model fetch cancellation for the save's lookup; the read has a separate request.
+    const fetch = mockApiFetch((url, init) => {
+      if (!url.endsWith('/definitions')) return okJson({ member: null })()
+      const signal = init?.signal
+      if (!signal) return stalled
+      return Promise.race([
+        stalled,
+        new Promise((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(signal.reason as Error))
+        }),
+      ])
+    }, docs)
+    vi.stubGlobal('fetch', fetch)
+    const { putResource, fetchMeta } = await import('../../src/composables/fdpApi')
+    const { apiDocsReady } = await import('../../src/composables/apiDocs')
+    await apiDocsReady
+    vi.useFakeTimers()
+
+    const saveResult = expect(putResource(null, turtle, 100)).rejects.toThrow('timed out')
+    // The read's lookup must continue after the save aborts its own lookup.
+    const metaResult = fetchMeta(null)
+    await vi.advanceTimersByTimeAsync(100)
+    await saveResult
+    release(await okJson(definitions)())
+    await expect(metaResult).resolves.toEqual({ member: null })
+  })
 })
 
 describe('searchResources', () => {

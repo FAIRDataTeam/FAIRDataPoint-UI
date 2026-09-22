@@ -24,25 +24,32 @@ type ResourceDefinition = {
 }
 
 /** Reads resource definitions through their advertised operation. */
-async function fetchResourceDefinitions(): Promise<ResourceDefinition[]> {
+async function fetchResourceDefinitions(signal?: AbortSignal): Promise<ResourceDefinition[]> {
   const { url, method } = await bindOperation('getResourceDefinitions')
-  const response = await request(url, { method, headers: { Accept: 'application/json' } })
+  signal?.throwIfAborted()
+  const response = await request(url, {
+    method,
+    headers: { Accept: 'application/json' },
+    ...(signal ? { signal } : {}),
+  })
   return response.json() as Promise<ResourceDefinition[]>
 }
 
 // Share concurrent root lookups (meta and members), but don't retain definitions across visits.
 let rootDefinitionRequest: Promise<ResourceDefinition> | null = null
 
-function fetchRootDefinition(): Promise<ResourceDefinition> {
-  rootDefinitionRequest ??= fetchResourceDefinitions()
-    .then((definitions) => {
+function fetchRootDefinition(signal?: AbortSignal): Promise<ResourceDefinition> {
+  const load = () =>
+    fetchResourceDefinitions(signal).then((definitions) => {
       const root = definitions.find((definition) => definition.urlPrefix === '')
       if (!root) throw new Error('The FDP has no root resource definition')
       return root
     })
-    .finally(() => {
-      rootDefinitionRequest = null
-    })
+  // A save owns its cancellable lookup; it must not cancel a shared meta/members request.
+  if (signal) return load()
+  rootDefinitionRequest ??= load().finally(() => {
+    rootDefinitionRequest = null
+  })
   return rootDefinitionRequest
 }
 
@@ -53,11 +60,12 @@ function fetchRootDefinition(): Promise<ResourceDefinition> {
 export async function getResourceOperation(
   resource: ResourceIdentifier,
   action: 'meta' | 'members' | 'put',
+  signal?: AbortSignal,
 ) {
   const prefix = action === 'put' ? 'put' : 'get'
   const suffix = action === 'meta' ? 'Meta' : action === 'members' ? 'Members' : ''
   if (resource === null) {
-    const root = await fetchRootDefinition()
+    const root = await fetchRootDefinition(signal)
     return { operationId: `${prefix}${root.name}${suffix}` }
   }
 
@@ -127,6 +135,49 @@ export async function fetchMembers(resource: ResourceIdentifier): Promise<Resour
   const { url, method } = await bindOperation(operationId, pathParams)
   const response = await request(url, { method, headers: { Accept: 'application/json' } })
   return response.json() as Promise<ResourceMember[]>
+}
+
+/**
+ * Saves the resource as Turtle, preserving error response bodies for display.
+ * The timeout covers endpoint discovery, the PUT, and reading error responses.
+ */
+export async function putResource(
+  resource: ResourceIdentifier,
+  turtle: string,
+  timeoutMs = 60_000,
+): Promise<void> {
+  const controller = new AbortController()
+  const { signal } = controller
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error('The save request timed out. Check the resource before retrying.')
+      controller.abort(error)
+      reject(error)
+    }, timeoutMs)
+  })
+  const save = async () => {
+    const { operationId, pathParams } = await getResourceOperation(resource, 'put', signal)
+    const { url, method } = await bindOperation(operationId, pathParams)
+    signal.throwIfAborted()
+    const response = await fetch(url, {
+      method,
+      headers: authHeaders({ 'Content-Type': 'text/turtle' }),
+      body: turtle,
+      signal,
+    })
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      signal.throwIfAborted()
+      throw new Error(body || `HTTP ${response.status}`)
+    }
+  }
+  try {
+    // Stop waiting on timeout without cancelling API discovery shared by other requests.
+    await Promise.race([save(), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /** Fetches a single user's profile. */

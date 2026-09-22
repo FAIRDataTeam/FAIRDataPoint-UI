@@ -26,15 +26,25 @@ vi.mock('../../src/components/RdfGraph.vue', () => ({ default: {} }))
 
 const state = vi.hoisted(() => ({
   canEdit: false,
+  accessLoading: false,
+  accessError: null as string | null,
   quads: [] as import('n3').Quad[],
   breadcrumbs: [] as { text: string; uri: string }[],
   shapesLoading: false,
   shapesError: null as string | null,
   editableFields: [] as import('../../src/composables/shaclUtils').EditableField[],
 }))
-vi.mock('../../src/composables/useMeta', () => ({
-  useMeta: () => ({ membershipName: null, canEdit: state.canEdit }),
-}))
+vi.mock('../../src/composables/useMeta', async () => {
+  const { computed, ref } = await import('vue')
+  return {
+    useMeta: () => ({
+      membershipName: ref(null),
+      canEdit: computed(() => state.canEdit),
+      loading: computed(() => state.accessLoading),
+      error: computed(() => state.accessError),
+    }),
+  }
+})
 vi.mock('../../src/composables/useMembers', () => ({
   useMembers: () => ({ otherOwnerNames: [], loaded: true }),
 }))
@@ -89,6 +99,8 @@ function linkHref(html: string, label: string): string {
 
 beforeEach(() => {
   state.canEdit = false
+  state.accessLoading = false
+  state.accessError = null
   state.breadcrumbs = []
   state.shapesLoading = false
   state.shapesError = null
@@ -100,6 +112,30 @@ describe.each([
   { resourcePath: '/', editPath: '/edit', heading: 'Edit Test resource' },
   { resourcePath: '/catalog/abc', editPath: '/catalog/abc/edit', heading: 'Edit Test resource' },
 ])('resource editing from $resourcePath', ({ resourcePath, editPath, heading }) => {
+  it.each([
+    { loading: false, error: null, message: 'You cannot edit this resource.' },
+    { loading: true, error: null, message: 'Loading…' },
+    { loading: false, error: 'HTTP 503', message: 'Error: HTTP 503' },
+  ])('withholds the edit form when access shows $message', async ({ loading, error, message }) => {
+    state.accessLoading = loading
+    state.accessError = error
+    state.editableFields = [
+      {
+        path: 'http://purl.org/dc/terms/title',
+        label: 'Title',
+        editor: 'http://datashapes.org/dash#TextFieldEditor',
+        minCount: 1,
+        maxCount: 1,
+        nested: [],
+      },
+    ]
+    await router.push(editPath)
+    const html = await renderRoute()
+    expect(html).toContain(message)
+    expect(html).not.toContain('<form')
+    expect(html).not.toContain('type="submit"')
+  })
+
   it('hides the Edit link when editing is unavailable', async () => {
     await router.push(resourcePath)
     const html = await renderRoute()
@@ -117,7 +153,6 @@ describe.each([
     await router.push(editHref)
     const placeholder = await renderRoute()
     expect(placeholder).toContain(heading)
-    expect(placeholder).toContain('Saving is not implemented yet.')
     const cancelHref = linkHref(placeholder, 'Cancel')
     expect(cancelHref).toBe(resourcePath)
 
@@ -366,5 +401,22 @@ describe.each([
     state.canEdit = true
     await router.push(editPath)
     expect(await renderRoute()).toContain('No editable fields are declared')
+  })
+
+  it('offers a Save button once there are editable fields', async () => {
+    state.canEdit = true
+    state.editableFields = [
+      {
+        path: 'http://purl.org/dc/terms/title',
+        label: 'Title',
+        editor: 'http://datashapes.org/dash#TextFieldEditor',
+        minCount: 1,
+        maxCount: 1,
+        nested: [],
+      },
+    ] as typeof state.editableFields
+    await router.push(editPath)
+    const html = await renderRoute()
+    expect(html).toMatch(/<button[^>]*type="submit"[^>]*>\s*Save\s*<\/button>/)
   })
 })

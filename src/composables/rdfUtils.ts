@@ -1,4 +1,4 @@
-import { Store, Parser, DataFactory } from 'n3'
+import { Store, Parser, Writer, DataFactory } from 'n3'
 import type { Literal, Term } from 'n3'
 import {
   DCT_TITLE,
@@ -158,6 +158,15 @@ export function uriLabel(store: Store, uri: string): string {
 /** Parses a Turtle string into an N3 Store. */
 export function parseTurtle(turtle: string): Store {
   return new Store(new Parser().parse(turtle))
+}
+
+/** Serializes the store as Turtle using full IRIs rather than prefixes. */
+export function serializeTurtle(store: Store): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new Writer({ format: 'text/turtle' })
+    writer.addQuads(store.getQuads(null, null, null, null))
+    writer.end((error, result) => (error ? reject(error) : resolve(result)))
+  })
 }
 
 // --- Primary subject detection ---

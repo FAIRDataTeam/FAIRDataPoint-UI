@@ -3,7 +3,8 @@ import { computed, useId } from 'vue'
 import DateInput from './DateInput.vue'
 import type { EditableField } from '../composables/shaclUtils'
 import {
-  emptyValues,
+  createEmptyEntry,
+  isSupportedValueEditor,
   isNestedField,
   type FieldValue,
   type NodeValues,
@@ -50,19 +51,13 @@ const isTextArea = (editor: string) => editor === DASH_TEXT_AREA_EDITOR
 const isUri = (editor: string) => editor === DASH_URI_EDITOR
 const isDatePicker = (editor: string) => editor === DASH_DATE_PICKER_EDITOR
 const isDateTimePicker = (editor: string) => editor === DASH_DATE_TIME_PICKER_EDITOR
-const isBuilt = (editor: string) =>
-  isTextField(editor) ||
-  isTextArea(editor) ||
-  isUri(editor) ||
-  isDatePicker(editor) ||
-  isDateTimePicker(editor)
 
-const pickerValue = (editor: string) =>
+const pickerFormatter = (editor: string) =>
   isDatePicker(editor) ? toDateInputValue : isDateTimePicker(editor) ? toDateTimeInputValue : null
 
 /** Use the original value so the input type stays fixed while editing. Blank entries use a picker. */
 function usesPicker(editor: string, entry: TermValue): boolean {
-  const format = pickerValue(editor)
+  const format = pickerFormatter(editor)
   return format !== null && format(entry.originalTerm?.value ?? '') !== null
 }
 
@@ -76,14 +71,12 @@ function entriesOf(field: EditableField): FieldValue[] {
 }
 
 function addEntry(field: EditableField) {
-  entriesOf(field).push(
-    isNestedField(field) ? { values: emptyValues(field.nested) } : { value: '' },
-  )
+  entriesOf(field).push(createEmptyEntry(field))
 }
 
 /** Add is offered for renderable repeatable fields still below sh:maxCount. */
 const canAddTo = (row: Row) =>
-  (row.kind === 'node' || isBuilt(row.field.editor)) &&
+  (row.kind === 'node' || isSupportedValueEditor(row.field.editor)) &&
   isList(row.field) &&
   (row.field.maxCount === null || row.entries.length < row.field.maxCount)
 
@@ -103,7 +96,7 @@ const isGroup = (row: Row) => row.kind === 'node' || isList(row.field) || row.en
 /** A legend for a fieldset, a label when there is one control to point at, otherwise a div. */
 function labelTag(row: Row) {
   if (isGroup(row)) return 'legend'
-  return isBuilt(row.field.editor) && row.entries.length > 0 ? 'label' : 'div'
+  return isSupportedValueEditor(row.field.editor) && row.entries.length > 0 ? 'label' : 'div'
 }
 
 /** When more entries than the minimum are present, the group describes the requirement instead. */
@@ -159,7 +152,7 @@ const inputRequired = (row: Row) =>
       </div>
     </template>
 
-    <template v-else-if="isBuilt(row.field.editor)">
+    <template v-else-if="isSupportedValueEditor(row.field.editor)">
       <div
         v-for="(entry, index) in row.entries"
         :key="`${row.field.path}.${index}`"

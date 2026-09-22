@@ -1,7 +1,14 @@
 import type { Store, Term } from 'n3'
 import { computed, markRaw, ref, watch, type Ref } from 'vue'
 import { getObjectTerms } from './rdfUtils'
-import { DASH_BLANK_NODE_EDITOR } from './vocabularies'
+import {
+  DASH_BLANK_NODE_EDITOR,
+  DASH_DATE_PICKER_EDITOR,
+  DASH_DATE_TIME_PICKER_EDITOR,
+  DASH_TEXT_AREA_EDITOR,
+  DASH_TEXT_FIELD_EDITOR,
+  DASH_URI_EDITOR,
+} from './vocabularies'
 import type { EditableField } from './shaclUtils'
 
 /** Editable text plus the original RDF term, retained unchanged for later persistence. */
@@ -24,6 +31,19 @@ export type FieldValue = TermValue | NestedValue
  */
 export function isNestedField(field: EditableField): boolean {
   return field.editor === DASH_BLANK_NODE_EDITOR && field.nested.length > 0
+}
+
+const SUPPORTED_VALUE_EDITORS = new Set([
+  DASH_TEXT_FIELD_EDITOR,
+  DASH_TEXT_AREA_EDITOR,
+  DASH_URI_EDITOR,
+  DASH_DATE_PICKER_EDITOR,
+  DASH_DATE_TIME_PICKER_EDITOR,
+])
+
+/** Identifies value editors supported for both rendering and saving. */
+export function isSupportedValueEditor(editor: string): boolean {
+  return SUPPORTED_VALUE_EDITORS.has(editor)
 }
 
 /**
@@ -81,14 +101,17 @@ function blankEntries<T>(count: number, blank: () => T): T[] {
   return Array.from({ length: Math.max(0, count) }, blank)
 }
 
+/** Creates a fresh value or nested record for initialization and Add. */
+export function createEmptyEntry(field: EditableField): FieldValue {
+  return isNestedField(field) ? { values: emptyValues(field.nested) } : { value: '' }
+}
+
 /** Blank state mirroring the field structure, for a record that has no values yet. */
 export function emptyValues(fields: EditableField[]): NodeValues {
   return Object.fromEntries(
     fields.map((field) => [
       field.path,
-      isNestedField(field)
-        ? blankEntries(entryCount(field, 0), () => ({ values: emptyValues(field.nested) }))
-        : blankEntries(entryCount(field, 0), () => ({ value: '' })),
+      blankEntries(entryCount(field, 0), () => createEmptyEntry(field)),
     ]),
   )
 }
@@ -112,14 +135,11 @@ export function seedValues(
           originalTerm: markRaw(term),
           values: seedValues(store, term, field.nested),
         }))
-        return [
-          field.path,
-          [...nested, ...blankEntries(missing, () => ({ values: emptyValues(field.nested) }))],
-        ]
+        return [field.path, [...nested, ...blankEntries(missing, () => createEmptyEntry(field))]]
       }
 
       const values = terms.map(toTermValue)
-      return [field.path, [...values, ...blankEntries(missing, () => ({ value: '' }))]]
+      return [field.path, [...values, ...blankEntries(missing, () => createEmptyEntry(field))]]
     }),
   )
 }
