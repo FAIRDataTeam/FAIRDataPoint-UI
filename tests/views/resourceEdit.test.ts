@@ -63,10 +63,10 @@ vi.mock('../../src/composables/useResourceView', async () => {
         ),
         resourceUri: ref('http://localhost' + route.path),
         currentNodeUri: ref('http://localhost' + route.path),
-        shapesLoading: state.shapesLoading,
-        shapesError: state.shapesError,
-        loading: false,
-        error: null,
+        shapesLoading: computed(() => state.shapesLoading),
+        shapesError: computed(() => state.shapesError),
+        loading: ref(false),
+        error: ref(null),
         title: 'Test resource',
         description: null,
         rawTurtle: ref(null),
@@ -134,6 +134,7 @@ describe.each([
     expect(html).toContain(message)
     expect(html).not.toContain('<form')
     expect(html).not.toContain('type="submit"')
+    expect(linkHref(html, 'Cancel')).toBe(resourcePath)
   })
 
   it('hides the Edit link when editing is unavailable', async () => {

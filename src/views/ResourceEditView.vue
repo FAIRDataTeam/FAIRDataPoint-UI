@@ -40,6 +40,17 @@ const backTo = computed(() =>
 
 const formValues = useShapeForm(quads, currentNodeUri, editableFields)
 const { canEdit, loading: accessLoading, error: accessError } = useMeta(resource)
+const showForm = computed(
+  () =>
+    !loading.value &&
+    !shapesLoading.value &&
+    !accessLoading.value &&
+    !error.value &&
+    !shapesError.value &&
+    !accessError.value &&
+    canEdit.value &&
+    editableFields.value.length > 0,
+)
 
 const saving = ref(false)
 const saveError = ref<string | null>(null)
@@ -188,7 +199,7 @@ async function save() {
           </details>
         </div>
 
-        <form v-if="editableFields.length > 0" ref="formEl" @submit.prevent="save">
+        <form v-if="showForm" ref="formEl" @submit.prevent="save">
           <fieldset class="user-form__fields" :disabled="saving" aria-label="Resource details">
             <ShapeFormFields
               :fields="editableFields"
@@ -200,13 +211,16 @@ async function save() {
               <button type="submit" class="user-form__btn" :disabled="saving">
                 {{ saving ? 'Saving…' : 'Save' }}
               </button>
+              <router-link :to="backTo" class="user-form__btn user-form__btn--secondary"
+                >Cancel</router-link
+              >
             </div>
           </fieldset>
         </form>
         <p v-else>No editable fields are declared for this resource.</p>
       </template>
 
-      <router-link :to="backTo" class="text-link">Cancel</router-link>
+      <router-link v-if="!showForm" :to="backTo" class="text-link">Cancel</router-link>
     </main>
   </div>
 </template>

@@ -1436,6 +1436,20 @@ fieldset.user-form__group {
   cursor: not-allowed;
 }
 
+.user-form__btn--secondary {
+  background: var(--fdp-color-surface);
+  color: var(--fdp-color-link);
+  border: 1px solid var(--fdp-color-link);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-form__btn--secondary:hover:not(:disabled) {
+  background: #f3f8fd;
+  color: var(--fdp-color-link-hover);
+}
+
 .validation-response {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
