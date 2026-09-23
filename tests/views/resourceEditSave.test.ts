@@ -59,6 +59,7 @@ function mountView() {
   return mountComponentSetup<{
     save: () => Promise<void>
     saving: boolean
+    saved: boolean
     saveError: string | null
     rawResponse: string
     validationResults: ValidationResult[]
@@ -118,6 +119,34 @@ describe('resource save errors', () => {
       }
     },
   )
+
+  it('re-enables the form and shows the message when the save request times out', async () => {
+    const request = Promise.withResolvers<void>()
+    const started = Promise.withResolvers<void>()
+    vi.mocked(putResource).mockImplementationOnce(() => {
+      started.resolve()
+      return request.promise
+    })
+    const view = mountView()
+    try {
+      view.state.formValues['urn:title']![0]!.value = 'My edited title'
+      view.state.formValues['urn:link']![0]!.value = 'urn:example'
+      await nextTick()
+      const saving = view.state.save()
+      await started.promise
+      expect(view.state.saving).toBe(true)
+      request.reject(new Error('The save request timed out. Check the resource before retrying.'))
+      await saving
+      expect(view.state.saving).toBe(false)
+      expect(view.state.saveError).toBe(
+        'The save request timed out. Check the resource before retrying.',
+      )
+      expect(view.state.validationResults).toEqual([])
+      expect(mocks.push).not.toHaveBeenCalled()
+    } finally {
+      view.unmount()
+    }
+  })
 
   it('reports every missing required field, not just the first', async () => {
     const view = mountView()
@@ -196,4 +225,35 @@ describe('resource save errors', () => {
       view.unmount()
     }
   })
+})
+
+describe('save confirmation', () => {
+  it.each([false, true])(
+    'pauses before navigating, unless unmounted=%s',
+    async (unmountDuringPause) => {
+      vi.useFakeTimers()
+      vi.mocked(putResource).mockResolvedValueOnce()
+      const view = mountView()
+      try {
+        view.state.formValues['urn:title']![0]!.value = 'Title'
+        view.state.formValues['urn:link']![0]!.value = 'urn:example'
+        await nextTick()
+        const saving = view.state.save()
+        await vi.advanceTimersByTimeAsync(0)
+        expect(view.state.saved).toBe(true)
+        expect(view.state.saving).toBe(true)
+        await vi.advanceTimersByTimeAsync(999)
+        expect(mocks.push).not.toHaveBeenCalled()
+        if (unmountDuringPause) view.unmount()
+        await vi.advanceTimersByTimeAsync(1)
+        await saving
+        if (unmountDuringPause) expect(mocks.push).not.toHaveBeenCalled()
+        else expect(mocks.push).toHaveBeenCalledWith({ name: 'fdp-root' })
+        expect(view.state.saving).toBe(false)
+      } finally {
+        if (!unmountDuringPause) view.unmount()
+        vi.useRealTimers()
+      }
+    },
+  )
 })

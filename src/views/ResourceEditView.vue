@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, useTemplateRef, watch } from 'vue'
+import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useResourceView } from '../composables/useResourceView'
 import { useMeta } from '../composables/useMeta'
@@ -17,6 +17,8 @@ import { internalHref } from '../composables/urlUtils'
 import { parseValidationReport, type ValidationResult } from '../composables/validationReport'
 import { predicateLabel } from '../composables/shaclFallback'
 import ShapeFormFields from '../components/ShapeFormFields.vue'
+import IconSpinner from '../assets/icons/spinner.svg?component'
+import IconCheck from '../assets/icons/check.svg?component'
 
 const router = useRouter()
 const {
@@ -53,6 +55,23 @@ const showForm = computed(
 )
 
 const saving = ref(false)
+const saved = ref(false)
+let unmounted = false
+let cancelConfirmation: (() => void) | undefined
+onUnmounted(() => {
+  unmounted = true
+  cancelConfirmation?.()
+})
+const savingDialog = useTemplateRef<HTMLDialogElement>('savingDialog')
+// A modal dialog makes the whole page inert, including header and breadcrumb links.
+watch(
+  saving,
+  (active) => {
+    if (active) savingDialog.value?.showModal()
+    else savingDialog.value?.close()
+  },
+  { flush: 'post' },
+)
 const saveError = ref<string | null>(null)
 const validationResults = ref<ValidationResult[]>([])
 const rawResponse = ref('')
@@ -123,7 +142,9 @@ async function save() {
   )
     return
   clearSaveErrors()
+  saved.value = false
   saving.value = true
+  const destination = backTo.value
   try {
     const graph = buildResourceGraph(
       quads.value,
@@ -132,7 +153,18 @@ async function save() {
       formValues.value,
     )
     await putResource(resource.value, await serializeTurtle(graph))
-    await router.push(backTo.value)
+    if (unmounted) return
+    saved.value = true
+    // Allow the confirmation and its fade-out to finish before navigating (see main.css).
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 1000)
+      cancelConfirmation = () => {
+        clearTimeout(timer)
+        resolve()
+      }
+    })
+    cancelConfirmation = undefined
+    if (!unmounted) await router.push(destination)
   } catch (err) {
     if (err instanceof ResourceSaveError) {
       rawResponse.value = err.body
@@ -209,7 +241,7 @@ async function save() {
             />
             <div class="action-row">
               <button type="submit" class="user-form__btn" :disabled="saving">
-                {{ saving ? 'Saving…' : 'Save' }}
+                {{ saved ? 'Saved' : saving ? 'Saving…' : 'Save' }}
               </button>
               <router-link :to="backTo" class="user-form__btn user-form__btn--secondary"
                 >Cancel</router-link
@@ -222,5 +254,23 @@ async function save() {
 
       <router-link v-if="!showForm" :to="backTo" class="text-link">Cancel</router-link>
     </main>
+
+    <dialog
+      ref="savingDialog"
+      class="modal saving-overlay"
+      :class="{ 'saving-overlay--saved': saved }"
+      :aria-label="saved ? 'Resource saved' : 'Saving resource'"
+      @cancel.prevent
+    >
+      <div class="saving-overlay__body" role="status" aria-live="polite">
+        <div class="saving-overlay__icon" aria-hidden="true">
+          <IconCheck v-if="saved" />
+          <IconSpinner v-else class="saving-overlay__spinner" />
+        </div>
+        <p class="saving-overlay__message" tabindex="-1" autofocus>
+          {{ saved ? 'Saved' : 'Saving…' }}
+        </p>
+      </div>
+    </dialog>
   </div>
 </template>
