@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { DataFactory } from 'n3'
 import { parseTurtle } from '../../src/composables/rdfUtils'
 import { getEditableFields, getShapePropertyMap } from '../../src/composables/shaclUtils'
 import {
@@ -53,6 +54,112 @@ const RESOURCE = `
 `
 
 describe('buildResourceGraph', () => {
+  it.each([1, 3])(
+    'does not save an empty optional nested placeholder with maxCount %s',
+    (maxCount) => {
+      const { store, fields } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+      const publisher = fields.find((field) => field.path === PUBLISHER)!
+      publisher.maxCount = maxCount
+      publisher.nested[0]!.minCount = 1
+      const values = seedValues(store, SUBJECT, fields)
+
+      const graph = buildResourceGraph(store, SUBJECT, fields, values)
+      expect(graph.getObjects(SUBJECT, PUBLISHER, null)).toEqual([])
+      expect(graph.size).toBe(store.size)
+    },
+  )
+
+  it('still rejects an absent required nested record', () => {
+    const { store, fields } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+    const publisher = fields.find((field) => field.path === PUBLISHER)!
+    Object.assign(publisher, { minCount: 1, maxCount: 1, label: 'Publisher' })
+    const values = seedValues(store, SUBJECT, fields)
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
+      'Publisher is required.',
+    )
+  })
+
+  it('keeps a populated new optional record, but omits it after its inputs are cleared', () => {
+    const { store, fields, values } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+    const entry = values[PUBLISHER]![0] as NestedValue
+    ;(entry.values[NAME]![0] as TermValue).value = 'New agent'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    const agent = graph.getObjects(SUBJECT, PUBLISHER, null)[0]!
+    expect(graph.getObjects(agent, NAME, null)[0]!.value).toBe('New agent')
+    ;(entry.values[NAME]![0] as TermValue).value = ''
+    expect(
+      buildResourceGraph(store, SUBJECT, fields, values).getObjects(SUBJECT, PUBLISHER, null),
+    ).toEqual([])
+  })
+
+  it('preserves an originally empty nested record', () => {
+    const { store, fields, values } = setup(`<${SUBJECT}> a <urn:Resource>; <${PUBLISHER}> [] .`)
+    expect(
+      buildResourceGraph(store, SUBJECT, fields, values).getObjects(SUBJECT, PUBLISHER, null),
+    ).toEqual(store.getObjects(SUBJECT, PUBLISHER, null))
+  })
+
+  it.each(['_:agent', '<urn:agent>'])(
+    'preserves a removed publisher %s still used as creator',
+    (agent) => {
+      const { store, fields, values } = setup(`
+      <${SUBJECT}> a <urn:Resource>; <${PUBLISHER}> ${agent}; <urn:creator> ${agent} .
+      ${agent} <${NAME}> "Agent"; <${EXTRA}> "Keep" .
+    `)
+      values[PUBLISHER] = []
+      const graph = buildResourceGraph(store, SUBJECT, fields, values)
+      const creator = graph.getObjects(SUBJECT, 'urn:creator', null)[0]!
+      expect(graph.getObjects(SUBJECT, PUBLISHER, null)).toEqual([])
+      expect(graph.getObjects(creator, NAME, null)[0]!.value).toBe('Agent')
+      expect(graph.getObjects(creator, EXTRA, null)[0]!.value).toBe('Keep')
+    },
+  )
+
+  it.each([true, false])('decides cleanup from the final references: keep=%s', (keep) => {
+    const { store, fields, values } = setup(`
+      <${SUBJECT}> a <urn:Resource>; <${PUBLISHER}> <urn:agent>;
+        <${LINK}> <${keep ? 'urn:old-link' : 'urn:agent'}> .
+      <urn:agent> <${NAME}> "Agent"; <${EXTRA}> "Keep" .
+    `)
+    const publisher = fields.find((field) => field.path === PUBLISHER)!
+    const ordered = [publisher, ...fields.filter((field) => field !== publisher)]
+    values[PUBLISHER] = []
+    values[LINK] = keep ? [{ value: 'urn:agent' }] : []
+    const graph = buildResourceGraph(store, SUBJECT, ordered, values)
+    expect(graph.getObjects('urn:agent', EXTRA, null)).toHaveLength(keep ? 1 : 0)
+  })
+
+  it('omits recursively empty new records but keeps a populated descendant', () => {
+    const { store, fields } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+    const publisher = fields.find((field) => field.path === PUBLISHER)!
+    publisher.nested = [{ ...publisher, path: 'urn:employer' }]
+    const values = seedValues(store, SUBJECT, fields)
+    expect(buildResourceGraph(store, SUBJECT, fields, values).size).toBe(store.size)
+
+    const agent = values[PUBLISHER]![0] as NestedValue
+    const employer = agent.values['urn:employer']![0] as NestedValue
+    ;(employer.values[NAME]![0] as TermValue).value = 'Employer'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    const publisherTerm = graph.getObjects(SUBJECT, PUBLISHER, null)[0]!
+    const employerTerm = graph.getObjects(publisherTerm, 'urn:employer', null)[0]!
+    expect(graph.getObjects(employerTerm, NAME, null)[0]!.value).toBe('Employer')
+  })
+
+  it('validates required children once an optional record has content', () => {
+    const { store, fields } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+    const publisher = fields.find((field) => field.path === PUBLISHER)!
+    publisher.label = 'Publisher'
+    const name = publisher.nested[0]!
+    Object.assign(name, { minCount: 1, label: 'Name' })
+    publisher.nested.push({ ...name, path: EXTRA, minCount: 0 })
+    const values = seedValues(store, SUBJECT, fields)
+    const agent = values[PUBLISHER]![0] as NestedValue
+    ;(agent.values[EXTRA]![0] as TermValue).value = 'Some content'
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
+      'Publisher: Name is required.',
+    )
+  })
+
   it('rejects a cleared required field before it can be saved', () => {
     const { store, fields, values } = setup(RESOURCE)
     Object.assign(
@@ -281,12 +388,14 @@ describe('buildResourceGraph', () => {
     expect(names).toEqual(['Old agent', 'Second agent'].sort((a, b) => a.localeCompare(b)))
   })
 
-  it('purges a removed record entirely, including a further nested record inside it', () => {
-    const store = parseTurtle(`
+  it.each(['neither', 'publisher', 'employer'])(
+    'cleans up removed nested records while retaining shared records: %s',
+    (shared) => {
+      const store = parseTurtle(`
       <${SUBJECT}> a <urn:Resource>;
         <${PUBLISHER}> [ <${NAME}> "Agent"; <urn:employer> [ <${NAME}> "Employer" ] ] .
     `)
-    const shapesWithEmployer = parseTurtle(`
+      const shapesWithEmployer = parseTurtle(`
       @prefix sh: <http://www.w3.org/ns/shacl#> .
       @prefix dash: <http://datashapes.org/dash#> .
       <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
@@ -299,16 +408,26 @@ describe('buildResourceGraph', () => {
       <urn:OrgShape> a sh:NodeShape;
         sh:property [ sh:path <${NAME}>; sh:maxCount 1; dash:editor dash:TextFieldEditor ] .
     `)
-    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [shapesWithEmployer]))
-    const values = seedValues(store, SUBJECT, fields)
-    const publisher = values[PUBLISHER]![0] as NestedValue
-    const employerTerm = (publisher.values['urn:employer']![0] as NestedValue).originalTerm!
-    values[PUBLISHER] = []
+      const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [shapesWithEmployer]))
+      const values = seedValues(store, SUBJECT, fields)
+      const publisher = values[PUBLISHER]![0] as NestedValue
+      const employerTerm = (publisher.values['urn:employer']![0] as NestedValue).originalTerm!
+      if (shared !== 'neither') {
+        store.addQuad(
+          DataFactory.namedNode(SUBJECT),
+          DataFactory.namedNode('urn:creator'),
+          shared === 'publisher' ? publisher.originalTerm! : employerTerm,
+        )
+      }
+      values[PUBLISHER] = []
 
-    const graph = buildResourceGraph(store, SUBJECT, fields, values)
-    expect(graph.getObjects(publisher.originalTerm!, null, null)).toEqual([])
-    expect(graph.getObjects(employerTerm, null, null)).toEqual([])
-  })
+      const graph = buildResourceGraph(store, SUBJECT, fields, values)
+      expect(graph.getObjects(publisher.originalTerm!, null, null)).toHaveLength(
+        shared === 'publisher' ? 2 : 0,
+      )
+      expect(graph.getObjects(employerTerm, NAME, null)).toHaveLength(shared === 'neither' ? 0 : 1)
+    },
+  )
 
   it('purges a removed record entirely, including what the shape does not cover', () => {
     const { store, fields, values } = setup(RESOURCE)

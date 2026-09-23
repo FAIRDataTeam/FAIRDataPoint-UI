@@ -19,8 +19,20 @@ const { namedNode, literal, blankNode, quad } = DataFactory
 
 /** A record's own subject: never a literal, so it can hold further triples about itself. */
 type RecordSubject = NamedNode | BlankNode
+type RemovedRecord = { subject: RecordSubject; fields: EditableField[] }
 
 const keepsLeafEntry = (entry: TermValue) => entry.value !== '' || entry.originalTerm?.value === ''
+
+/** Preserve existing records; a new record needs at least one value the editor can write. */
+function keepsNestedEntry(entry: NestedValue, fields: EditableField[]): boolean {
+  if (entry.originalTerm) return true
+  return fields.some((field) => {
+    const entries = entry.values[field.path] ?? []
+    return isNestedField(field)
+      ? (entries as NestedValue[]).some((child) => keepsNestedEntry(child, field.nested))
+      : isSupportedValueEditor(field.editor) && (entries as TermValue[]).some(keepsLeafEntry)
+  })
+}
 
 /** Checks sh:minCount using the distinct RDF terms that saving would keep. */
 export function satisfiesLeafMinCount(field: EditableField, entries: TermValue[]): boolean {
@@ -52,9 +64,12 @@ export function buildResourceGraph(
   values: NodeValues,
 ): Store {
   const graph = new Store(store.getQuads(null, null, null, null))
-  replaceFields(graph, namedNode(subjectUri), fields, values)
+  const subject = namedNode(subjectUri)
+  const removed: RemovedRecord[] = []
+  replaceFields(graph, subject, fields, values, removed)
+  removeUnreferencedRecords(graph, subject, removed)
   const results: ValidationResult[] = []
-  checkFieldConstraints(graph, namedNode(subjectUri), fields, results)
+  checkFieldConstraints(graph, subject, fields, results)
   if (results.length) throw new RequiredFieldsError(results)
   return graph
 }
@@ -107,6 +122,7 @@ function replaceFields(
   subject: RecordSubject,
   fields: EditableField[],
   values: NodeValues,
+  removed: RemovedRecord[],
 ) {
   for (const field of fields) {
     const nested = isNestedField(field)
@@ -122,15 +138,16 @@ function replaceFields(
       // Compare RDF term type and value, not JavaScript object identity.
       const kept = new Set<string>()
       for (const entry of entries as NestedValue[]) {
+        if (!keepsNestedEntry(entry, field.nested)) continue
         const term = asRecordSubject(entry.originalTerm) ?? blankNode()
         kept.add(termKey(term))
         store.addQuad(quad(subject, path, term))
-        replaceFields(store, term, field.nested, entry.values)
+        replaceFields(store, term, field.nested, entry.values, removed)
       }
-      // Delete removed records and their nested content.
+      // Defer cleanup until every field's final references have been written.
       for (const term of previous) {
         const stale = !kept.has(termKey(term)) && asRecordSubject(term)
-        if (stale) purgeRecord(store, stale, field.nested)
+        if (stale) removed.push({ subject: stale, fields: field.nested })
       }
     } else {
       for (const entry of entries as TermValue[]) {
@@ -143,16 +160,41 @@ function replaceFields(
   }
 }
 
-/** Removes every triple about a dropped record, recursing into its own further nested records. */
-function purgeRecord(store: Store, subject: RecordSubject, fields: EditableField[]) {
-  for (const field of fields) {
-    if (!isNestedField(field)) continue
-    for (const term of store.getObjects(subject, namedNode(field.path), null)) {
-      const child = asRecordSubject(term)
-      if (child) purgeRecord(store, child, field.nested)
+/** Deletes dropped records and their nested content only when the remaining graph no longer uses them. */
+function removeUnreferencedRecords(store: Store, root: RecordSubject, removed: RemovedRecord[]) {
+  const candidates = new Map<string, RecordSubject>()
+  function collect(subject: RecordSubject, fields: EditableField[]) {
+    candidates.set(termKey(subject), subject)
+    for (const field of fields) {
+      if (!isNestedField(field)) continue
+      for (const term of store.getObjects(subject, namedNode(field.path), null)) {
+        const child = asRecordSubject(term)
+        if (child) collect(child, field.nested)
+      }
     }
   }
-  store.removeQuads(store.getQuads(subject, null, null, null))
+  for (const record of removed) collect(record.subject, record.fields)
+
+  // Keep records referenced from outside the removal set, and everything they still reference.
+  const pending = [...candidates.values()].filter(
+    (subject) =>
+      subject.equals(root) ||
+      store.getSubjects(null, subject, null).some((source) => !candidates.has(termKey(source))),
+  )
+  const retained = new Set<string>()
+  while (pending.length) {
+    const subject = pending.pop()!
+    const key = termKey(subject)
+    if (retained.has(key)) continue
+    retained.add(key)
+    for (const term of store.getObjects(subject, null, null)) {
+      const child = candidates.get(termKey(term))
+      if (child) pending.push(child)
+    }
+  }
+  for (const [key, subject] of candidates) {
+    if (!retained.has(key)) store.removeQuads(store.getQuads(subject, null, null, null))
+  }
 }
 
 /** sh:node targets are never literals in valid data; falls back rather than assume so. */
