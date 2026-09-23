@@ -8,6 +8,7 @@ import {
   DASH_TEXT_AREA_EDITOR,
   DASH_TEXT_FIELD_EDITOR,
   DASH_URI_EDITOR,
+  SHACL_IRI,
 } from './vocabularies'
 import type { EditableField } from './shaclUtils'
 
@@ -58,6 +59,14 @@ const SUPPORTED_VALUE_EDITORS = new Set([
 /** Identifies value editors supported for both rendering and saving. */
 export function isSupportedValueEditor(editor: string): boolean {
   return SUPPORTED_VALUE_EDITORS.has(editor)
+}
+
+/**
+ * Treats URIEditor and sh:IRI fields as IRI inputs that save as named nodes,
+ * even when sh:IRI is paired with a text editor hint.
+ */
+export function isUriField(field: Pick<EditableField, 'editor' | 'nodeKind'>): boolean {
+  return field.editor === DASH_URI_EDITOR || field.nodeKind === SHACL_IRI
 }
 
 /**

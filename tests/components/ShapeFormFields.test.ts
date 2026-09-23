@@ -6,6 +6,7 @@ import { renderToString } from 'vue/server-renderer'
 import { parseValidationReport } from '../../src/composables/validationReport'
 import ShapeFormFields from '../../src/components/ShapeFormFields.vue'
 import { parseTurtle } from '../../src/composables/rdfUtils'
+import { buildResourceGraph } from '../../src/composables/shapeGraph'
 import {
   getEditableFields,
   getShapePropertyMap,
@@ -285,10 +286,75 @@ function mountFields(fields: EditableField[], values: NodeValues) {
     describedBy: (row: LeafRow, extra?: string, entry?: TermValue) => string | undefined
     nestedEntryKey: (entry: NestedValue) => number
     removeEntry: (field: EditableField, index: number) => void
+    addEntry: (field: EditableField) => void
     isChanged: (entry: TermValue) => boolean
     restoreEntry: (field: EditableField, entry: TermValue) => void
   }>(ShapeFormFields, { fields, values })
 }
+
+describe('ShapeFormFields single nested records', () => {
+  function setup(minCount: number) {
+    const subject = 'urn:resource'
+    const path = 'urn:publisher'
+    const store = parseTurtle(`
+      <${subject}> a <urn:Resource>; <${path}> [ <urn:name> "Original agent" ] .
+    `)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <${path}>; sh:name "Publisher";
+          sh:minCount ${minCount}; sh:maxCount 1; sh:node <urn:Agent>;
+          dash:editor dash:BlankNodeEditor ] .
+      <urn:Agent> a sh:NodeShape;
+        sh:property [ sh:path <urn:name>; sh:maxCount 1; dash:editor dash:TextFieldEditor ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    const render = () =>
+      renderToString(
+        createSSRApp({
+          render: () => h(ShapeFormFields, { fields, values }),
+        }),
+      )
+    return { subject, path, store, fields, values, render }
+  }
+
+  it('allows removing an optional record and adding a replacement, respecting maxCount', async () => {
+    const { subject, path, store, fields, values, render } = setup(0)
+    const { state, unmount } = mountFields(fields, values)
+    try {
+      const initial = await render()
+      expect(initial).toContain('aria-label="Remove Publisher"')
+      expect(initial).not.toContain('user-form__add')
+
+      state.removeEntry(fields[0]!, 0)
+      const removed = await render()
+      expect(removed).not.toContain('aria-label="Remove Publisher"')
+      expect(removed).toContain('user-form__add')
+      expect(
+        buildResourceGraph(store, subject, fields, values).getObjects(subject, path, null),
+      ).toEqual([])
+
+      state.addEntry(fields[0]!)
+      const entry = values[path]![0] as NestedValue
+      expect(entry.originalTerm).toBeUndefined()
+      expect((entry.values['urn:name']![0] as TermValue).value).toBe('')
+      const added = await render()
+      expect(added).toContain('aria-label="Remove Publisher"')
+      expect(added).not.toContain('user-form__add')
+    } finally {
+      unmount()
+    }
+  })
+
+  it('does not offer Remove or Add for a populated required single record', async () => {
+    const { render } = setup(1)
+    const html = await render()
+    expect(html).not.toContain('user-form__remove')
+    expect(html).not.toContain('user-form__add')
+  })
+})
 
 describe('ShapeFormFields required hint (touched)', () => {
   const path = 'http://example.org/title'
@@ -544,5 +610,41 @@ describe('ShapeFormFields restore', () => {
     } finally {
       unmount()
     }
+  })
+})
+
+describe('ShapeFormFields IRI fields', () => {
+  // FDP's own root shape pairs sh:nodeKind sh:IRI with a TextAreaEditor; nodeKind wins.
+  async function renderEndpoint(extraValue = false) {
+    const subject = 'urn:resource'
+    const path = 'urn:endpoint'
+    const store = parseTurtle(`
+      <${subject}> a <urn:Resource>; <${path}> <urn:api-docs>${
+        extraValue ? `, <urn:swagger>` : ''
+      } .
+    `)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <${path}>; sh:name "Endpoint description"; sh:nodeKind sh:IRI;
+          dash:editor dash:TextAreaEditor ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    return renderToString(createSSRApp({ render: () => h(ShapeFormFields, { fields, values }) }))
+  }
+
+  it('renders a single-line IRI input rather than the hinted textarea', async () => {
+    const html = await renderEndpoint()
+    expect(html).not.toContain('<textarea')
+    expect(html).toContain('placeholder="Enter IRI"')
+    expect(html).toContain('value="urn:api-docs"')
+  })
+
+  it('lists repeatable values so each value reads as its own item', async () => {
+    const html = await renderEndpoint(true)
+    expect(html).toContain('<ul class="user-form__values"')
+    expect((html.match(/<li>/g) ?? []).length).toBe(2)
   })
 })

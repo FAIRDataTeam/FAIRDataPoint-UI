@@ -8,6 +8,7 @@ import {
   createEmptyEntry,
   isSupportedValueEditor,
   isNestedField,
+  isUriField,
   invalidUriMessage,
   requiredFieldMessage,
   type FieldValue,
@@ -24,7 +25,6 @@ import {
   DASH_DATE_TIME_PICKER_EDITOR,
   DASH_TEXT_AREA_EDITOR,
   DASH_TEXT_FIELD_EDITOR,
-  DASH_URI_EDITOR,
 } from '../composables/vocabularies'
 
 const props = defineProps<{
@@ -72,7 +72,7 @@ const isInvalidUriEntry = (entry: TermValue) => entry.value !== '' && !isAbsolut
 /** Show the hint after blur when a URI cannot be saved as a Turtle IRI. */
 const showInvalidUriHint = (row: Row) =>
   row.kind === 'leaf' &&
-  row.field.editor === DASH_URI_EDITOR &&
+  isUriField(row.field) &&
   touchedFields.has(row.field.path) &&
   row.entries.some(isInvalidUriEntry) &&
   !fieldErrors(row.field.path).length
@@ -110,7 +110,6 @@ const cardinality = (field: EditableField) => `${field.minCount ?? 0}..${field.m
 
 const isTextField = (editor: string) => editor === DASH_TEXT_FIELD_EDITOR
 const isTextArea = (editor: string) => editor === DASH_TEXT_AREA_EDITOR
-const isUri = (editor: string) => editor === DASH_URI_EDITOR
 const isDatePicker = (editor: string) => editor === DASH_DATE_PICKER_EDITOR
 const isDateTimePicker = (editor: string) => editor === DASH_DATE_TIME_PICKER_EDITOR
 
@@ -123,7 +122,7 @@ function usesPicker(editor: string, entry: TermValue): boolean {
   return format !== null && format(entry.originalTerm?.value ?? '') !== null
 }
 
-/** Single-value fields are cleared in place; repeatable fields use Add/Remove. */
+/** Single-value leaf fields are cleared in place; nested records use Add/Remove. */
 const isList = (field: EditableField) => field.maxCount !== 1
 
 function entriesOf(field: EditableField): FieldValue[] {
@@ -136,15 +135,15 @@ function addEntry(field: EditableField) {
   entriesOf(field).push(createEmptyEntry(field))
 }
 
-/** Add is offered for renderable repeatable fields still below sh:maxCount. */
+/** Add is offered for nested or repeatable fields still below sh:maxCount. */
 const canAddTo = (row: Row) =>
   (row.kind === 'node' || isSupportedValueEditor(row.field.editor)) &&
-  isList(row.field) &&
+  (row.kind === 'node' || isList(row.field)) &&
   (row.field.maxCount === null || row.entries.length < row.field.maxCount)
 
-/** Remove is offered for repeatable fields still above sh:minCount. */
+/** Remove is offered for nested or repeatable fields still above sh:minCount. */
 const canRemoveFrom = (row: Row) =>
-  isList(row.field) && row.entries.length > (row.field.minCount ?? 0)
+  (row.kind === 'node' || isList(row.field)) && row.entries.length > (row.field.minCount ?? 0)
 
 function removeEntry(field: EditableField, index: number) {
   entriesOf(field).splice(index, 1)
@@ -236,127 +235,134 @@ const inputRequired = (row: Row) =>
     </template>
 
     <template v-else-if="isSupportedValueEditor(row.field.editor)">
-      <div
-        v-for="(entry, index) in row.entries"
-        :key="`${row.field.path}.${index}`"
-        class="user-form__value"
-        :class="{ 'user-form__value--changed': isChanged(entry) }"
-      >
-        <label
-          v-if="isGroup(row)"
-          :for="controlId(row.field.path, index)"
-          class="user-form__visually-hidden"
+      <component :is="isList(row.field) ? 'ul' : 'div'" class="user-form__values">
+        <component
+          :is="isList(row.field) ? 'li' : 'div'"
+          v-for="(entry, index) in row.entries"
+          :key="`${row.field.path}.${index}`"
         >
-          {{ fieldLabel(row.field) }} {{ index + 1 }}
-        </label>
-        <input
-          v-if="isTextField(row.field.editor)"
-          v-model="entry.value"
-          @blur="markTouched(row.field.path)"
-          type="text"
-          :id="controlId(row.field.path, index)"
-          :aria-required="inputRequired(row)"
-          :aria-invalid="
-            fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-          "
-          :aria-describedby="describedBy(row)"
-        />
-        <textarea
-          v-else-if="isTextArea(row.field.editor)"
-          v-model="entry.value"
-          @blur="markTouched(row.field.path)"
-          rows="3"
-          :id="controlId(row.field.path, index)"
-          :aria-required="inputRequired(row)"
-          :aria-invalid="
-            fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-          "
-          :aria-describedby="describedBy(row)"
-        />
-        <input
-          v-else-if="isUri(row.field.editor)"
-          v-model="entry.value"
-          @blur="markTouched(row.field.path)"
-          type="text"
-          placeholder="Enter IRI"
-          :id="controlId(row.field.path, index)"
-          :aria-required="inputRequired(row)"
-          :aria-invalid="
-            fieldErrors(row.field.path).length ||
-            showRequiredHint(row) ||
-            (showInvalidUriHint(row) && isInvalidUriEntry(entry))
-              ? true
-              : undefined
-          "
-          :aria-describedby="describedBy(row, undefined, entry)"
-        />
-        <template v-else-if="isDatePicker(row.field.editor) && usesPicker(row.field.editor, entry)">
-          <DateInput
-            v-model="entry.value"
-            @blur="markTouched(row.field.path)"
-            type="date"
-            :id="controlId(row.field.path, index)"
-            :aria-describedby="
-              describedBy(
-                row,
-                dateZoneLabel(entry.value) ? `${controlId(row.field.path, index)}-zone` : undefined,
-              )
-            "
-            :aria-required="inputRequired(row)"
-            :aria-invalid="
-              fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-            "
-          />
-          <span
-            v-if="dateZoneLabel(entry.value)"
-            :id="`${controlId(row.field.path, index)}-zone`"
-            class="user-form__zone"
-            >{{ dateZoneLabel(entry.value) }}</span
-          >
-        </template>
-        <DateInput
-          v-else-if="isDateTimePicker(row.field.editor) && usesPicker(row.field.editor, entry)"
-          v-model="entry.value"
-          @blur="markTouched(row.field.path)"
-          type="datetime-local"
-          :id="controlId(row.field.path, index)"
-          :aria-required="inputRequired(row)"
-          :aria-invalid="
-            fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-          "
-          :aria-describedby="describedBy(row)"
-        />
-        <!-- A stored date no native picker can show is edited as text rather than shown blank. -->
-        <input
-          v-else
-          v-model="entry.value"
-          @blur="markTouched(row.field.path)"
-          type="text"
-          :id="controlId(row.field.path, index)"
-          :aria-required="inputRequired(row)"
-          :aria-invalid="
-            fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-          "
-          :aria-describedby="describedBy(row)"
-        />
-        <button
-          v-if="isChanged(entry)"
-          type="button"
-          class="text-link user-form__restore"
-          @click="restoreEntry(row.field, entry)"
-        >
-          Restore
-        </button>
-        <button
-          v-if="canRemoveFrom(row)"
-          type="button"
-          class="user-form__remove"
-          :aria-label="`Remove ${fieldLabel(row.field)}`"
-          @click="removeEntry(row.field, index)"
-        >
-          &times;
-        </button>
-      </div>
+          <div class="user-form__value" :class="{ 'user-form__value--changed': isChanged(entry) }">
+            <label
+              v-if="isGroup(row)"
+              :for="controlId(row.field.path, index)"
+              class="user-form__visually-hidden"
+            >
+              {{ fieldLabel(row.field) }} {{ index + 1 }}
+            </label>
+            <input
+              v-if="isUriField(row.field)"
+              v-model="entry.value"
+              @blur="markTouched(row.field.path)"
+              type="text"
+              placeholder="Enter IRI"
+              :id="controlId(row.field.path, index)"
+              :aria-required="inputRequired(row)"
+              :aria-invalid="
+                fieldErrors(row.field.path).length ||
+                showRequiredHint(row) ||
+                (showInvalidUriHint(row) && isInvalidUriEntry(entry))
+                  ? true
+                  : undefined
+              "
+              :aria-describedby="describedBy(row, undefined, entry)"
+            />
+            <input
+              v-else-if="isTextField(row.field.editor)"
+              v-model="entry.value"
+              @blur="markTouched(row.field.path)"
+              type="text"
+              :id="controlId(row.field.path, index)"
+              :aria-required="inputRequired(row)"
+              :aria-invalid="
+                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+              "
+              :aria-describedby="describedBy(row)"
+            />
+            <textarea
+              v-else-if="isTextArea(row.field.editor)"
+              v-model="entry.value"
+              @blur="markTouched(row.field.path)"
+              rows="3"
+              :id="controlId(row.field.path, index)"
+              :aria-required="inputRequired(row)"
+              :aria-invalid="
+                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+              "
+              :aria-describedby="describedBy(row)"
+            />
+            <template
+              v-else-if="isDatePicker(row.field.editor) && usesPicker(row.field.editor, entry)"
+            >
+              <DateInput
+                v-model="entry.value"
+                @blur="markTouched(row.field.path)"
+                type="date"
+                :id="controlId(row.field.path, index)"
+                :aria-describedby="
+                  describedBy(
+                    row,
+                    dateZoneLabel(entry.value)
+                      ? `${controlId(row.field.path, index)}-zone`
+                      : undefined,
+                  )
+                "
+                :aria-required="inputRequired(row)"
+                :aria-invalid="
+                  fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+                "
+              />
+              <span
+                v-if="dateZoneLabel(entry.value)"
+                :id="`${controlId(row.field.path, index)}-zone`"
+                class="user-form__zone"
+                >{{ dateZoneLabel(entry.value) }}</span
+              >
+            </template>
+            <DateInput
+              v-else-if="isDateTimePicker(row.field.editor) && usesPicker(row.field.editor, entry)"
+              v-model="entry.value"
+              @blur="markTouched(row.field.path)"
+              type="datetime-local"
+              :id="controlId(row.field.path, index)"
+              :aria-required="inputRequired(row)"
+              :aria-invalid="
+                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+              "
+              :aria-describedby="describedBy(row)"
+            />
+            <!-- A stored date no native picker can show is edited as text rather than shown blank. -->
+            <input
+              v-else
+              v-model="entry.value"
+              @blur="markTouched(row.field.path)"
+              type="text"
+              :id="controlId(row.field.path, index)"
+              :aria-required="inputRequired(row)"
+              :aria-invalid="
+                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
+              "
+              :aria-describedby="describedBy(row)"
+            />
+            <button
+              v-if="isChanged(entry)"
+              type="button"
+              class="text-link user-form__restore"
+              @click="restoreEntry(row.field, entry)"
+            >
+              Restore
+            </button>
+            <button
+              v-if="canRemoveFrom(row)"
+              type="button"
+              class="user-form__remove"
+              :aria-label="`Remove ${fieldLabel(row.field)}`"
+              @click="removeEntry(row.field, index)"
+            >
+              &times;
+            </button>
+          </div>
+        </component>
+      </component>
     </template>
 
     <p v-else class="user-form__pending">

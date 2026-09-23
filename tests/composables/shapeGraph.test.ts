@@ -441,6 +441,37 @@ describe('buildResourceGraph', () => {
     expect(graph.getObjects(originalTerm, EXTRA, null)).toEqual([])
   })
 
+  // FDP's own root shape pairs sh:nodeKind sh:IRI with a TextAreaEditor.
+  const iriUnderTextArea = parseTurtle(`
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix dash: <http://datashapes.org/dash#> .
+    <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+      sh:property [ sh:path <urn:endpoint>; sh:name "Endpoint"; sh:nodeKind sh:IRI;
+        dash:editor dash:TextAreaEditor ] .
+  `)
+
+  it('keeps an IRI an IRI when sh:nodeKind disagrees with the editor hint', () => {
+    const store = parseTurtle(`<${SUBJECT}> a <urn:Resource>; <urn:endpoint> <urn:api-docs> .`)
+    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [iriUnderTextArea]))
+    const values = seedValues(store, SUBJECT, fields)
+
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, 'urn:endpoint', null)).toMatchObject([
+      { termType: 'NamedNode', value: 'urn:api-docs' },
+    ])
+  })
+
+  it('validates the IRI of such a field, as it would for a URIEditor', () => {
+    const store = parseTurtle(`<${SUBJECT}> a <urn:Resource>; <urn:endpoint> <urn:api-docs> .`)
+    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [iriUnderTextArea]))
+    const values = seedValues(store, SUBJECT, fields)
+    ;(values['urn:endpoint']![0] as TermValue).value = 'not-an-iri'
+
+    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
+      'Endpoint must be a valid absolute IRI.',
+    )
+  })
+
   it('leaves a field untouched when its editor has no widget, even an IRI value', () => {
     const store = parseTurtle(`<${SUBJECT}> a <urn:Resource>; <urn:vocab> <urn:controlled-term> .`)
     const withUnbuilt = parseTurtle(`

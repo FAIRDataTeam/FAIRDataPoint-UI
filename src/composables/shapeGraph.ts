@@ -4,13 +4,13 @@ import type { EditableField } from './shaclUtils'
 import {
   isSupportedValueEditor,
   isNestedField,
+  isUriField,
   invalidUriMessage,
   requiredFieldMessage,
   type NestedValue,
   type NodeValues,
   type TermValue,
 } from './shapeForm'
-import { DASH_URI_EDITOR } from './vocabularies'
 import { predicateLabel } from './shaclFallback'
 import { isAbsoluteIri } from './urlUtils'
 import type { ValidationResult } from './validationReport'
@@ -100,7 +100,7 @@ function checkFieldConstraints(
     }
     // A namedNode built from non-absolute text (see termFor) would otherwise be silently
     // resolved into an unrelated absolute URI by the server's Turtle parser on save.
-    if (field.editor === DASH_URI_EDITOR && terms.some((term) => !isAbsoluteIri(term.value))) {
+    if (isUriField(field) && terms.some((term) => !isAbsoluteIri(term.value))) {
       results.push({
         focusNode: subject.termType === 'NamedNode' ? subject : undefined,
         path: namedNode(field.path),
@@ -206,9 +206,9 @@ function termKey(term: Term): string {
   return `${term.termType}:${term.value}`
 }
 
-/** An IRI for dash:URIEditor; otherwise a literal keeping the original's language or datatype. */
+/** An IRI for IRI-valued fields; otherwise a literal keeping the original's language or datatype. */
 function termFor(entry: TermValue, field: EditableField): NamedNode | Literal {
-  if (field.editor === DASH_URI_EDITOR) return namedNode(entry.value)
+  if (isUriField(field)) return namedNode(entry.value)
   const original = entry.originalTerm
   const kind = original?.termType === 'Literal' ? original.language || original.datatype : null
   return literal(entry.value, kind ?? (field.datatype ? namedNode(field.datatype) : undefined))

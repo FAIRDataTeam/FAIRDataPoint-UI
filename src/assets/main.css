@@ -1421,6 +1421,19 @@ fieldset.user-form__group {
   margin-top: var(--fdp-space-3);
 }
 
+/* Repeatable values read as a list; the marker needs the item itself, so the flex row sits inside. */
+.user-form__values {
+  margin: 0;
+}
+
+ul.user-form__values {
+  padding-left: var(--fdp-space-5);
+}
+
+.user-form__values > * + * {
+  margin-top: var(--fdp-space-3);
+}
+
 .user-form__value > .user-form__nested {
   flex: 1;
 }
