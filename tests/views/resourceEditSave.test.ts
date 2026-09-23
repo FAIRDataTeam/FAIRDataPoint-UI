@@ -65,8 +65,13 @@ function mountView() {
     validationResults: ValidationResult[]
     unattachedResults: ValidationResult[]
     formValues: Record<string, { value: string }[]>
+    showRdf: boolean
+    rdfPreview: string
+    rdfPreviewError: string | null
   }>(ResourceEditView)
 }
+
+const flushPromises = () => new Promise<void>((resolve) => setTimeout(resolve, 0))
 
 const report = `@prefix sh: <http://www.w3.org/ns/shacl#> .
   [] a sh:ValidationReport; sh:result [ sh:focusNode <urn:resource>;
@@ -256,4 +261,78 @@ describe('save confirmation', () => {
       }
     },
   )
+})
+
+describe('RDF preview', () => {
+  it('does not compute a preview until opened', async () => {
+    const view = mountView()
+    try {
+      await flushPromises()
+      expect(view.state.rdfPreview).toBe('')
+      expect(view.state.rdfPreviewError).toBeNull()
+    } finally {
+      view.unmount()
+    }
+  })
+
+  it('identifies the missing required field', async () => {
+    const view = mountView()
+    try {
+      view.state.showRdf = true
+      await flushPromises()
+      expect(view.state.rdfPreviewError).toBe('Title is required.')
+      expect(view.state.rdfPreview).toBe('')
+    } finally {
+      view.unmount()
+    }
+  })
+
+  it('reports an invalid IRI and recovers when it is corrected', async () => {
+    const view = mountView()
+    try {
+      view.state.formValues['urn:title']![0]!.value = 'Draft title'
+      view.state.formValues['urn:link']![0]!.value = 'not-an-iri'
+      view.state.showRdf = true
+      await flushPromises()
+      expect(view.state.rdfPreviewError).toBe('Link must be a valid absolute IRI.')
+      view.state.formValues['urn:link']![0]!.value = 'urn:example'
+      await flushPromises()
+      expect(view.state.rdfPreviewError).toBeNull()
+      expect(view.state.rdfPreview).toContain('urn:example')
+    } finally {
+      view.unmount()
+    }
+  })
+
+  it('serializes the current draft once required fields are filled', async () => {
+    const view = mountView()
+    try {
+      view.state.formValues['urn:title']![0]!.value = 'Draft title'
+      view.state.formValues['urn:link']![0]!.value = 'urn:example'
+      view.state.showRdf = true
+      await flushPromises()
+      expect(view.state.rdfPreviewError).toBeNull()
+      expect(view.state.rdfPreview).toContain('Draft title')
+    } finally {
+      view.unmount()
+    }
+  })
+
+  it('updates the preview as the draft changes while still open', async () => {
+    const view = mountView()
+    try {
+      view.state.formValues['urn:title']![0]!.value = 'First title'
+      view.state.formValues['urn:link']![0]!.value = 'urn:example'
+      view.state.showRdf = true
+      await flushPromises()
+      expect(view.state.rdfPreview).toContain('First title')
+
+      view.state.formValues['urn:title']![0]!.value = 'Second title'
+      await flushPromises()
+      expect(view.state.rdfPreview).toContain('Second title')
+      expect(view.state.rdfPreview).not.toContain('First title')
+    } finally {
+      view.unmount()
+    }
+  })
 })

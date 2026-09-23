@@ -16,9 +16,11 @@ import { putResource, ResourceSaveError } from '../composables/fdpApi'
 import { internalHref } from '../composables/urlUtils'
 import { parseValidationReport, type ValidationResult } from '../composables/validationReport'
 import { predicateLabel } from '../composables/shaclFallback'
+import RawContentPanel from '../components/RawContentPanel.vue'
 import ShapeFormFields from '../components/ShapeFormFields.vue'
 import IconSpinner from '../assets/icons/spinner.svg?component'
 import IconCheck from '../assets/icons/check.svg?component'
+import IconChevronDown from '../assets/icons/chevron-down.svg?component'
 
 const router = useRouter()
 const {
@@ -126,6 +128,29 @@ function clearSaveErrors() {
 }
 
 watch(formValues, clearSaveErrors, { deep: true })
+
+const showRdf = ref(false)
+const rdfPreview = ref('')
+const rdfPreviewError = ref<string | null>(null)
+/** Recomputed only while the preview is open, from the same draft graph save() would send. */
+async function updateRdfPreview() {
+  if (!showRdf.value || !currentNodeUri.value) return
+  try {
+    const graph = buildResourceGraph(
+      quads.value,
+      currentNodeUri.value,
+      editableFields.value,
+      formValues.value,
+    )
+    rdfPreview.value = await serializeTurtle(graph)
+    rdfPreviewError.value = null
+  } catch (err) {
+    rdfPreviewError.value =
+      err instanceof RequiredFieldsError ? err.message : 'Unable to preview the RDF.'
+  }
+}
+
+watch([formValues, showRdf], updateRdfPreview, { deep: true })
 
 /** Rebuilds the resource's graph from the form state and saves it, then returns to the view page. */
 async function save() {
@@ -239,6 +264,31 @@ async function save() {
               :subject-uri="currentNodeUri ?? undefined"
               :validation-results="validationResults"
             />
+
+            <div class="action-row">
+              <button
+                type="button"
+                :class="['action-button', { 'action-button--active': showRdf }]"
+                :title="showRdf ? 'Close RDF preview' : 'Show RDF preview below'"
+                :aria-expanded="showRdf"
+                aria-controls="rdf-preview"
+                @click="showRdf = !showRdf"
+              >
+                View RDF
+                <IconChevronDown
+                  class="action-button__chevron"
+                  :class="{ 'action-button__chevron--open': showRdf }"
+                />
+              </button>
+            </div>
+            <RawContentPanel
+              v-show="showRdf"
+              id="rdf-preview"
+              :text="showRdf ? rdfPreview : ''"
+              language="turtle"
+              :message="rdfPreviewError"
+            />
+
             <div class="action-row">
               <button type="submit" class="user-form__btn" :disabled="saving">
                 {{ saved ? 'Saved' : saving ? 'Saving…' : 'Save' }}

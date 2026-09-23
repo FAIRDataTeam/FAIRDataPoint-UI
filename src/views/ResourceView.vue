@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import 'prismjs/themes/prism.css'
 import { useResourceView } from '../composables/useResourceView'
 import { useMeta } from '../composables/useMeta'
 import { useMembers } from '../composables/useMembers'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
+import RawContentPanel from '../components/RawContentPanel.vue'
 import OwnersBadge from '../components/OwnersBadge.vue'
 import IconEdit from '../assets/icons/edit.svg?component'
 
@@ -53,14 +53,7 @@ watch(resourceUri, (newUri, oldUri) => {
   showGraph.value = graphStateByUri.get(newUri) ?? false
 })
 
-const {
-  shownFormat,
-  rawLoading,
-  rawContentHeight,
-  startRawResize,
-  highlightedRawContent,
-  toggleFormat,
-} = useRawFormat(resourceUri, rawTurtle)
+const { shownFormat, rawLoading, rawContent, toggleFormat } = useRawFormat(resourceUri, rawTurtle)
 </script>
 
 <template>
@@ -419,15 +412,12 @@ const {
 
         <RdfGraph v-if="showGraph && currentNodeUri" :graph="quads" />
 
-        <section v-if="shownFormat" class="raw-section">
-          <p v-if="rawLoading" class="raw-loading">Loading…</p>
-          <pre
-            v-else
-            class="raw-content language-none"
-            :style="{ height: rawContentHeight + 'px' }"
-          ><code v-html="highlightedRawContent" /></pre>
-          <div class="raw-resize-handle" @mousedown.prevent="startRawResize" />
-        </section>
+        <RawContentPanel
+          v-show="shownFormat"
+          :text="rawContent"
+          :language="shownFormat === 'json-ld' ? 'json' : 'turtle'"
+          :message="rawLoading ? 'Loading…' : null"
+        />
       </template>
     </main>
   </div>
