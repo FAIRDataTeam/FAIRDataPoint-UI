@@ -56,6 +56,7 @@ export const DCAT_CONTACT_POINT = `${DCAT}contactPoint`
 export const DCAT_KEYWORD = `${DCAT}keyword`
 export const DCAT_ACCESS_URL = `${DCAT}accessURL`
 export const DCAT_DOWNLOAD_URL = `${DCAT}downloadURL`
+export const DCAT_FORMAT = `${DCAT}format`
 export const DCAT_MEDIA_TYPE = `${DCAT}mediaType`
 export const DCAT_BYTE_SIZE = `${DCAT}byteSize`
 export const DCAT_PACKAGE_FORMAT = `${DCAT}packageFormat`
