@@ -14,6 +14,7 @@
   --fdp-color-alert-bg: #f8d7da;
   --fdp-color-alert-text: #842029;
   --fdp-color-danger: #842029;
+  --fdp-color-danger-soft: #d03545;
 
   --fdp-page-width: 980px;
   --fdp-radius-sm: 6px;
@@ -293,7 +294,7 @@ a:hover {
 /* A sh:node sub-record, set off from the field it belongs to. */
 .user-form__nested {
   margin-left: var(--fdp-space-4);
-  padding-left: var(--fdp-space-4);
+  padding: var(--fdp-space-2) 0 var(--fdp-space-2) var(--fdp-space-4);
   border-left: 2px solid var(--fdp-color-border);
 }
 
@@ -1351,7 +1352,7 @@ pre.raw-content code {
 }
 
 .user-form__group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--fdp-space-8);
 }
 
 .user-form__fields {
@@ -1410,11 +1411,17 @@ fieldset.user-form__group {
   margin-bottom: var(--fdp-space-1);
 }
 
-/* One value of a field, with its remove button when the field is a list. */
+/* One field value with its associated controls. */
 .user-form__value {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--fdp-space-3);
+}
+
+/* A multi-row textarea or a nested record keeps its buttons at the top, not centred
+   against content taller than a single line. */
+.user-form__value--top {
+  align-items: flex-start;
 }
 
 .user-form__value + .user-form__value {
@@ -1427,7 +1434,7 @@ fieldset.user-form__group {
 }
 
 ul.user-form__values {
-  padding-left: var(--fdp-space-5);
+  padding-left: var(--fdp-space-8);
 }
 
 .user-form__values > * + * {
@@ -1453,13 +1460,17 @@ ul.user-form__values {
 
 .user-form__remove {
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
   border: none;
   background: none;
-  padding: 0 var(--fdp-space-1);
-  color: var(--fdp-color-danger);
-  font-size: var(--fdp-font-size-lg);
-  line-height: 1.4;
+  padding: var(--fdp-space-1);
+  color: var(--fdp-color-danger-soft);
   cursor: pointer;
+}
+
+.user-form__remove:hover {
+  color: var(--fdp-color-danger);
 }
 
 .user-form__restore {
@@ -1470,8 +1481,11 @@ ul.user-form__values {
 }
 
 .user-form__add {
-  margin-top: var(--fdp-space-2);
-  font-size: var(--fdp-font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-2);
+  margin-top: var(--fdp-space-3);
+  text-decoration: none;
 }
 
 .user-form__group textarea {
@@ -1486,7 +1500,7 @@ ul.user-form__values {
   border: none;
   border-bottom: 2px solid #ababab;
   outline: none;
-  padding: var(--fdp-space-1) 0;
+  padding: var(--fdp-space-2) 0;
   font-size: 1rem;
   background: none;
   color: var(--fdp-color-text);

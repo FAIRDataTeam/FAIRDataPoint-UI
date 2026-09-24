@@ -647,4 +647,59 @@ describe('ShapeFormFields IRI fields', () => {
     expect(html).toContain('<ul class="user-form__values"')
     expect((html.match(/<li>/g) ?? []).length).toBe(2)
   })
+
+  it('centers its Remove button against the bullet, unlike a genuine textarea', async () => {
+    // A field this shape actually renders as a textarea keeps its button top-aligned;
+    // endpoint (rendered as a single-line IRI input despite the same editor hint)
+    // must not inherit that, or its Remove button rides above the bullet it sits beside.
+    const subject = 'urn:resource'
+    const store = parseTurtle(`
+      <${subject}> a <urn:Resource>; <urn:endpoint> <urn:api-docs>, <urn:swagger>;
+        <urn:note> "one", "two" .
+    `)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <urn:endpoint>; sh:name "Endpoint"; sh:nodeKind sh:IRI;
+          dash:editor dash:TextAreaEditor ],
+        [ sh:path <urn:note>; sh:name "Note"; dash:editor dash:TextAreaEditor ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    const html = await renderToString(
+      createSSRApp({ render: () => h(ShapeFormFields, { fields, values }) }),
+    )
+    const rowFor = (value: string) =>
+      html
+        .slice(0, html.indexOf(`value="${value}"`))
+        .match(/<div class="user-form__value[^>]*"/g)!
+        .at(-1)!
+    expect(rowFor('urn:api-docs')).toBe('<div class="user-form__value"')
+    expect(rowFor('one')).toContain('user-form__value--top')
+  })
+})
+
+describe('ShapeFormFields nested Remove alignment', () => {
+  it('keeps a removable nested record top-aligned, not centred against its sub-form', async () => {
+    const subject = 'urn:resource'
+    const store = parseTurtle(`
+      <${subject}> a <urn:Resource>; <urn:publisher> [ <urn:name> "Agent" ] .
+    `)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <urn:publisher>; sh:name "Publisher"; sh:node <urn:Agent>;
+          dash:editor dash:BlankNodeEditor ] .
+      <urn:Agent> a sh:NodeShape;
+        sh:property [ sh:path <urn:name>; sh:maxCount 1; dash:editor dash:TextFieldEditor ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    const html = await renderToString(
+      createSSRApp({ render: () => h(ShapeFormFields, { fields, values }) }),
+    )
+    expect(html).toContain('class="user-form__value user-form__value--top"')
+  })
 })

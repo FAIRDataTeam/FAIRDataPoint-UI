@@ -18,6 +18,8 @@ import {
 } from '../composables/shapeForm'
 import { predicateLabel } from '../composables/shaclFallback'
 import { compactUri } from '../composables/rdfUtils'
+import IconPlus from '../assets/icons/plus.svg?component'
+import IconX from '../assets/icons/x.svg?component'
 import { isAbsoluteIri } from '../composables/urlUtils'
 import { dateZoneLabel, toDateInputValue, toDateTimeInputValue } from '../composables/formUtils'
 import {
@@ -208,7 +210,7 @@ const inputRequired = (row: Row) =>
       <div
         v-for="(nestedValue, index) in row.entries"
         :key="nestedEntryKey(nestedValue)"
-        class="user-form__value"
+        class="user-form__value user-form__value--top"
       >
         <div class="user-form__nested">
           <ShapeFormFields
@@ -229,7 +231,7 @@ const inputRequired = (row: Row) =>
           :aria-label="`Remove ${fieldLabel(row.field)}`"
           @click="removeEntry(row.field, index)"
         >
-          &times;
+          <IconX />
         </button>
       </div>
     </template>
@@ -241,7 +243,15 @@ const inputRequired = (row: Row) =>
           v-for="(entry, index) in row.entries"
           :key="`${row.field.path}.${index}`"
         >
-          <div class="user-form__value" :class="{ 'user-form__value--changed': isChanged(entry) }">
+          <div
+            class="user-form__value"
+            :class="{
+              'user-form__value--changed': isChanged(entry),
+              // sh:nodeKind sh:IRI outranks a TextAreaEditor hint (see isUriField); only a
+              // field actually rendered as a textarea should keep its buttons top-aligned.
+              'user-form__value--top': isTextArea(row.field.editor) && !isUriField(row.field),
+            }"
+          >
             <label
               v-if="isGroup(row)"
               :for="controlId(row.field.path, index)"
@@ -358,7 +368,7 @@ const inputRequired = (row: Row) =>
               :aria-label="`Remove ${fieldLabel(row.field)}`"
               @click="removeEntry(row.field, index)"
             >
-              &times;
+              <IconX />
             </button>
           </div>
         </component>
@@ -391,7 +401,8 @@ const inputRequired = (row: Row) =>
       class="text-link user-form__add"
       @click="addEntry(row.field)"
     >
-      + Add
+      <IconPlus />
+      Add
     </button>
   </component>
 </template>
