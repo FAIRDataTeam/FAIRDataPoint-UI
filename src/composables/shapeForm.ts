@@ -9,6 +9,7 @@ import {
   DASH_TEXT_FIELD_EDITOR,
   DASH_URI_EDITOR,
   SHACL_IRI,
+  SHACL_LITERAL,
 } from './vocabularies'
 import type { EditableField } from './shaclUtils'
 
@@ -67,6 +68,11 @@ export function isSupportedValueEditor(editor: string): boolean {
  */
 export function isUriField(field: Pick<EditableField, 'editor' | 'nodeKind'>): boolean {
   return field.editor === DASH_URI_EDITOR || field.nodeKind === SHACL_IRI
+}
+
+/** A blank hint for a field the shape explicitly types as a plain RDF literal. */
+export function isLiteralField(field: Pick<EditableField, 'nodeKind'>): boolean {
+  return field.nodeKind === SHACL_LITERAL
 }
 
 /**

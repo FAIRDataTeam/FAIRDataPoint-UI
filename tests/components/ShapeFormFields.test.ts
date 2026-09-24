@@ -680,6 +680,50 @@ describe('ShapeFormFields IRI fields', () => {
   })
 })
 
+describe('ShapeFormFields literal fields', () => {
+  // FDP's root shape declares sh:nodeKind sh:Literal on both dct:title and dct:description.
+  async function renderLiteral(editor: 'TextFieldEditor' | 'TextAreaEditor') {
+    const subject = 'urn:resource'
+    const path = 'urn:title'
+    const store = parseTurtle(`<${subject}> a <urn:Resource> .`)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <${path}>; sh:name "Title"; sh:nodeKind sh:Literal;
+          dash:editor dash:${editor} ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    return renderToString(createSSRApp({ render: () => h(ShapeFormFields, { fields, values }) }))
+  }
+
+  it.each(['TextFieldEditor', 'TextAreaEditor'] as const)(
+    'hints at a plain literal for %s',
+    async (editor) => {
+      const html = await renderLiteral(editor)
+      expect(html).toContain('placeholder="Enter a literal"')
+    },
+  )
+
+  it('adds no placeholder when the shape gives no nodeKind hint', async () => {
+    const subject = 'urn:resource'
+    const store = parseTurtle(`<${subject}> a <urn:Resource> .`)
+    const shapes = parseTurtle(`
+      @prefix sh: <http://www.w3.org/ns/shacl#> .
+      @prefix dash: <http://datashapes.org/dash#> .
+      <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+        sh:property [ sh:path <urn:title>; sh:name "Title"; dash:editor dash:TextFieldEditor ] .
+    `)
+    const fields = getEditableFields(getShapePropertyMap(store, subject, [shapes]))
+    const values = seedValues(store, subject, fields)
+    const html = await renderToString(
+      createSSRApp({ render: () => h(ShapeFormFields, { fields, values }) }),
+    )
+    expect(html).not.toContain('placeholder')
+  })
+})
+
 describe('ShapeFormFields nested Remove alignment', () => {
   it('keeps a removable nested record top-aligned, not centred against its sub-form', async () => {
     const subject = 'urn:resource'

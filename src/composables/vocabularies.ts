@@ -109,6 +109,7 @@ export const SHACL_RESULT_PATH = `${SH}resultPath`
 export const SHACL_RESULT_MESSAGE = `${SH}resultMessage`
 export const SHACL_SOURCE_CONSTRAINT_COMPONENT = `${SH}sourceConstraintComponent`
 export const SHACL_IRI = `${SH}IRI`
+export const SHACL_LITERAL = `${SH}Literal`
 export const SHACL_NODE_SHAPE = `${SH}NodeShape`
 export const SHACL_TARGET_CLASS = `${SH}targetClass`
 export const SHACL_PROPERTY = `${SH}property`

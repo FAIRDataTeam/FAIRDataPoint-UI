@@ -9,6 +9,7 @@ import {
   isSupportedValueEditor,
   isNestedField,
   isUriField,
+  isLiteralField,
   invalidUriMessage,
   requiredFieldMessage,
   type FieldValue,
@@ -107,6 +108,10 @@ function describedBy(row: Row, extra?: string, entry?: TermValue): string | unde
 }
 
 const fieldLabel = (field: EditableField) => field.label ?? predicateLabel(field.path)
+
+/** Describes whether the shape expects an IRI or a plain literal. */
+const placeholderFor = (field: EditableField) =>
+  isUriField(field) ? 'Enter IRI' : isLiteralField(field) ? 'Enter a literal' : undefined
 const isRequired = (field: EditableField) => (field.minCount ?? 0) > 0
 const cardinality = (field: EditableField) => `${field.minCount ?? 0}..${field.maxCount ?? '*'}`
 
@@ -264,7 +269,7 @@ const inputRequired = (row: Row) =>
               v-model="entry.value"
               @blur="markTouched(row.field.path)"
               type="text"
-              placeholder="Enter IRI"
+              :placeholder="placeholderFor(row.field)"
               :id="controlId(row.field.path, index)"
               :aria-required="inputRequired(row)"
               :aria-invalid="
@@ -281,6 +286,7 @@ const inputRequired = (row: Row) =>
               v-model="entry.value"
               @blur="markTouched(row.field.path)"
               type="text"
+              :placeholder="placeholderFor(row.field)"
               :id="controlId(row.field.path, index)"
               :aria-required="inputRequired(row)"
               :aria-invalid="
@@ -293,6 +299,7 @@ const inputRequired = (row: Row) =>
               v-model="entry.value"
               @blur="markTouched(row.field.path)"
               rows="3"
+              :placeholder="placeholderFor(row.field)"
               :id="controlId(row.field.path, index)"
               :aria-required="inputRequired(row)"
               :aria-invalid="
