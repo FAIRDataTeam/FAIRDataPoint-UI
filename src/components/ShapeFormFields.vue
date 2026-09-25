@@ -10,6 +10,7 @@ import {
   isNestedField,
   isUriField,
   isLiteralField,
+  fieldLabel,
   invalidUriMessage,
   requiredFieldMessage,
   type FieldValue,
@@ -17,7 +18,6 @@ import {
   type NestedValue,
   type TermValue,
 } from '../composables/shapeForm'
-import { predicateLabel } from '../composables/shaclFallback'
 import { compactUri } from '../composables/rdfUtils'
 import IconPlus from '../assets/icons/plus.svg?component'
 import IconX from '../assets/icons/x.svg?component'
@@ -106,8 +106,6 @@ function describedBy(row: Row, extra?: string, entry?: TermValue): string | unde
       .join(' ') || undefined
   )
 }
-
-const fieldLabel = (field: EditableField) => field.label ?? predicateLabel(field.path)
 
 /** Describes whether the shape expects an IRI or a plain literal. */
 const placeholderFor = (field: EditableField) =>

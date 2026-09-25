@@ -6,6 +6,7 @@ import {
   emptyValues,
   isNestedField,
   fieldsSignature,
+  fieldLabel,
   type TermValue,
   type NestedValue,
 } from '../../src/composables/shapeForm'
@@ -287,5 +288,19 @@ describe('emptyValues', () => {
       [ISSUED]: [{ value: '' }],
       [PUBLISHER]: [{ values: { [FOAF_NAME]: [{ value: '' }] } }],
     })
+  })
+})
+
+describe('fieldLabel', () => {
+  it("capitalizes a shape's sh:name without changing the rest", () => {
+    expect(fieldLabel({ label: 'version', path: 'http://www.w3.org/ns/dcat#version' })).toBe(
+      'Version',
+    )
+    expect(fieldLabel({ label: 'FASTA ID', path: 'urn:whatever' })).toBe('FASTA ID')
+    expect(fieldLabel({ label: '', path: 'urn:whatever' })).toBe('')
+  })
+
+  it('falls back to the predicate label when the shape gives no sh:name', () => {
+    expect(fieldLabel({ label: null, path: 'http://www.w3.org/ns/dcat#format' })).toBe('Format')
   })
 })

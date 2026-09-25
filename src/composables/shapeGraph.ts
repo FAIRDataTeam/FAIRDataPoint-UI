@@ -5,13 +5,13 @@ import {
   isSupportedValueEditor,
   isNestedField,
   isUriField,
+  fieldLabel,
   invalidUriMessage,
   requiredFieldMessage,
   type NestedValue,
   type NodeValues,
   type TermValue,
 } from './shapeForm'
-import { predicateLabel } from './shaclFallback'
 import { isAbsoluteIri } from './urlUtils'
 import type { ValidationResult } from './validationReport'
 
@@ -88,7 +88,7 @@ function checkFieldConstraints(
   for (const field of fields) {
     const nested = isNestedField(field)
     if (!nested && !isSupportedValueEditor(field.editor)) continue
-    const label = parentLabel + (field.label ?? predicateLabel(field.path))
+    const label = parentLabel + fieldLabel(field)
     const terms = store.getObjects(subject, namedNode(field.path), null)
     const minimum = field.minCount ?? 0
     if (terms.length < minimum) {

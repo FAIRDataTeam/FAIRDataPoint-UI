@@ -11,6 +11,7 @@ import {
   SHACL_IRI,
   SHACL_LITERAL,
 } from './vocabularies'
+import { predicateLabel } from './shaclFallback'
 import type { EditableField } from './shaclUtils'
 
 /** Editable text plus the original RDF term, retained unchanged for later persistence. */
@@ -73,6 +74,16 @@ export function isUriField(field: Pick<EditableField, 'editor' | 'nodeKind'>): b
 /** A blank hint for a field the shape explicitly types as a plain RDF literal. */
 export function isLiteralField(field: Pick<EditableField, 'nodeKind'>): boolean {
   return field.nodeKind === SHACL_LITERAL
+}
+
+/** Uppercases the first letter without changing intentional capitalization in the rest. */
+function capitalize(text: string): string {
+  return text.charAt(0).toUpperCase() + text.slice(1)
+}
+
+/** Uses the shape name when present, capitalized consistently with predicate-derived labels. */
+export function fieldLabel(field: Pick<EditableField, 'label' | 'path'>): string {
+  return field.label !== null ? capitalize(field.label) : predicateLabel(field.path)
 }
 
 /**
