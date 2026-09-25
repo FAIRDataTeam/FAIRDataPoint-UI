@@ -107,6 +107,20 @@ function describedBy(row: Row, extra?: string, entry?: TermValue): string | unde
   )
 }
 
+/** Shared control attributes, including errors specific to this entry. */
+function controlAttributes(row: Row, index: number, entry: TermValue, extraDescription?: string) {
+  const invalid =
+    fieldErrors(row.field.path).length > 0 ||
+    showRequiredHint(row) ||
+    (showInvalidUriHint(row) && isInvalidUriEntry(entry))
+  return {
+    id: controlId(row.field.path, index),
+    'aria-required': inputRequired(row),
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': describedBy(row, extraDescription, entry),
+  }
+}
+
 /** Describes whether the shape expects an IRI or a plain literal. */
 const placeholderFor = (field: EditableField) =>
   isUriField(field) ? 'Enter IRI' : isLiteralField(field) ? 'Enter a literal' : undefined
@@ -268,16 +282,7 @@ const inputRequired = (row: Row) =>
               @blur="markTouched(row.field.path)"
               type="text"
               :placeholder="placeholderFor(row.field)"
-              :id="controlId(row.field.path, index)"
-              :aria-required="inputRequired(row)"
-              :aria-invalid="
-                fieldErrors(row.field.path).length ||
-                showRequiredHint(row) ||
-                (showInvalidUriHint(row) && isInvalidUriEntry(entry))
-                  ? true
-                  : undefined
-              "
-              :aria-describedby="describedBy(row, undefined, entry)"
+              v-bind="controlAttributes(row, index, entry)"
             />
             <input
               v-else-if="isTextField(row.field.editor)"
@@ -285,12 +290,7 @@ const inputRequired = (row: Row) =>
               @blur="markTouched(row.field.path)"
               type="text"
               :placeholder="placeholderFor(row.field)"
-              :id="controlId(row.field.path, index)"
-              :aria-required="inputRequired(row)"
-              :aria-invalid="
-                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-              "
-              :aria-describedby="describedBy(row)"
+              v-bind="controlAttributes(row, index, entry)"
             />
             <textarea
               v-else-if="isTextArea(row.field.editor)"
@@ -298,12 +298,7 @@ const inputRequired = (row: Row) =>
               @blur="markTouched(row.field.path)"
               rows="3"
               :placeholder="placeholderFor(row.field)"
-              :id="controlId(row.field.path, index)"
-              :aria-required="inputRequired(row)"
-              :aria-invalid="
-                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-              "
-              :aria-describedby="describedBy(row)"
+              v-bind="controlAttributes(row, index, entry)"
             />
             <template
               v-else-if="isDatePicker(row.field.editor) && usesPicker(row.field.editor, entry)"
@@ -312,18 +307,15 @@ const inputRequired = (row: Row) =>
                 v-model="entry.value"
                 @blur="markTouched(row.field.path)"
                 type="date"
-                :id="controlId(row.field.path, index)"
-                :aria-describedby="
-                  describedBy(
+                v-bind="
+                  controlAttributes(
                     row,
+                    index,
+                    entry,
                     dateZoneLabel(entry.value)
                       ? `${controlId(row.field.path, index)}-zone`
                       : undefined,
                   )
-                "
-                :aria-required="inputRequired(row)"
-                :aria-invalid="
-                  fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
                 "
               />
               <span
@@ -338,12 +330,7 @@ const inputRequired = (row: Row) =>
               v-model="entry.value"
               @blur="markTouched(row.field.path)"
               type="datetime-local"
-              :id="controlId(row.field.path, index)"
-              :aria-required="inputRequired(row)"
-              :aria-invalid="
-                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-              "
-              :aria-describedby="describedBy(row)"
+              v-bind="controlAttributes(row, index, entry)"
             />
             <!-- A stored date no native picker can show is edited as text rather than shown blank. -->
             <input
@@ -351,12 +338,7 @@ const inputRequired = (row: Row) =>
               v-model="entry.value"
               @blur="markTouched(row.field.path)"
               type="text"
-              :id="controlId(row.field.path, index)"
-              :aria-required="inputRequired(row)"
-              :aria-invalid="
-                fieldErrors(row.field.path).length || showRequiredHint(row) ? true : undefined
-              "
-              :aria-describedby="describedBy(row)"
+              v-bind="controlAttributes(row, index, entry)"
             />
             <button
               v-if="isChanged(entry)"
@@ -384,6 +366,7 @@ const inputRequired = (row: Row) =>
       {{ compactUri(row.field.editor) }} is not built yet ({{ cardinality(row.field) }})
     </p>
 
+    <!-- Validation errors suppress local hints through the predicates above. -->
     <p v-if="showRequiredHint(row)" :id="hintId(row.field.path)" class="user-form__hint">
       {{ requiredHintText(row) }}
     </p>
