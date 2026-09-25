@@ -298,12 +298,6 @@ a:hover {
   border-left: 2px solid var(--fdp-color-border);
 }
 
-.user-form__note {
-  margin: 0 0 var(--fdp-space-6);
-  color: var(--fdp-color-muted);
-  font-style: italic;
-}
-
 .text-link {
   border: none;
   background: none;
