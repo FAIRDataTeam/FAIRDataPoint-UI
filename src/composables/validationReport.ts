@@ -61,18 +61,25 @@ export function parseValidationReport(body: string): ValidationResult[] {
 }
 
 /** Matches named subjects and simple property paths; report-local blank-node labels cannot identify form records. */
+export function validationResultMatchesField(
+  result: ValidationResult,
+  subjectUri: string | undefined,
+  path: string,
+): boolean {
+  return (
+    result.focusNode?.termType === 'NamedNode' &&
+    result.focusNode.value === subjectUri &&
+    result.path?.termType === 'NamedNode' &&
+    result.path.value === path
+  )
+}
+
 export function fieldValidationMessages(
   results: ValidationResult[],
   subjectUri: string | undefined,
   path: string,
 ): string[] {
   return results
-    .filter(
-      (result) =>
-        result.focusNode?.termType === 'NamedNode' &&
-        result.focusNode.value === subjectUri &&
-        result.path?.termType === 'NamedNode' &&
-        result.path.value === path,
-    )
+    .filter((result) => validationResultMatchesField(result, subjectUri, path))
     .flatMap((result) => result.messages)
 }

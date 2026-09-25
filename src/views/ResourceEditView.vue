@@ -14,7 +14,11 @@ import { buildResourceGraph, RequiredFieldsError } from '../composables/shapeGra
 import { serializeTurtle } from '../composables/rdfUtils'
 import { putResource, ResourceSaveError } from '../composables/fdpApi'
 import { internalHref } from '../composables/urlUtils'
-import { parseValidationReport, type ValidationResult } from '../composables/validationReport'
+import {
+  parseValidationReport,
+  validationResultMatchesField,
+  type ValidationResult,
+} from '../composables/validationReport'
 import { predicateLabel } from '../composables/shaclFallback'
 import RawContentPanel from '../components/RawContentPanel.vue'
 import ShapeFormFields from '../components/ShapeFormFields.vue'
@@ -86,12 +90,7 @@ function isShownInline(
   fields: EditableField[],
   values: NodeValues,
 ): boolean {
-  if (result.focusNode?.termType !== 'NamedNode' || result.path?.termType !== 'NamedNode')
-    return false
-  if (
-    result.focusNode.value === subjectUri &&
-    fields.some((field) => field.path === result.path?.value)
-  )
+  if (fields.some((field) => validationResultMatchesField(result, subjectUri, field.path)))
     return true
   return fields.some(
     (field) =>
