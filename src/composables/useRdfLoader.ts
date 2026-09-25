@@ -36,8 +36,12 @@ export function useRdfLoader() {
   const childSummaries = ref<Record<string, ChildSummary>>({})
   const parentSummaries = ref<Record<string, ChildSummary>>({})
 
+  // Identifies the newest load, so a slower older one cannot overwrite its result.
+  let generation = 0
+
   /** Fetches and parses the primary resource, populating quads and rawTurtle. */
   async function loadResource(uri: string) {
+    const current = ++generation
     loading.value = true
     error.value = null
     quads.value = new Store()
@@ -45,12 +49,15 @@ export function useRdfLoader() {
 
     try {
       const rawText = await fetchRdfTurtle(uri)
+      if (current !== generation) return
       quads.value = parseTurtle(rawText)
       rawTurtle.value = rawText
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Unknown error'
+      if (current === generation) {
+        error.value = err instanceof Error ? err.message : 'Unknown error'
+      }
     } finally {
-      loading.value = false
+      if (current === generation) loading.value = false
     }
   }
 
