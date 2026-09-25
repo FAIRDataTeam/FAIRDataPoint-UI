@@ -1500,7 +1500,7 @@ ul.user-form__values {
   border: none;
   border-bottom: 2px solid #ababab;
   outline: none;
-  padding: var(--fdp-space-2) 0;
+  padding: var(--fdp-space-1) 0 var(--fdp-space-2);
   font-size: 1rem;
   background: none;
   color: var(--fdp-color-text);
