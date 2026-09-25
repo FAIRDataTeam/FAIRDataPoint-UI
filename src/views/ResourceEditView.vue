@@ -44,7 +44,7 @@ const backTo = computed(() =>
 
 const formValues = useShapeForm(quads, currentNodeUri, editableFields)
 const { canEdit, loading: accessLoading, error: accessError } = useMeta(resource)
-const showForm = computed(
+const readyToEdit = computed(
   () =>
     !loading.value &&
     !shapesLoading.value &&
@@ -52,9 +52,9 @@ const showForm = computed(
     !error.value &&
     !shapesError.value &&
     !accessError.value &&
-    canEdit.value &&
-    editableFields.value.length > 0,
+    canEdit.value,
 )
+const showForm = computed(() => readyToEdit.value && editableFields.value.length > 0)
 
 const saving = ref(false)
 const saved = ref(false)
@@ -154,18 +154,7 @@ watch([formValues, showRdf], updateRdfPreview, { deep: true })
 
 /** Rebuilds the resource's graph from the form state and saves it, then returns to the view page. */
 async function save() {
-  if (
-    saving.value ||
-    !currentNodeUri.value ||
-    !canEdit.value ||
-    accessLoading.value ||
-    accessError.value ||
-    loading.value ||
-    shapesLoading.value ||
-    error.value ||
-    shapesError.value
-  )
-    return
+  if (!readyToEdit.value || saving.value || !currentNodeUri.value) return
   clearSaveErrors()
   saved.value = false
   saving.value = true
