@@ -107,11 +107,13 @@ export function compactUri(uri: string): string {
 /** Returns the first literal value for a subject/predicate pair. */
 export function getFirstLiteral(
   store: Store,
-  subjectUri: string,
+  subject: Term | string,
   predicate: string,
 ): string | null {
+  // Accept a Term so blank-node subjects, such as a SHACL property shape, can be read too.
+  const subjectTerm = typeof subject === 'string' ? DataFactory.namedNode(subject) : subject
   const obj = store
-    .getObjects(DataFactory.namedNode(subjectUri), DataFactory.namedNode(predicate), null)
+    .getObjects(subjectTerm, DataFactory.namedNode(predicate), null)
     .find((o) => o.termType === 'Literal')
   return obj ? formatLiteralValue(obj as Literal) : null
 }

@@ -1,5 +1,5 @@
 import { DataFactory } from 'n3'
-import type { Literal, Store, Term } from 'n3'
+import type { Store, Term } from 'n3'
 import {
   DASH_EDITOR,
   DASH_VIEWER,
@@ -16,7 +16,7 @@ import {
   SHACL_PROPERTY,
   SHACL_TARGET_CLASS,
 } from './vocabularies'
-import { formatLiteralValue, getNodeRefs } from './rdfUtils'
+import { getFirstLiteral, getNodeRefs } from './rdfUtils'
 
 /** SHACL constraints and UI hints for one property path. */
 export type ShapeProperty = {
@@ -41,14 +41,6 @@ export type EditableField = Omit<ShapeProperty, 'nested'> & {
   nested: EditableField[]
 }
 
-/** Returns the first literal's formatted value, accepting named or blank-node subjects. */
-function getObjectLiteral(store: Store, subject: Term, predicate: string): string | null {
-  const obj = store
-    .getObjects(subject, DataFactory.namedNode(predicate), null)
-    .find((o) => o.termType === 'Literal')
-  return obj ? formatLiteralValue(obj as Literal) : null
-}
-
 /** Returns the first named-node object's IRI. */
 function getObjectNamedNode(store: Store, subject: Term, predicate: string): string | null {
   return (
@@ -60,7 +52,7 @@ function getObjectNamedNode(store: Store, subject: Term, predicate: string): str
 
 /** Parses a SHACL cardinality literal; absent or unparseable means no constraint. */
 function readCount(shapeGraph: Store, propTerm: Term, predicate: string): number | null {
-  const raw = getObjectLiteral(shapeGraph, propTerm, predicate)
+  const raw = getFirstLiteral(shapeGraph, propTerm, predicate)
   if (raw === null) return null
   const count = parseInt(raw, 10)
   return Number.isNaN(count) ? null : count
@@ -74,11 +66,11 @@ function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | n
   const path = getObjectNamedNode(shapeGraph, propTerm, SHACL_PATH)
   if (!path) return null
 
-  const orderStr = getObjectLiteral(shapeGraph, propTerm, SHACL_ORDER)
+  const orderStr = getFirstLiteral(shapeGraph, propTerm, SHACL_ORDER)
 
   return {
     path,
-    label: getObjectLiteral(shapeGraph, propTerm, SHACL_NAME),
+    label: getFirstLiteral(shapeGraph, propTerm, SHACL_NAME),
     order: orderStr ? parseInt(orderStr, 10) : Number.MAX_SAFE_INTEGER,
     viewer: getObjectNamedNode(shapeGraph, propTerm, DASH_VIEWER),
     editor: getObjectNamedNode(shapeGraph, propTerm, DASH_EDITOR),
