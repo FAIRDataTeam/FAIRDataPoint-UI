@@ -3,12 +3,8 @@ import { computed, nextTick, onUnmounted, ref, useTemplateRef, watch } from 'vue
 import { useRouter } from 'vue-router'
 import { useResourceView } from '../composables/useResourceView'
 import { useMeta } from '../composables/useMeta'
-import {
-  isNestedField,
-  useShapeForm,
-  type NestedValue,
-  type NodeValues,
-} from '../composables/shapeForm'
+import { isNestedField, type NestedValue, type NodeValues } from '../composables/shapeForm'
+import { useShapeForm } from '../composables/useShapeForm'
 import type { EditableField } from '../composables/shaclUtils'
 import { buildResourceGraph, RequiredFieldsError } from '../composables/shapeGraph'
 import { serializeTurtle } from '../composables/rdfUtils'
