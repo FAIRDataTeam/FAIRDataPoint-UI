@@ -183,11 +183,11 @@ async function save() {
       rawResponse.value = err.body
       validationResults.value = parseValidationReport(err.body)
       saveError.value = validationResults.value.length
-        ? 'The resource could not be saved. Please review the validation errors.'
+        ? 'Unable to save the resource.'
         : `Unable to save changes (HTTP ${err.status}).`
     } else if (err instanceof RequiredFieldsError) {
       validationResults.value = err.results
-      saveError.value = 'The resource could not be saved. Please review the validation errors.'
+      saveError.value = 'Unable to save the resource.'
     } else {
       saveError.value = err instanceof Error ? err.message : 'Unable to save changes.'
     }
@@ -239,8 +239,8 @@ async function save() {
             </li>
           </ul>
           <details v-if="rawResponse">
-            <summary>Response details</summary>
-            <pre class="validation-response">{{ rawResponse }}</pre>
+            <summary>View report</summary>
+            <RawContentPanel :text="rawResponse" language="turtle" />
           </details>
         </div>
 

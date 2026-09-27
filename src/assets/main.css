@@ -6,6 +6,7 @@
   --fdp-color-muted: #8b949e;
   --fdp-color-link: #005ea8;
   --fdp-color-link-hover: #004b86;
+  --fdp-color-link-soft: #2b82c4;
   --fdp-color-border: #d9dde2;
   --fdp-color-card: #f3f3f3;
   --fdp-color-card-badge: #b8d5ef;
@@ -566,9 +567,12 @@ pre.raw-content code {
   color: var(--fdp-color-text);
 }
 
+/* Matches the bottom margin a <p> alert gets by default, so a <div> one is not left flush
+   against what follows it. */
 .alert {
   padding: 0.75rem 1rem;
   border-radius: var(--fdp-radius-sm);
+  margin-bottom: var(--fdp-space-4);
 }
 
 .alert-danger {
@@ -1412,6 +1416,23 @@ fieldset.user-form__group {
   gap: var(--fdp-space-3);
 }
 
+/* The row carries the underline, so it runs beneath the Restore and Remove controls the way a
+   date field's own calendar button sits inside its border. A record's row holds a nested form
+   rather than a control of its own, so :has() keeps the line off it. */
+.user-form__value:has(> input, > textarea) {
+  border-bottom: 2px solid #ababab;
+}
+
+.user-form__group .user-form__value > input,
+.user-form__group .user-form__value > textarea {
+  border-bottom: none;
+}
+
+.user-form__value--changed:has(> input, > textarea),
+.user-form__value:focus-within {
+  border-bottom-color: var(--fdp-color-link);
+}
+
 /* A multi-row textarea or a nested record keeps its buttons at the top, not centred
    against content taller than a single line. */
 .user-form__value--top {
@@ -1461,6 +1482,7 @@ ul.user-form__values {
   padding: var(--fdp-space-1);
   color: var(--fdp-color-danger-soft);
   cursor: pointer;
+  position: relative;
 }
 
 .user-form__remove:hover {
@@ -1469,9 +1491,43 @@ ul.user-form__values {
 
 .user-form__restore {
   flex-shrink: 0;
-  align-self: center;
-  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: var(--fdp-space-1);
+  color: var(--fdp-color-link-soft);
+  cursor: pointer;
+  position: relative;
+}
+
+/* Centred under its control, unlike a title attribute, which the browser places by the pointer. */
+.user-form__tip {
+  position: absolute;
+  top: calc(100% + var(--fdp-space-1));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: max-content;
+  padding: var(--fdp-space-1) var(--fdp-space-2);
+  border-radius: var(--fdp-radius-sm);
+  background: var(--fdp-color-text);
+  color: var(--fdp-color-surface);
   font-size: var(--fdp-font-size-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease-in;
+}
+
+.user-form__restore:hover .user-form__tip,
+.user-form__restore:focus-visible .user-form__tip,
+.user-form__remove:hover .user-form__tip,
+.user-form__remove:focus-visible .user-form__tip {
+  opacity: 1;
+}
+
+.user-form__restore:hover {
+  color: var(--fdp-color-link);
 }
 
 .user-form__add {
@@ -1480,6 +1536,13 @@ ul.user-form__values {
   gap: var(--fdp-space-2);
   margin-top: var(--fdp-space-3);
   text-decoration: none;
+  font-weight: 400;
+}
+
+/* Puts the + where the bullets are, so Add reads as one more item, for a bulleted list only:
+   a single-valued field has no such indent to match. */
+ul.user-form__values ~ .user-form__add {
+  margin-left: var(--fdp-space-2);
 }
 
 .user-form__group textarea {
@@ -1503,11 +1566,6 @@ ul.user-form__values {
 .user-form__group input:focus,
 .user-form__group select:focus,
 .user-form__group textarea:focus {
-  border-bottom-color: var(--fdp-color-link);
-}
-
-.user-form__value--changed input,
-.user-form__value--changed textarea {
   border-bottom-color: var(--fdp-color-link);
 }
 
@@ -1547,9 +1605,4 @@ ul.user-form__values {
 .user-form__btn--secondary:hover:not(:disabled) {
   background: #f3f8fd;
   color: var(--fdp-color-link-hover);
-}
-
-.validation-response {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }

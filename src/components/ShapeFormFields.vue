@@ -20,6 +20,7 @@ import {
 } from '../composables/shapeForm'
 import { compactUri } from '../composables/rdfUtils'
 import IconPlus from '../assets/icons/plus.svg?component'
+import IconRotateCcw from '../assets/icons/rotate-ccw.svg?component'
 import IconX from '../assets/icons/x.svg?component'
 import { isAbsoluteIri } from '../composables/urlUtils'
 import { dateZoneLabel, toDateInputValue, toDateTimeInputValue } from '../composables/formUtils'
@@ -249,6 +250,7 @@ const inputRequired = (row: Row) =>
           @click="removeEntry(row.field, index)"
         >
           <IconX />
+          <span class="user-form__tip" aria-hidden="true">Remove</span>
         </button>
       </div>
     </template>
@@ -343,10 +345,12 @@ const inputRequired = (row: Row) =>
             <button
               v-if="isChanged(entry)"
               type="button"
-              class="text-link user-form__restore"
+              class="user-form__restore"
+              :aria-label="`Restore ${fieldLabel(row.field)}`"
               @click="restoreEntry(row.field, entry)"
             >
-              Restore
+              <IconRotateCcw />
+              <span class="user-form__tip" aria-hidden="true">Restore</span>
             </button>
             <button
               v-if="canRemoveFrom(row)"
@@ -356,6 +360,7 @@ const inputRequired = (row: Row) =>
               @click="removeEntry(row.field, index)"
             >
               <IconX />
+              <span class="user-form__tip" aria-hidden="true">Remove</span>
             </button>
           </div>
         </component>

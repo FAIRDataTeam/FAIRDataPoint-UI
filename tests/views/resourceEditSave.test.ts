@@ -159,9 +159,7 @@ describe('resource save errors', () => {
       await view.state.save()
       await nextTick()
       expect(putResource).not.toHaveBeenCalled()
-      expect(view.state.saveError).toBe(
-        'The resource could not be saved. Please review the validation errors.',
-      )
+      expect(view.state.saveError).toBe('Unable to save the resource.')
       expect(view.state.validationResults).toMatchObject([
         {
           path: { termType: 'NamedNode', value: 'urn:title' },
