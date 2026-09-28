@@ -14,7 +14,6 @@ vi.mock('../../src/composables/fdpApi', () => ({
   getResourceOperation: vi.fn(),
 }))
 vi.mock('../../src/composables/apiDocs', () => ({
-  apiDocsReady: Promise.resolve(),
   isOperationOffered: vi.fn(),
 }))
 vi.mock('../../src/composables/useAuth', async () => {
