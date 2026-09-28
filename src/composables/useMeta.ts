@@ -1,6 +1,7 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { fetchMeta, getResourceOperation, type ResourceIdentifier } from './fdpApi'
 import { isOperationOffered } from './apiDocs'
+import { withDeadline } from './fetchUtils'
 import { useAuth } from './useAuth'
 
 type EditAccess = {
@@ -12,28 +13,17 @@ type EditAccess = {
 const ACCESS_TIMEOUT_MS = 10_000
 
 async function loadEditAccess(resource: ResourceIdentifier): Promise<EditAccess> {
-  const controller = new AbortController()
-  let timer: ReturnType<typeof setTimeout> | undefined
-  try {
-    // The deadline also bounds shared API discovery, which this request must not abort.
-    const [meta, { operationId }] = await Promise.race([
-      Promise.all([fetchMeta(resource, controller.signal), getResourceOperation(resource, 'put')]),
-      new Promise<never>((_resolve, reject) => {
-        timer = setTimeout(() => {
-          const error = new Error('Checking edit access timed out. Please try again.')
-          controller.abort(error)
-          reject(error)
-        }, ACCESS_TIMEOUT_MS)
-      }),
-    ])
-    const membership = meta.member?.membership
-    return {
-      membershipName: membership?.name ?? null,
-      hasWrite: membership?.permissions.some((permission) => permission.code === 'W') ?? false,
-      operationId,
-    }
-  } finally {
-    clearTimeout(timer)
+  // The deadline includes shared API discovery, while the signal only aborts the metadata request.
+  const [meta, { operationId }] = await withDeadline(
+    ACCESS_TIMEOUT_MS,
+    'Checking edit access timed out. Please try again.',
+    (signal) => Promise.all([fetchMeta(resource, signal), getResourceOperation(resource, 'put')]),
+  )
+  const membership = meta.member?.membership
+  return {
+    membershipName: membership?.name ?? null,
+    hasWrite: membership?.permissions.some((permission) => permission.code === 'W') ?? false,
+    operationId,
   }
 }
 

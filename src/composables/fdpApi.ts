@@ -1,5 +1,5 @@
 import { bindOperation, type OperationBinding } from './apiDocs'
-import { authHeaders, request } from './fetchUtils'
+import { authHeaders, request, withDeadline } from './fetchUtils'
 
 /** Identifies a typed resource; null explicitly identifies the FDP root. */
 export type ResourceIdentifier = { resourceType: string; id: string } | null
@@ -164,38 +164,28 @@ export async function putResource(
   turtle: string,
   timeoutMs = 60_000,
 ): Promise<void> {
-  const controller = new AbortController()
-  const { signal } = controller
-  let timer: ReturnType<typeof setTimeout> | undefined
-  const timeout = new Promise<never>((_resolve, reject) => {
-    timer = setTimeout(() => {
-      const error = new Error('The save request timed out. Check the resource before retrying.')
-      controller.abort(error)
-      reject(error)
-    }, timeoutMs)
-  })
-  const save = async () => {
-    const { operationId, pathParams } = await getResourceOperation(resource, 'put', signal)
-    const { url, method } = await bindOperation(operationId, pathParams)
-    signal.throwIfAborted()
-    const response = await fetch(url, {
-      method,
-      headers: authHeaders({ 'Content-Type': 'text/turtle' }),
-      body: turtle,
-      signal,
-    })
-    if (!response.ok) {
-      const body = await response.text().catch(() => '')
+  await withDeadline(
+    timeoutMs,
+    'The save request timed out. Check the resource before retrying.',
+    async (signal) => {
+      // Passing the signal takes a private lookup (see fetchRootDefinition), so a save timing out
+      // cannot cancel the shared one a concurrent read may be awaiting.
+      const { operationId, pathParams } = await getResourceOperation(resource, 'put', signal)
+      const { url, method } = await bindOperation(operationId, pathParams)
       signal.throwIfAborted()
-      throw new ResourceSaveError(response.status, body)
-    }
-  }
-  try {
-    // Stop waiting on timeout without cancelling API discovery shared by other requests.
-    await Promise.race([save(), timeout])
-  } finally {
-    clearTimeout(timer)
-  }
+      const response = await fetch(url, {
+        method,
+        headers: authHeaders({ 'Content-Type': 'text/turtle' }),
+        body: turtle,
+        signal,
+      })
+      if (!response.ok) {
+        const body = await response.text().catch(() => '')
+        signal.throwIfAborted()
+        throw new ResourceSaveError(response.status, body)
+      }
+    },
+  )
 }
 
 /** Fetches a single user's profile. */

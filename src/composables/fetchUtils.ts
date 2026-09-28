@@ -10,6 +10,28 @@ export function authHeaders(headers: Record<string, string> = {}): Record<string
   return authToken ? { ...headers, Authorization: `Bearer ${authToken}` } : headers
 }
 
+/** Bounds an operation and aborts the work that uses the provided signal when time expires. */
+export async function withDeadline<T>(
+  timeoutMs: number,
+  message: string,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(() => {
+        const error = new Error(message)
+        controller.abort(error)
+        reject(error)
+      }, timeoutMs)
+    })
+    return await Promise.race([run(controller.signal), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 /** Performs a fetch with the bearer token attached, throwing a basic error on non-2xx responses. */
 export async function request(
   url: string,

@@ -1,8 +1,43 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { request } from '../../src/composables/fetchUtils'
+import { request, withDeadline } from '../../src/composables/fetchUtils'
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
+})
+
+describe('withDeadline', () => {
+  it('returns the result and clears its timer when work completes', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+
+    await expect(
+      withDeadline(100, 'Too slow', async (currentSignal) => {
+        signal = currentSignal
+        return 42
+      }),
+    ).resolves.toBe(42)
+
+    expect(signal?.aborted).toBe(false)
+    expect(vi.getTimerCount()).toBe(0)
+  })
+
+  it('rejects with the supplied message and aborts the signal at the deadline', async () => {
+    vi.useFakeTimers()
+    let signal: AbortSignal | undefined
+    const result = expect(
+      withDeadline(100, 'Too slow', (currentSignal) => {
+        signal = currentSignal
+        return new Promise(() => {})
+      }),
+    ).rejects.toThrow('Too slow')
+
+    await vi.advanceTimersByTimeAsync(100)
+    await result
+    expect(signal?.aborted).toBe(true)
+    expect(signal?.reason).toEqual(new Error('Too slow'))
+    expect(vi.getTimerCount()).toBe(0)
+  })
 })
 
 /** A response whose body reports whether it was cancelled. */
