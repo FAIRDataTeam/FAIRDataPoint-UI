@@ -5,6 +5,7 @@ import {
   isSupportedValueEditor,
   isNestedField,
   isUriField,
+  isLiteralField,
   fieldLabel,
   invalidUriMessage,
   requiredFieldMessage,
@@ -206,10 +207,18 @@ function termKey(term: Term): string {
   return `${term.termType}:${term.value}`
 }
 
-/** An IRI for IRI-valued fields; otherwise a literal keeping the original's language or datatype. */
+/**
+ * Uses IRIs for IRI fields and preserves untouched stored IRIs. Other edited IRIs stay IRIs
+ * when absolute and not constrained to literals. Literals retain their language or datatype.
+ */
 function termFor(entry: TermValue, field: EditableField): NamedNode | Literal {
   if (isUriField(field)) return namedNode(entry.value)
   const original = entry.originalTerm
+  if (original?.termType === 'NamedNode') {
+    if (entry.value === original.value) return original
+    const typedAsLiteral = isLiteralField(field) || field.datatype !== null
+    if (!typedAsLiteral && isAbsoluteIri(entry.value)) return namedNode(entry.value)
+  }
   const kind = original?.termType === 'Literal' ? original.language || original.datatype : null
   return literal(entry.value, kind ?? (field.datatype ? namedNode(field.datatype) : undefined))
 }

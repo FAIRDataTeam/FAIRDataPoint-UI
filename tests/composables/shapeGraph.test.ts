@@ -513,3 +513,91 @@ describe('buildResourceGraph', () => {
     expect(graph.getObjects('urn:other', 'urn:p', null)).toMatchObject([{ value: 'urn:o' }])
   })
 })
+
+// TITLE has a text editor and no sh:nodeKind, so the shape types it neither way.
+describe('a field the shape types neither as IRI nor literal', () => {
+  const withIri = `<${SUBJECT}> a <urn:Resource>; <${TITLE}> <http://example.org/one> .`
+
+  it('leaves an untouched IRI as the very same term', () => {
+    const { store, fields, values } = setup(withIri)
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, TITLE, null)).toMatchObject([
+      { termType: 'NamedNode', value: 'http://example.org/one' },
+    ])
+  })
+
+  it('keeps an IRI an IRI when edited to another absolute one', () => {
+    const { store, fields, values } = setup(withIri)
+    ;(values[TITLE]![0] as TermValue).value = 'http://example.org/two'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, TITLE, null)).toMatchObject([
+      { termType: 'NamedNode', value: 'http://example.org/two' },
+    ])
+  })
+
+  it('writes a literal once the text is no longer an absolute IRI', () => {
+    const { store, fields, values } = setup(withIri)
+    ;(values[TITLE]![0] as TermValue).value = 'Just a title'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, TITLE, null)).toMatchObject([
+      { termType: 'Literal', value: 'Just a title' },
+    ])
+  })
+
+  it('still writes a literal when nothing was stored before', () => {
+    const { store, fields, values } = setup(`<${SUBJECT}> a <urn:Resource> .`)
+    ;(values[TITLE]![0] as TermValue).value = 'http://example.org/typed-in'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, TITLE, null)).toMatchObject([{ termType: 'Literal' }])
+  })
+})
+
+describe('a field the shape does type as a literal', () => {
+  const LITERAL_PATH = 'urn:typed'
+  const literalShapes = parseTurtle(`
+    @prefix sh: <http://www.w3.org/ns/shacl#> .
+    @prefix dash: <http://datashapes.org/dash#> .
+    <urn:Shape> a sh:NodeShape; sh:targetClass <urn:Resource>;
+      sh:property [ sh:path <${LITERAL_PATH}>; sh:maxCount 1; sh:nodeKind sh:Literal;
+        dash:editor dash:TextFieldEditor ] .
+  `)
+
+  it('writes a literal when sh:nodeKind sh:Literal stored an IRI that is then edited', () => {
+    const store = parseTurtle(
+      `<${SUBJECT}> a <urn:Resource>; <${LITERAL_PATH}> <http://example.org/one> .`,
+    )
+    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [literalShapes]))
+    const values = seedValues(store, SUBJECT, fields)
+    ;(values[LITERAL_PATH]![0] as TermValue).value = 'http://example.org/two'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, LITERAL_PATH, null)).toMatchObject([
+      { termType: 'Literal', value: 'http://example.org/two' },
+    ])
+  })
+
+  it('writes a literal when sh:datatype stored an IRI that is then edited', () => {
+    const store = parseTurtle(`<${SUBJECT}> a <urn:Resource>; <${ISSUED}> <http://example.org/a> .`)
+    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [shapes]))
+    const values = seedValues(store, SUBJECT, fields)
+    ;(values[ISSUED]![0] as TermValue).value = 'http://example.org/b'
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, ISSUED, null)).toMatchObject([
+      {
+        termType: 'Literal',
+        datatype: { value: 'http://www.w3.org/2001/XMLSchema#dateTime' },
+      },
+    ])
+  })
+
+  it('still leaves such an IRI alone while it is untouched', () => {
+    const store = parseTurtle(
+      `<${SUBJECT}> a <urn:Resource>; <${LITERAL_PATH}> <http://example.org/one> .`,
+    )
+    const fields = getEditableFields(getShapePropertyMap(store, SUBJECT, [literalShapes]))
+    const values = seedValues(store, SUBJECT, fields)
+    const graph = buildResourceGraph(store, SUBJECT, fields, values)
+    expect(graph.getObjects(SUBJECT, LITERAL_PATH, null)).toMatchObject([
+      { termType: 'NamedNode', value: 'http://example.org/one' },
+    ])
+  })
+})
