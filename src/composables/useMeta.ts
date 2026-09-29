@@ -32,11 +32,10 @@ function permitsEdit(hasWrite: boolean, operationId: string, admin: boolean): bo
 }
 
 /**
- * The current user's membership on the resource (null for the root), whether they may write it,
- * and whether editing is possible at all. Admins may write everything; others need W in their
- * membership on this exact resource. canEdit additionally requires the resource's meta to have
- * loaded successfully (even for admins) and the backend to currently advertise a put operation for
- * it, since permission alone doesn't guarantee the endpoint exists.
+ * The current user's membership on the resource (null for the root) and whether editing is
+ * possible. Admins may edit everything; others need W in their membership on this exact resource.
+ * Editing also requires the resource's meta to load successfully and the backend to advertise a
+ * put operation for it, since permission alone doesn't guarantee the endpoint exists.
  */
 export function useMeta(resource: Ref<ResourceIdentifier>) {
   const { isLoggedIn, isAdmin } = useAuth()
@@ -47,7 +46,6 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
   // Only the operation ID is stored; whether it's offered is read reactively below so a later
   // refreshApiDocs() (e.g. after a resource-definition change) updates canEdit without a re-check.
   const putOperationId = ref<string | null>(null)
-  const canWrite = computed(() => isLoggedIn.value && (isAdmin.value || hasWrite.value))
   const canEdit = computed(
     () =>
       isLoggedIn.value &&
@@ -88,7 +86,7 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
     { immediate: true },
   )
 
-  return { membershipName, canWrite, canEdit, loading, error }
+  return { membershipName, canEdit, loading, error }
 }
 
 /** Checks route access; request failures propagate so they are not mistaken for denial. */

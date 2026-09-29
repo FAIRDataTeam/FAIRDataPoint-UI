@@ -45,20 +45,19 @@ afterEach(() => {
 })
 
 describe('useMeta', () => {
-  it('shows nothing and cannot write for a logged out visitor, without requesting meta', async () => {
-    const { membershipName, canWrite, loading, error } = scope.run(() => useMeta(ref(null)))!
+  it('shows nothing for a logged out visitor, without requesting meta', async () => {
+    const { membershipName, loading, error } = scope.run(() => useMeta(ref(null)))!
     await flushPromises()
     expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(false)
     expect(loading.value).toBe(false)
     expect(error.value).toBeNull()
     expect(fetchMeta).not.toHaveBeenCalled()
   })
 
-  it('shows the membership and can write with W in it', async () => {
+  it('shows the membership returned by meta', async () => {
     auth.isLoggedIn.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['C', 'W', 'D', 'A']))
-    const { membershipName, canWrite } = scope.run(() =>
+    const { membershipName } = scope.run(() =>
       useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
     )!
     await flushPromises()
@@ -68,32 +67,25 @@ describe('useMeta', () => {
       expect.any(AbortSignal),
     )
     expect(membershipName.value).toBe('Owner')
-    expect(canWrite.value).toBe(true)
   })
 
   it('can edit only when it can write and the put operation is advertised', async () => {
     auth.isLoggedIn.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
     vi.mocked(isOperationOffered).mockReturnValue(true)
-    const { canWrite, canEdit } = scope.run(() =>
-      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
-    )!
+    const { canEdit } = scope.run(() => useMeta(ref({ resourceType: 'catalog', id: 'abc' })))!
     await flushPromises()
     expect(getResourceOperation).toHaveBeenCalledWith({ resourceType: 'catalog', id: 'abc' }, 'put')
-    expect(canWrite.value).toBe(true)
     expect(canEdit.value).toBe(true)
     // canEdit is a lazy computed: isOperationOffered is only called once something reads it.
     expect(isOperationOffered).toHaveBeenCalledWith('putCatalog')
   })
 
-  it('cannot edit when it can write but the put operation is not advertised', async () => {
+  it('cannot edit with W when the put operation is not advertised', async () => {
     auth.isLoggedIn.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
-    const { canWrite, canEdit } = scope.run(() =>
-      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
-    )!
+    const { canEdit } = scope.run(() => useMeta(ref({ resourceType: 'catalog', id: 'abc' })))!
     await flushPromises()
-    expect(canWrite.value).toBe(true)
     expect(canEdit.value).toBe(false)
   })
 
@@ -146,9 +138,8 @@ describe('useMeta', () => {
     auth.isAdmin.value = true
     vi.mocked(fetchMeta).mockRejectedValue(new Error('HTTP 403'))
     vi.mocked(isOperationOffered).mockReturnValue(true)
-    const { canWrite, canEdit, loading, error } = scope.run(() => useMeta(ref(null)))!
+    const { canEdit, loading, error } = scope.run(() => useMeta(ref(null)))!
     await flushPromises()
-    expect(canWrite.value).toBe(true)
     expect(canEdit.value).toBe(false)
     expect(loading.value).toBe(false)
     expect(error.value).toBe('HTTP 403')
@@ -196,55 +187,40 @@ describe('useMeta', () => {
     expect(canEdit.value).toBe(false)
   })
 
-  it('shows the membership but cannot write without W', async () => {
+  it('shows the membership but cannot edit without W', async () => {
     auth.isLoggedIn.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith('Data Provider', ['C']))
-    const { membershipName, canWrite } = scope.run(() =>
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { membershipName, canEdit } = scope.run(() =>
       useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
     )!
     await flushPromises()
     expect(membershipName.value).toBe('Data Provider')
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
   })
 
-  it('shows nothing and cannot write without a membership', async () => {
+  it('shows nothing and cannot edit without a membership', async () => {
     auth.isLoggedIn.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith(null))
-    const { membershipName, canWrite, loading, error } = scope.run(() => useMeta(ref(null)))!
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { membershipName, canEdit, loading, error } = scope.run(() => useMeta(ref(null)))!
     await flushPromises()
     expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
     expect(loading.value).toBe(false)
     expect(error.value).toBeNull()
   })
 
-  it('lets an admin write without a membership, still showing none', async () => {
+  it('lets an admin edit without a membership, still showing none', async () => {
     auth.isLoggedIn.value = true
     auth.isAdmin.value = true
     vi.mocked(fetchMeta).mockResolvedValue(metaWith(null))
-    const { membershipName, canWrite } = scope.run(() => useMeta(ref(null)))!
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { membershipName, canEdit } = scope.run(() => useMeta(ref(null)))!
     await flushPromises()
     expect(fetchMeta).toHaveBeenCalledWith(null, expect.any(AbortSignal))
     expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(true)
-  })
-
-  it('shows nothing when meta cannot be fetched, but an admin can still write', async () => {
-    auth.isLoggedIn.value = true
-    vi.mocked(fetchMeta).mockRejectedValue(new Error('HTTP 403'))
-    const { membershipName, canWrite, loading, error } = scope.run(() =>
-      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
-    )!
-    await flushPromises()
-    expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(false)
-    expect(loading.value).toBe(false)
-    expect(error.value).toBe('HTTP 403')
-
-    auth.isAdmin.value = true
-    await nextTick()
-    expect(canWrite.value).toBe(true)
-    expect(error.value).toBe('HTTP 403')
+    expect(canEdit.value).toBe(true)
   })
 
   it('keeps a new request loading when an older request fails', async () => {
@@ -253,9 +229,10 @@ describe('useMeta', () => {
     const second = Promise.withResolvers<ResourceMeta>()
     vi.mocked(fetchMeta).mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
     const resource = ref({ resourceType: 'catalog', id: 'first' })
-    const { loading, error, canWrite } = scope.run(() => useMeta(resource))!
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { loading, error, canEdit } = scope.run(() => useMeta(resource))!
     expect(loading.value).toBe(true)
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
 
     resource.value = { resourceType: 'catalog', id: 'second' }
     await nextTick()
@@ -268,14 +245,14 @@ describe('useMeta', () => {
     await flushPromises()
     expect(loading.value).toBe(false)
     expect(error.value).toBeNull()
-    expect(canWrite.value).toBe(true)
+    expect(canEdit.value).toBe(true)
   })
 
   it('clears a pending check on logout and ignores its later failure', async () => {
     auth.isLoggedIn.value = true
     const pending = Promise.withResolvers<ResourceMeta>()
     vi.mocked(fetchMeta).mockReturnValue(pending.promise)
-    const { loading, error, canWrite } = scope.run(() => useMeta(ref(null)))!
+    const { loading, error, canEdit } = scope.run(() => useMeta(ref(null)))!
     expect(loading.value).toBe(true)
 
     auth.isLoggedIn.value = false
@@ -284,12 +261,13 @@ describe('useMeta', () => {
     pending.reject(new Error('Request failed after logout'))
     await flushPromises()
     expect(error.value).toBeNull()
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
   })
 
   it('re-checks on login and clears on logout', async () => {
     vi.mocked(fetchMeta).mockResolvedValue(metaWith('Owner', ['W']))
-    const { membershipName, canWrite } = scope.run(() =>
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { membershipName, canEdit } = scope.run(() =>
       useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
     )!
     await flushPromises()
@@ -298,12 +276,12 @@ describe('useMeta', () => {
     auth.isLoggedIn.value = true
     await flushPromises()
     expect(membershipName.value).toBe('Owner')
-    expect(canWrite.value).toBe(true)
+    expect(canEdit.value).toBe(true)
 
     auth.isLoggedIn.value = false
     await nextTick()
     expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
   })
 
   it('ignores a slower result for a resource that is no longer current', async () => {
@@ -313,14 +291,15 @@ describe('useMeta', () => {
       .mockReturnValueOnce(new Promise((resolve) => (resolveFirst = resolve)))
       .mockResolvedValueOnce(metaWith(null))
     const resource = ref({ resourceType: 'catalog', id: 'first' })
-    const { membershipName, canWrite } = scope.run(() => useMeta(resource))!
+    vi.mocked(isOperationOffered).mockReturnValue(true)
+    const { membershipName, canEdit } = scope.run(() => useMeta(resource))!
 
     resource.value = { resourceType: 'catalog', id: 'second' }
     await flushPromises()
     resolveFirst(metaWith('Owner', ['W']))
     await flushPromises()
     expect(membershipName.value).toBeNull()
-    expect(canWrite.value).toBe(false)
+    expect(canEdit.value).toBe(false)
   })
 })
 
