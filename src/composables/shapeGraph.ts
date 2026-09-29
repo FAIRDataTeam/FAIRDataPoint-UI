@@ -46,17 +46,10 @@ export function satisfiesLeafMinCount(field: EditableField, entries: TermValue[]
   return terms.length >= (field.minCount ?? 0)
 }
 
-/** Carries local validation failures in the same format as parsed server results. */
-export class RequiredFieldsError extends Error {
-  constructor(readonly results: ValidationResult[]) {
-    super(results[0]!.messages[0])
-    this.name = 'RequiredFieldsError'
-  }
-}
-
 /**
  * Applies supported form edits to a copy of the graph, preserving literal language and datatype.
- * Throws if supported fields lack required values.
+ * An incomplete draft builds freely, so a preview can show work in progress; call
+ * validateResourceGraph before saving.
  */
 export function buildResourceGraph(
   store: Store,
@@ -69,10 +62,21 @@ export function buildResourceGraph(
   const removed: RemovedRecord[] = []
   replaceFields(graph, subject, fields, values, removed)
   removeUnreferencedRecords(graph, subject, removed)
-  const results: ValidationResult[] = []
-  checkFieldConstraints(graph, subject, fields, results)
-  if (results.length) throw new RequiredFieldsError(results)
   return graph
+}
+
+/**
+ * Local failures for a built graph, in the same format as parsed server results. Reads the
+ * outgoing graph rather than the form, so omitted blanks and duplicate values are already resolved.
+ */
+export function validateResourceGraph(
+  graph: Store,
+  subjectUri: string,
+  fields: EditableField[],
+): ValidationResult[] {
+  const results: ValidationResult[] = []
+  checkFieldConstraints(graph, namedNode(subjectUri), fields, results)
+  return results
 }
 
 /**

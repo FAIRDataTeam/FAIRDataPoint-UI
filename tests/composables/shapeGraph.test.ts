@@ -2,13 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { DataFactory } from 'n3'
 import { parseTurtle } from '../../src/composables/rdfUtils'
 import { getEditableFields, getShapePropertyMap } from '../../src/composables/shaclUtils'
+import type { EditableField } from '../../src/composables/shaclUtils'
+import type { Store } from 'n3'
 import {
   seedValues,
   type NestedValue,
   type NodeValues,
   type TermValue,
 } from '../../src/composables/shapeForm'
-import { buildResourceGraph, RequiredFieldsError } from '../../src/composables/shapeGraph'
+import { buildResourceGraph, validateResourceGraph } from '../../src/composables/shapeGraph'
 
 const SUBJECT = 'urn:resource'
 const TITLE = 'urn:title'
@@ -42,6 +44,14 @@ function setup(resourceTurtle: string) {
   return { store, fields, values }
 }
 
+/** Builds the draft graph, then validates it the way save() does. */
+function validationFor(store: Store, fields: EditableField[], values: NodeValues) {
+  return validateResourceGraph(buildResourceGraph(store, SUBJECT, fields, values), SUBJECT, fields)
+}
+
+const messagesFor = (store: Store, fields: EditableField[], values: NodeValues) =>
+  validationFor(store, fields, values).flatMap((result) => result.messages)
+
 const RESOURCE = `
   @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
   <${SUBJECT}> a <urn:Resource>;
@@ -74,9 +84,7 @@ describe('buildResourceGraph', () => {
     const publisher = fields.find((field) => field.path === PUBLISHER)!
     Object.assign(publisher, { minCount: 1, maxCount: 1, label: 'Publisher' })
     const values = seedValues(store, SUBJECT, fields)
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Publisher is required.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Publisher is required.')
   })
 
   it('keeps a populated new optional record, but omits it after its inputs are cleared', () => {
@@ -155,9 +163,7 @@ describe('buildResourceGraph', () => {
     const values = seedValues(store, SUBJECT, fields)
     const agent = values[PUBLISHER]![0] as NestedValue
     ;(agent.values[EXTRA]![0] as TermValue).value = 'Some content'
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Publisher: Name is required.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Publisher: Name is required.')
   })
 
   it('rejects a cleared required field before it can be saved', () => {
@@ -167,7 +173,7 @@ describe('buildResourceGraph', () => {
       { minCount: 1, label: 'Title' },
     )
     ;(values[TITLE]![0] as TermValue).value = ''
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow('Title is required.')
+    expect(messagesFor(store, fields, values)).toContain('Title is required.')
     expect(store.getObjects(SUBJECT, TITLE, null)[0]?.value).toBe('Old title')
   })
 
@@ -178,14 +184,7 @@ describe('buildResourceGraph', () => {
       { minCount: 1, label: 'Title' },
     )
     ;(values[TITLE]![0] as TermValue).value = ''
-    let error: unknown
-    try {
-      buildResourceGraph(store, SUBJECT, fields, values)
-    } catch (err) {
-      error = err
-    }
-    expect(error).toBeInstanceOf(RequiredFieldsError)
-    expect((error as RequiredFieldsError).results).toMatchObject([
+    expect(validationFor(store, fields, values)).toMatchObject([
       {
         focusNode: { termType: 'NamedNode', value: SUBJECT },
         path: { termType: 'NamedNode', value: TITLE },
@@ -200,13 +199,7 @@ describe('buildResourceGraph', () => {
     publisher.label = 'Publisher'
     Object.assign(publisher.nested[0]!, { minCount: 1, label: 'Name' })
     ;((values[PUBLISHER]![0] as NestedValue).values[NAME]![0] as TermValue).value = ''
-    let error: unknown
-    try {
-      buildResourceGraph(store, SUBJECT, fields, values)
-    } catch (err) {
-      error = err
-    }
-    expect((error as RequiredFieldsError).results).toMatchObject([
+    expect(validationFor(store, fields, values)).toMatchObject([
       { focusNode: undefined, path: { termType: 'NamedNode', value: NAME } },
     ])
   })
@@ -223,13 +216,7 @@ describe('buildResourceGraph', () => {
     )
     ;(values[TITLE]![0] as TermValue).value = ''
     ;(values[LINK]![0] as TermValue).value = ''
-    let error: unknown
-    try {
-      buildResourceGraph(store, SUBJECT, fields, values)
-    } catch (err) {
-      error = err
-    }
-    expect((error as RequiredFieldsError).results).toMatchObject([
+    expect(validationFor(store, fields, values)).toMatchObject([
       { path: { value: TITLE }, messages: ['Title is required.'] },
       { path: { value: LINK }, messages: ['Link is required.'] },
     ])
@@ -242,11 +229,9 @@ describe('buildResourceGraph', () => {
       { minCount: 2, maxCount: 3, label: 'Title' },
     )
     values[TITLE] = [{ value: 'Same' }, { value: 'Same' }, { value: '' }]
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Title requires at least 2 values.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Title requires at least 2 values.')
     values[TITLE]![1] = { value: 'Different' }
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).not.toThrow()
+    expect(messagesFor(store, fields, values)).toEqual([])
   })
 
   it('identifies missing required values inside a nested record', () => {
@@ -255,9 +240,7 @@ describe('buildResourceGraph', () => {
     publisher.label = 'Publisher'
     Object.assign(publisher.nested[0]!, { minCount: 1, label: 'Name' })
     ;((values[PUBLISHER]![0] as NestedValue).values[NAME]![0] as TermValue).value = ''
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Publisher: Name is required.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Publisher: Name is required.')
   })
 
   it('rejects a non-absolute value entered into a URIEditor field', () => {
@@ -267,9 +250,7 @@ describe('buildResourceGraph', () => {
       { label: 'Link' },
     )
     ;(values[LINK]![0] as TermValue).value = 'not-a-uri'
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Link must be a valid absolute IRI.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Link must be a valid absolute IRI.')
   })
 
   it('rejects an absolute URI that would produce invalid Turtle', () => {
@@ -279,9 +260,7 @@ describe('buildResourceGraph', () => {
       { label: 'Link' },
     )
     ;(values[LINK]![0] as TermValue).value = 'https://example.org/has space'
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Link must be a valid absolute IRI.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Link must be a valid absolute IRI.')
   })
 
   it('leaves validation of unsupported editors to the server', () => {
@@ -292,7 +271,7 @@ describe('buildResourceGraph', () => {
       minCount: 1,
       editor: 'urn:UnsupportedEditor',
     })
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).not.toThrow()
+    expect(messagesFor(store, fields, values)).toEqual([])
   })
 
   it('leaves an untouched value equal to the original, and preserves what the shape does not cover', () => {
@@ -467,9 +446,7 @@ describe('buildResourceGraph', () => {
     const values = seedValues(store, SUBJECT, fields)
     ;(values['urn:endpoint']![0] as TermValue).value = 'not-an-iri'
 
-    expect(() => buildResourceGraph(store, SUBJECT, fields, values)).toThrow(
-      'Endpoint must be a valid absolute IRI.',
-    )
+    expect(messagesFor(store, fields, values)).toContain('Endpoint must be a valid absolute IRI.')
   })
 
   it('leaves a field untouched when its editor has no widget, even an IRI value', () => {

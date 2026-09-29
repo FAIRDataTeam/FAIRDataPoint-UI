@@ -6,7 +6,7 @@ import { useMeta } from '../composables/useMeta'
 import { isNestedField, type NestedValue, type NodeValues } from '../composables/shapeForm'
 import { useShapeForm } from '../composables/useShapeForm'
 import type { EditableField } from '../composables/shaclUtils'
-import { buildResourceGraph, RequiredFieldsError } from '../composables/shapeGraph'
+import { buildResourceGraph, validateResourceGraph } from '../composables/shapeGraph'
 import { serializeTurtle } from '../composables/rdfUtils'
 import { putResource, ResourceSaveError } from '../composables/fdpApi'
 import { internalHref } from '../composables/urlUtils'
@@ -139,9 +139,8 @@ async function updateRdfPreview() {
     )
     rdfPreview.value = await serializeTurtle(graph)
     rdfPreviewError.value = null
-  } catch (err) {
-    rdfPreviewError.value =
-      err instanceof RequiredFieldsError ? err.message : 'Unable to preview the RDF.'
+  } catch {
+    rdfPreviewError.value = 'Unable to preview the RDF.'
   }
 }
 
@@ -161,6 +160,12 @@ async function save() {
       editableFields.value,
       formValues.value,
     )
+    const localResults = validateResourceGraph(graph, currentNodeUri.value, editableFields.value)
+    if (localResults.length) {
+      validationResults.value = localResults
+      saveError.value = 'Unable to save the resource.'
+      return
+    }
     await putResource(resource.value, await serializeTurtle(graph))
     if (unmounted) return
     saved.value = true
@@ -181,20 +186,17 @@ async function save() {
       saveError.value = validationResults.value.length
         ? 'Unable to save the resource.'
         : `Unable to save changes (HTTP ${err.status}).`
-    } else if (err instanceof RequiredFieldsError) {
-      validationResults.value = err.results
-      saveError.value = 'Unable to save the resource.'
     } else {
       saveError.value = err instanceof Error ? err.message : 'Unable to save changes.'
     }
   } finally {
     saving.value = false
-  }
-  if (saveError.value) {
-    // Wait for Vue to re-enable the fieldset before focusing an input.
-    await nextTick()
-    const invalidField = formEl.value?.querySelector<HTMLElement>('[aria-invalid="true"]')
-    ;(invalidField ?? alertEl.value)?.focus()
+    if (saveError.value) {
+      // Wait for Vue to re-enable the fieldset before focusing an input.
+      await nextTick()
+      const invalidField = formEl.value?.querySelector<HTMLElement>('[aria-invalid="true"]')
+      ;(invalidField ?? alertEl.value)?.focus()
+    }
   }
 }
 </script>

@@ -273,30 +273,36 @@ describe('RDF preview', () => {
     }
   })
 
-  it('identifies the missing required field', async () => {
+  it('shows a draft that is still missing a required field', async () => {
     const view = mountView()
     try {
+      // Link is filled in, the required Title deliberately is not.
+      view.state.formValues['urn:link']![0]!.value = 'urn:example'
       view.state.showRdf = true
       await flushPromises()
-      expect(view.state.rdfPreviewError).toBe('Title is required.')
-      expect(view.state.rdfPreview).toBe('')
+      // A preview is not a save, so the partial draft is shown rather than refused.
+      expect(view.state.rdfPreviewError).toBeNull()
+      expect(view.state.rdfPreview).toContain('urn:example')
     } finally {
       view.unmount()
     }
   })
 
-  it('reports an invalid IRI and recovers when it is corrected', async () => {
+  it('shows a value that saving would still reject', async () => {
     const view = mountView()
     try {
       view.state.formValues['urn:title']![0]!.value = 'Draft title'
       view.state.formValues['urn:link']![0]!.value = 'not-an-iri'
       view.state.showRdf = true
       await flushPromises()
-      expect(view.state.rdfPreviewError).toBe('Link must be a valid absolute IRI.')
-      view.state.formValues['urn:link']![0]!.value = 'urn:example'
-      await flushPromises()
       expect(view.state.rdfPreviewError).toBeNull()
-      expect(view.state.rdfPreview).toContain('urn:example')
+      expect(view.state.rdfPreview).toContain('not-an-iri')
+
+      // The same draft is refused at save time, where the constraints do apply.
+      await view.state.save()
+      await nextTick()
+      expect(putResource).not.toHaveBeenCalled()
+      expect(view.state.saveError).toBe('Unable to save the resource.')
     } finally {
       view.unmount()
     }
