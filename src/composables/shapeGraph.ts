@@ -165,7 +165,7 @@ function replaceFields(
   }
 }
 
-/** Deletes dropped records and their nested content only when the remaining graph no longer uses them. */
+/** Collects removal candidates, retains those reachable from surviving references, and deletes the rest. */
 function removeUnreferencedRecords(store: Store, root: RecordSubject, removed: RemovedRecord[]) {
   const candidates = new Map<string, RecordSubject>()
   function collect(subject: RecordSubject, fields: EditableField[]) {

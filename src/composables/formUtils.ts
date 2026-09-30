@@ -31,6 +31,7 @@ function isCalendarDate(value: string): boolean {
 
 /** Formats a local clock time, rejecting years the picker cannot represent. */
 function localInputValue(date: Date): string | null {
+  // Shift by the local offset so UTC formatting produces the local clock time.
   const result = new Date(date.getTime() - date.getTimezoneOffset() * 60_000).toISOString()
   return isCalendarDate(result.slice(0, 10)) ? result.slice(0, 19) : null
 }

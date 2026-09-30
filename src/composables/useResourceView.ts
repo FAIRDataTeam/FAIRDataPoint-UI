@@ -38,7 +38,7 @@ export function useResourceView({
     const id = route.params.id
 
     if (typeof resourceType === 'string' && typeof id === 'string') {
-      // Same resource, same object: watchers compare by identity and would refetch.
+      // Reuse the previous object supplied by Vue so unchanged route params do not trigger refetches.
       if (previous?.resourceType === resourceType && previous.id === id) return previous
       return { resourceType, id }
     }

@@ -44,6 +44,7 @@ const highlighted = computed(() => {
   <section class="raw-section">
     <p v-if="message" class="raw-loading">{{ message }}</p>
     <template v-else>
+      <!-- Keep formatting whitespace out of the preformatted content. -->
       <pre
         class="raw-content language-none"
         :style="{ height: height + 'px' }"

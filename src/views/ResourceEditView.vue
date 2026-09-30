@@ -72,6 +72,7 @@ watch(
     if (active) savingDialog.value?.showModal()
     else savingDialog.value?.close()
   },
+  // Wait for Vue to update the dialog content and disabled form state before opening or closing it.
   { flush: 'post' },
 )
 const saveError = ref<string | null>(null)
