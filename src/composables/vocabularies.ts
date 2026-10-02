@@ -56,6 +56,7 @@ export const DCAT_CONTACT_POINT = `${DCAT}contactPoint`
 export const DCAT_KEYWORD = `${DCAT}keyword`
 export const DCAT_ACCESS_URL = `${DCAT}accessURL`
 export const DCAT_DOWNLOAD_URL = `${DCAT}downloadURL`
+export const DCAT_FORMAT = `${DCAT}format`
 export const DCAT_MEDIA_TYPE = `${DCAT}mediaType`
 export const DCAT_BYTE_SIZE = `${DCAT}byteSize`
 export const DCAT_PACKAGE_FORMAT = `${DCAT}packageFormat`
@@ -74,6 +75,8 @@ export const LDP_HAS_MEMBER_RELATION = `${LDP}hasMemberRelation`
 // FOAF
 export const FOAF_NAME = `${FOAF}name`
 export const FOAF_HOMEPAGE = `${FOAF}homepage`
+// FDP shapes also use this nonstandard casing.
+export const FOAF_HOME_PAGE = `${FOAF}homePage`
 
 // FDP
 export const FDP_METADATA_ISSUED = `${FDP}metadataIssued`
@@ -99,7 +102,15 @@ export const PROF_HAS_ROLE = `${PROF}hasRole`
 export const PROF_HAS_ARTIFACT = `${PROF}hasArtifact`
 
 // SHACL
+export const SHACL_VALIDATION_REPORT = `${SH}ValidationReport`
+export const SHACL_RESULT = `${SH}result`
+export const SHACL_DETAIL = `${SH}detail`
+export const SHACL_FOCUS_NODE = `${SH}focusNode`
+export const SHACL_RESULT_PATH = `${SH}resultPath`
+export const SHACL_RESULT_MESSAGE = `${SH}resultMessage`
+export const SHACL_SOURCE_CONSTRAINT_COMPONENT = `${SH}sourceConstraintComponent`
 export const SHACL_IRI = `${SH}IRI`
+export const SHACL_LITERAL = `${SH}Literal`
 export const SHACL_NODE_SHAPE = `${SH}NodeShape`
 export const SHACL_TARGET_CLASS = `${SH}targetClass`
 export const SHACL_PROPERTY = `${SH}property`
@@ -131,6 +142,13 @@ export const SIO_IS_RELATED_TO = `${SIO}SIO_000332`
 export const DASH_VIEWER = `${DASH}viewer`
 export const DASH_LABEL_VIEWER = `${DASH}LabelViewer`
 export const DASH_URI_VIEWER = `${DASH}URIViewer`
+export const DASH_EDITOR = `${DASH}editor`
+export const DASH_TEXT_FIELD_EDITOR = `${DASH}TextFieldEditor`
+export const DASH_TEXT_AREA_EDITOR = `${DASH}TextAreaEditor`
+export const DASH_URI_EDITOR = `${DASH}URIEditor`
+export const DASH_BLANK_NODE_EDITOR = `${DASH}BlankNodeEditor`
+export const DASH_DATE_PICKER_EDITOR = `${DASH}DatePickerEditor`
+export const DASH_DATE_TIME_PICKER_EDITOR = `${DASH}DateTimePickerEditor`
 
 export const prefixes: Record<string, string> = {
   [DCT]: 'dct',

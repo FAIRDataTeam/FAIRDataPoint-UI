@@ -345,7 +345,7 @@ describe('getMetadataRows', () => {
 
   it('marks a same-origin dcat:endpointURL as external', () => {
     const store = parseTurtle(`<${BASE_URI}> <${DCAT_ENDPOINT_URL}> <${BASE_URI}> .`)
-    const { rows } = getMetadataRows(store, BASE_URI, [])
+    const { rows } = getMetadataRows(store, BASE_URI, new Map())
     expect(find(rows, DCAT_ENDPOINT_URL)).toMatchObject({
       values: [{ href: BASE_URI, internal: false }],
     })
@@ -355,7 +355,7 @@ describe('getMetadataRows', () => {
     const store = parseTurtle(
       `<${BASE_URI}> <${DCAT_ENDPOINT_DESCRIPTION}> <${BASE_URI}/v3/api-docs> .`,
     )
-    const { rows } = getMetadataRows(store, BASE_URI, [])
+    const { rows } = getMetadataRows(store, BASE_URI, new Map())
     expect(find(rows, DCAT_ENDPOINT_DESCRIPTION)).toMatchObject({
       values: [{ href: `${BASE_URI}/v3/api-docs`, internal: false }],
     })
@@ -363,7 +363,7 @@ describe('getMetadataRows', () => {
 
   it('still marks an ordinary same-origin link as internal', () => {
     const store = parseTurtle(`<${BASE_URI}> <${DCT_CONFORMS_TO}> <${BASE_URI}/profile/1> .`)
-    const { rows } = getMetadataRows(store, BASE_URI, [])
+    const { rows } = getMetadataRows(store, BASE_URI, new Map())
     expect(find(rows, DCT_CONFORMS_TO)).toMatchObject({
       values: [{ href: `${BASE_URI}/profile/1`, internal: true }],
     })

@@ -6,6 +6,7 @@
   --fdp-color-muted: #8b949e;
   --fdp-color-link: #005ea8;
   --fdp-color-link-hover: #004b86;
+  --fdp-color-link-soft: #2b82c4;
   --fdp-color-border: #d9dde2;
   --fdp-color-card: #f3f3f3;
   --fdp-color-card-badge: #b8d5ef;
@@ -14,6 +15,7 @@
   --fdp-color-alert-bg: #f8d7da;
   --fdp-color-alert-text: #842029;
   --fdp-color-danger: #842029;
+  --fdp-color-danger-soft: #d03545;
 
   --fdp-page-width: 980px;
   --fdp-radius-sm: 6px;
@@ -100,8 +102,88 @@ a:hover {
   line-height: 1.2;
 }
 
-.resource-title {
+.resource-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fdp-space-3);
   margin: 0 0 var(--fdp-space-3);
+}
+
+.resource-edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-2);
+  flex-shrink: 0;
+  font-size: var(--fdp-font-size-sm);
+  font-weight: 600;
+  color: var(--fdp-color-link);
+  text-decoration: none;
+}
+
+.resource-edit-link:hover {
+  color: var(--fdp-color-link-hover);
+}
+
+.membership-badge {
+  padding: var(--fdp-space-1) var(--fdp-space-3);
+  border: 1px solid var(--fdp-color-muted);
+  border-radius: var(--fdp-radius-pill);
+  color: var(--fdp-color-muted);
+  font-size: var(--fdp-font-size-sm);
+}
+
+.resource-title-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--fdp-space-3);
+  margin-left: auto;
+}
+
+.resource-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--fdp-space-2);
+}
+
+.owners-badge {
+  position: relative;
+  display: inline-flex;
+}
+
+.owners-badge__trigger {
+  background: none;
+  cursor: pointer;
+}
+
+.owners-badge__tooltip {
+  position: absolute;
+  top: calc(100% + var(--fdp-space-1));
+  right: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(20rem, calc(100vw - 2 * var(--fdp-space-4)));
+  padding: var(--fdp-space-2) var(--fdp-space-3);
+  border-radius: var(--fdp-radius-sm);
+  background: var(--fdp-color-text);
+  color: var(--fdp-color-surface);
+  font-size: var(--fdp-font-size-sm);
+}
+
+/* Keep the gap hoverable when moving from the trigger onto the tooltip. */
+.owners-badge__tooltip::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: var(--fdp-space-1);
+}
+
+.resource-title {
+  margin: 0;
   font-size: var(--fdp-font-size-2xl);
   line-height: 1.15;
 }
@@ -197,6 +279,24 @@ a:hover {
 .metadata-value ul {
   margin: 0;
   padding-left: 1.1rem;
+}
+
+.user-form__required {
+  color: var(--fdp-color-danger);
+}
+
+/* Placeholder for editors the form cannot render yet; disappears as widgets land. */
+.user-form__pending {
+  margin: 0;
+  color: var(--fdp-color-muted);
+  font-style: italic;
+}
+
+/* A sh:node sub-record, set off from the field it belongs to. */
+.user-form__nested {
+  margin-left: var(--fdp-space-4);
+  padding: var(--fdp-space-2) 0 var(--fdp-space-2) var(--fdp-space-4);
+  border-left: 2px solid var(--fdp-color-border);
 }
 
 .text-link {
@@ -467,9 +567,12 @@ pre.raw-content code {
   color: var(--fdp-color-text);
 }
 
+/* Matches the bottom margin a <p> alert gets by default, so a <div> one is not left flush
+   against what follows it. */
 .alert {
   padding: 0.75rem 1rem;
   border-radius: var(--fdp-radius-sm);
+  margin-bottom: var(--fdp-space-4);
 }
 
 .alert-danger {
@@ -587,6 +690,84 @@ pre.raw-content code {
 
 .modal__body {
   padding: var(--fdp-space-4) var(--fdp-space-5);
+}
+
+.saving-overlay {
+  min-width: 0;
+  width: min(28rem, 90vw);
+  border: 0;
+  padding: 0;
+  color: inherit;
+}
+
+.saving-overlay::backdrop {
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.saving-overlay__body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--fdp-space-3);
+  padding: var(--fdp-space-8);
+}
+
+.saving-overlay__spinner {
+  color: var(--fdp-color-link);
+  animation: fdp-spin 1s linear infinite;
+}
+
+.saving-overlay__icon {
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+}
+
+.saving-overlay__message {
+  margin: 0;
+  font-size: var(--fdp-font-size-xl);
+  font-weight: 600;
+}
+
+.saving-overlay--saved .saving-overlay__icon {
+  background: #d1e7dd;
+  color: #0f5132;
+}
+
+.saving-overlay--saved .saving-overlay__message {
+  color: #0f5132;
+}
+
+/* Matches the one-second confirmation pause in ResourceEditView. */
+.saving-overlay--saved,
+.saving-overlay--saved::backdrop {
+  animation: saving-confirmation-exit 1s ease-in forwards;
+}
+
+@keyframes saving-confirmation-exit {
+  0%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saving-overlay--saved,
+  .saving-overlay--saved::backdrop,
+  .saving-overlay__spinner {
+    animation: none;
+  }
+}
+
+@keyframes fdp-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .about-table {
@@ -1169,7 +1350,45 @@ pre.raw-content code {
 }
 
 .user-form__group {
-  margin-bottom: 1.5rem;
+  margin-bottom: var(--fdp-space-8);
+}
+
+.user-form__fields {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+fieldset.user-form__group {
+  border: 0;
+  padding: 0;
+  margin-inline: 0;
+  min-width: 0;
+}
+
+.user-form__group legend,
+.user-form__label {
+  padding: 0;
+  font-size: var(--fdp-font-size-sm);
+  font-weight: 600;
+  margin-bottom: var(--fdp-space-1);
+}
+
+.user-form__visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.user-form__hint {
+  margin: 0 0 var(--fdp-space-1);
+  font-size: var(--fdp-font-size-sm);
+  color: var(--fdp-color-danger);
 }
 
 .user-form__group--error input,
@@ -1190,21 +1409,163 @@ pre.raw-content code {
   margin-bottom: var(--fdp-space-1);
 }
 
+/* One field value with its associated controls. */
+.user-form__value {
+  display: flex;
+  align-items: center;
+  gap: var(--fdp-space-3);
+}
+
+/* The row carries the underline, so it runs beneath the Restore and Remove controls the way a
+   date field's own calendar button sits inside its border. A record's row holds a nested form
+   rather than a control of its own, so :has() keeps the line off it. */
+.user-form__value:has(> input, > textarea) {
+  border-bottom: 2px solid #ababab;
+}
+
+.user-form__group .user-form__value > input,
+.user-form__group .user-form__value > textarea {
+  border-bottom: none;
+}
+
+.user-form__value--changed:has(> input, > textarea),
+.user-form__value:focus-within {
+  border-bottom-color: var(--fdp-color-link);
+}
+
+/* A multi-row textarea or a nested record keeps its buttons at the top, not centred
+   against content taller than a single line. */
+.user-form__value--top {
+  align-items: flex-start;
+}
+
+.user-form__value + .user-form__value {
+  margin-top: var(--fdp-space-3);
+}
+
+/* Repeatable values read as a list; the marker needs the item itself, so the flex row sits inside. */
+.user-form__values {
+  margin: 0;
+}
+
+ul.user-form__values {
+  padding-left: var(--fdp-space-8);
+}
+
+.user-form__values > * + * {
+  margin-top: var(--fdp-space-3);
+}
+
+.user-form__value > .user-form__nested {
+  flex: 1;
+}
+
+.user-form__zone {
+  flex-shrink: 0;
+  align-self: center;
+  color: var(--fdp-color-muted);
+  font-size: var(--fdp-font-size-sm);
+}
+
+/* Fixed-width digits, so dates in consecutive fields line up. */
+.user-form__group input[type='date'],
+.user-form__group input[type='datetime-local'] {
+  font-variant-numeric: tabular-nums;
+}
+
+.user-form__remove {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: var(--fdp-space-1);
+  color: var(--fdp-color-danger-soft);
+  cursor: pointer;
+  position: relative;
+}
+
+.user-form__remove:hover {
+  color: var(--fdp-color-danger);
+}
+
+.user-form__restore {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  border: none;
+  background: none;
+  padding: var(--fdp-space-1);
+  color: var(--fdp-color-link-soft);
+  cursor: pointer;
+  position: relative;
+}
+
+/* Centred under its control, unlike a title attribute, which the browser places by the pointer. */
+.user-form__tip {
+  position: absolute;
+  top: calc(100% + var(--fdp-space-1));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10;
+  width: max-content;
+  padding: var(--fdp-space-1) var(--fdp-space-2);
+  border-radius: var(--fdp-radius-sm);
+  background: var(--fdp-color-text);
+  color: var(--fdp-color-surface);
+  font-size: var(--fdp-font-size-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.1s ease-in;
+}
+
+.user-form__restore:hover .user-form__tip,
+.user-form__restore:focus-visible .user-form__tip,
+.user-form__remove:hover .user-form__tip,
+.user-form__remove:focus-visible .user-form__tip {
+  opacity: 1;
+}
+
+.user-form__restore:hover {
+  color: var(--fdp-color-link);
+}
+
+.user-form__add {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-2);
+  margin-top: var(--fdp-space-3);
+  text-decoration: none;
+  font-weight: 400;
+}
+
+/* Puts the + where the bullets are, so Add reads as one more item, for a bulleted list only:
+   a single-valued field has no such indent to match. */
+ul.user-form__values ~ .user-form__add {
+  margin-left: var(--fdp-space-2);
+}
+
+.user-form__group textarea {
+  resize: vertical;
+}
+
 .user-form__group input,
-.user-form__group select {
+.user-form__group select,
+.user-form__group textarea {
   width: 100%;
   box-sizing: border-box;
   border: none;
   border-bottom: 2px solid #ababab;
   outline: none;
-  padding: var(--fdp-space-1) 0;
+  padding: var(--fdp-space-1) 0 var(--fdp-space-2);
   font-size: 1rem;
   background: none;
   color: var(--fdp-color-text);
 }
 
 .user-form__group input:focus,
-.user-form__group select:focus {
+.user-form__group select:focus,
+.user-form__group textarea:focus {
   border-bottom-color: var(--fdp-color-link);
 }
 
@@ -1230,4 +1591,18 @@ pre.raw-content code {
 .user-form__btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.user-form__btn--secondary {
+  background: var(--fdp-color-surface);
+  color: var(--fdp-color-link);
+  border: 1px solid var(--fdp-color-link);
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-form__btn--secondary:hover:not(:disabled) {
+  background: #f3f8fd;
+  color: var(--fdp-color-link-hover);
 }

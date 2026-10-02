@@ -41,3 +41,17 @@ export function internalHref(uri: string): string {
   // parts.length < 2 means a container URI with no id (e.g. /catalog); no router route exists, fall back to root.
   return parts.length >= 2 ? `/${parts[0]}/${parts[1]}` : '/'
 }
+
+/** Accepts absolute IRIs that can be written directly as Turtle IRI references. */
+export function isAbsoluteIri(value: string): boolean {
+  // URL accepts and escapes characters that N3 writes verbatim inside <...>. The control
+  // range is matched deliberately: Turtle forbids those characters in an IRI reference.
+  // oxlint-disable-next-line no-control-regex
+  if (/[\u0000-\u0020<>"{}|^`\\]/u.test(value)) return false
+  try {
+    new URL(value)
+    return true
+  } catch {
+    return false
+  }
+}

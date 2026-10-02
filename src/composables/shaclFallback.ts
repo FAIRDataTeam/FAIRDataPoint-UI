@@ -1,4 +1,6 @@
 import {
+  DCT_TITLE,
+  DCT_DESCRIPTION,
   DCT_CONFORMS_TO,
   DCT_LANGUAGE,
   DCT_LICENSE,
@@ -37,10 +39,12 @@ import {
   DCAT_LANDING_PAGE,
   FOAF_NAME,
   FOAF_HOMEPAGE,
+  FOAF_HOME_PAGE,
   DCAT_CONTACT_POINT,
   DCAT_KEYWORD,
   DCAT_ACCESS_URL,
   DCAT_DOWNLOAD_URL,
+  DCAT_FORMAT,
   DCAT_MEDIA_TYPE,
   DCAT_BYTE_SIZE,
   DCAT_SERVES_DATASET,
@@ -59,6 +63,9 @@ import { compactUri } from './rdfUtils'
 // Human-readable labels for known predicates.
 // Unknown predicates fall back to their compacted URI.
 const labelMap: Record<string, string> = {
+  // The metadata table renders title and description outside the rows, but a form labels them.
+  [DCT_TITLE]: 'Title',
+  [DCT_DESCRIPTION]: 'Description',
   [DCT_CONFORMS_TO]: 'Conforms to',
   [DCT_LANGUAGE]: 'Language',
   [DCT_LICENSE]: 'License',
@@ -97,10 +104,12 @@ const labelMap: Record<string, string> = {
   [DCAT_LANDING_PAGE]: 'Landing page',
   [FOAF_NAME]: 'Name',
   [FOAF_HOMEPAGE]: 'Homepage',
+  [FOAF_HOME_PAGE]: 'Homepage',
   [DCAT_CONTACT_POINT]: 'Contact point',
   [DCAT_KEYWORD]: 'Keyword',
   [DCAT_ACCESS_URL]: 'Access URL',
   [DCAT_DOWNLOAD_URL]: 'Download URL',
+  [DCAT_FORMAT]: 'Format',
   [DCAT_MEDIA_TYPE]: 'Media type',
   [DCAT_BYTE_SIZE]: 'Byte size',
   [DCAT_SERVES_DATASET]: 'Serves dataset',
