@@ -1,15 +1,20 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import 'prismjs/themes/prism.css'
+import { computed, ref, watch } from 'vue'
 import { useResourceView } from '../composables/useResourceView'
+import { useMeta } from '../composables/useMeta'
+import { useMembers } from '../composables/useMembers'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
+import RawContentPanel from '../components/RawContentPanel.vue'
+import OwnersBadge from '../components/OwnersBadge.vue'
+import IconEdit from '../assets/icons/edit.svg?component'
 
 const {
   loading,
   error,
   rawTurtle,
+  resource,
   resourceUri,
   currentNodeUri,
   title,
@@ -24,6 +29,14 @@ const {
   childSummaries,
   resourceLabel,
 } = useResourceView()
+
+const { membershipName, canEdit } = useMeta(resource)
+const { otherOwnerNames, loaded: ownersLoaded } = useMembers(resource)
+const isOwner = computed(() => membershipName.value === 'Owner')
+
+const editRoute = computed(() =>
+  resource.value ? { name: 'resource-edit', params: resource.value } : { name: 'fdp-root-edit' },
+)
 
 const showUnknown = ref(false)
 const showGraph = ref(false)
@@ -40,14 +53,7 @@ watch(resourceUri, (newUri, oldUri) => {
   showGraph.value = graphStateByUri.get(newUri) ?? false
 })
 
-const {
-  shownFormat,
-  rawLoading,
-  rawContentHeight,
-  startRawResize,
-  highlightedRawContent,
-  toggleFormat,
-} = useRawFormat(resourceUri, rawTurtle)
+const { shownFormat, rawLoading, rawContent, toggleFormat } = useRawFormat(resourceUri, rawTurtle)
 </script>
 
 <template>
@@ -78,7 +84,28 @@ const {
       <template v-else>
         <template v-if="currentNodeUri">
           <section class="resource-header">
-            <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
+            <div class="resource-title-row">
+              <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
+              <div class="resource-title-actions">
+                <div v-if="membershipName || otherOwnerNames.length" class="resource-badges">
+                  <!-- Owner memberships are shown by OwnersBadge, with owner details on hover. -->
+                  <span v-if="membershipName && !isOwner" class="membership-badge">{{
+                    membershipName
+                  }}</span>
+                  <OwnersBadge
+                    v-if="isOwner || otherOwnerNames.length"
+                    :names="otherOwnerNames"
+                    :is-owner="isOwner"
+                    :owners-loaded="ownersLoaded"
+                    :resource-type="resource?.resourceType ?? null"
+                  />
+                </div>
+                <router-link v-if="canEdit" :to="editRoute" class="resource-edit-link">
+                  <IconEdit />
+                  Edit
+                </router-link>
+              </div>
+            </div>
             <p v-if="description" class="resource-description">{{ description }}</p>
             <div v-if="accessUrl || downloadUrl" class="resource-access-buttons">
               <a
@@ -385,15 +412,12 @@ const {
 
         <RdfGraph v-if="showGraph && currentNodeUri" :graph="quads" />
 
-        <section v-if="shownFormat" class="raw-section">
-          <p v-if="rawLoading" class="raw-loading">Loading…</p>
-          <pre
-            v-else
-            class="raw-content language-none"
-            :style="{ height: rawContentHeight + 'px' }"
-          ><code v-html="highlightedRawContent" /></pre>
-          <div class="raw-resize-handle" @mousedown.prevent="startRawResize" />
-        </section>
+        <RawContentPanel
+          v-show="shownFormat"
+          :text="rawContent"
+          :language="shownFormat === 'json-ld' ? 'json' : 'turtle'"
+          :message="rawLoading ? 'Loading…' : null"
+        />
       </template>
     </main>
   </div>
