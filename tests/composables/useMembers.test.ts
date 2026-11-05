@@ -93,11 +93,15 @@ describe('useMembers otherOwnerNames', () => {
 
   it('is empty and not loaded when members cannot be fetched', async () => {
     loginAsAdmin()
-    vi.mocked(fetchMembers).mockRejectedValue(new Error('HTTP 405'))
+    const error = new Error('HTTP 405')
+    vi.mocked(fetchMembers).mockRejectedValue(error)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { otherOwnerNames, loaded } = scope.run(() => useMembers(ref(null)))!
     await flushPromises()
     expect(otherOwnerNames.value).toEqual([])
     expect(loaded.value).toBe(false)
+    expect(warn).toHaveBeenCalledExactlyOnceWith('Failed to load members', null, error)
+    warn.mockRestore()
   })
 
   it('ignores a pending result once admin access is lost', async () => {

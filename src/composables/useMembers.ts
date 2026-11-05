@@ -34,8 +34,9 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
           .filter((member) => member.membership.name === 'Owner')
           .map((member) => member.user)
         loaded.value = true
-      } catch {
+      } catch (err) {
         // Without the list loaded is false, so OwnersBadge doesn't claim sole ownership.
+        console.warn('Failed to load members', currentResource, err)
       }
     },
     { immediate: true },

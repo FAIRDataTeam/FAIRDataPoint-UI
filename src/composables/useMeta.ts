@@ -20,8 +20,9 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
         const meta = await fetchMeta(currentResource)
         if (cancelled) return
         membershipName.value = meta.member?.membership?.name ?? null
-      } catch {
+      } catch (err) {
         // Without meta no membership badge is shown.
+        console.warn('Failed to load meta', currentResource, err)
       }
     },
     { immediate: true },

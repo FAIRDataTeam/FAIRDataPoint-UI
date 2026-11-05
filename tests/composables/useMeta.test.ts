@@ -61,12 +61,15 @@ describe('useMeta membershipName', () => {
 
   it('is null when meta cannot be fetched', async () => {
     auth.isLoggedIn.value = true
-    vi.mocked(fetchMeta).mockRejectedValue(new Error('HTTP 403'))
-    const { membershipName } = scope.run(() =>
-      useMeta(ref({ resourceType: 'catalog', id: 'abc' })),
-    )!
+    const error = new Error('HTTP 403')
+    vi.mocked(fetchMeta).mockRejectedValue(error)
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const resource = { resourceType: 'catalog', id: 'abc' }
+    const { membershipName } = scope.run(() => useMeta(ref(resource)))!
     await flushPromises()
     expect(membershipName.value).toBeNull()
+    expect(warn).toHaveBeenCalledExactlyOnceWith('Failed to load meta', resource, error)
+    warn.mockRestore()
   })
 
   it('ignores a pending result once the user logs out', async () => {
