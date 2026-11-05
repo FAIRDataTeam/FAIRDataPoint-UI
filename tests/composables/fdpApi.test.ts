@@ -61,11 +61,11 @@ describe('searchResources', () => {
 
 describe('resource operations', () => {
   // Deliberately different endpoint paths: the client must follow operation IDs, not append
-  // /meta or /members to the resource URI. The root definition also has a custom name.
+  // /meta or /members to the resource URI. The root also has a custom name.
   const resourceApiDocs = {
     openapi: '3.0.1',
     paths: {
-      '/definitions-list': { get: { operationId: 'getResourceDefinitions' } },
+      '/': { get: { operationId: 'getResearch Hub' } },
       '/root-status': { get: { operationId: 'getResearch HubMeta' } },
       '/root-access': { get: { operationId: 'getResearch HubMembers' } },
       '/status/{uuid}': { get: { operationId: 'getCatalogMeta' } },
@@ -73,10 +73,6 @@ describe('resource operations', () => {
       '/custom-status/{uuid}': { get: { operationId: 'getResearchDataMeta' } },
     },
   }
-  const definitions = [
-    { name: 'Catalog', urlPrefix: 'catalog' },
-    { name: 'Research Hub', urlPrefix: '' },
-  ]
   const meta = { member: { membership: { name: 'Owner' } } }
   const members = [
     {
@@ -86,9 +82,8 @@ describe('resource operations', () => {
   ]
   const getJson = { method: 'GET', headers: { Accept: 'application/json' } }
 
-  it('binds root meta and members using the configured root name, sharing the definition request', async () => {
+  it('binds root meta and members using the root GET operation name', async () => {
     const mockFetch = mockApiFetch((url) => {
-      if (url.endsWith('/definitions-list')) return okJson(definitions)()
       if (url.endsWith('/root-status')) return okJson(meta)()
       if (url.endsWith('/root-access')) return okJson(members)()
       throw new Error(`Unexpected request: ${url}`)
@@ -96,16 +91,13 @@ describe('resource operations', () => {
     vi.stubGlobal('fetch', mockFetch)
     const { fetchMeta, fetchMembers } = await import('../../src/composables/fdpApi')
 
-    expect(await Promise.all([fetchMeta(null), fetchMembers(null)])).toEqual([meta, members])
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost/definitions-list', getJson)
-    expect(mockFetch.mock.calls.filter(([url]) => url.endsWith('/definitions-list'))).toHaveLength(
-      1,
-    )
+    expect(await fetchMeta(null)).toEqual(meta)
+    expect(await fetchMembers(null)).toEqual(members)
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/root-status', getJson)
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/root-access', getJson)
   })
 
-  it('binds typed meta and members to advertised URLs without needing definitions', async () => {
+  it('binds typed meta and members to advertised URLs', async () => {
     const mockFetch = mockApiFetch((url) => {
       if (url.endsWith('/status/abc')) return okJson(meta)()
       if (url.endsWith('/access/abc')) return okJson(members)()
@@ -118,7 +110,6 @@ describe('resource operations', () => {
     expect(await fetchMembers({ resourceType: 'catalog', id: 'abc' })).toEqual(members)
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/status/abc', getJson)
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/access/abc', getJson)
-    expect(mockFetch.mock.calls.some(([url]) => url.endsWith('/definitions-list'))).toBe(false)
   })
 
   it('supports custom prefixes and lets bindOperation encode the resource ID', async () => {
@@ -147,7 +138,7 @@ describe('resource operations', () => {
     expect(handleRequest).not.toHaveBeenCalled()
   })
 
-  it('does not guess a root name when definitions are not advertised', async () => {
+  it('does not guess a root name when the root GET is not advertised', async () => {
     const handleRequest = vi.fn(okJson(meta))
     vi.stubGlobal(
       'fetch',
@@ -158,61 +149,8 @@ describe('resource operations', () => {
     )
     const { fetchMeta } = await import('../../src/composables/fdpApi')
 
-    await expect(fetchMeta(null)).rejects.toThrow(
-      "Operation 'getResourceDefinitions' is not offered",
-    )
+    await expect(fetchMeta(null)).rejects.toThrow('No GET / operation is offered')
     expect(handleRequest).not.toHaveBeenCalled()
-  })
-
-  it('reports a missing root definition', async () => {
-    vi.stubGlobal('fetch', mockApiFetch(okJson([definitions[0]]), resourceApiDocs))
-    const { fetchMeta } = await import('../../src/composables/fdpApi')
-    await expect(fetchMeta(null)).rejects.toThrow('no root resource definition')
-  })
-
-  it('allows a later root lookup to retry after a failed definition request', async () => {
-    let failed = false
-    const mockFetch = mockApiFetch((url) => {
-      if (url.endsWith('/definitions-list')) {
-        if (!failed) {
-          failed = true
-          return { ok: false, status: 503 }
-        }
-        return okJson(definitions)()
-      }
-      return okJson(meta)()
-    }, resourceApiDocs)
-    vi.stubGlobal('fetch', mockFetch)
-    const { fetchMeta } = await import('../../src/composables/fdpApi')
-
-    await expect(fetchMeta(null)).rejects.toThrow('HTTP 503')
-    expect(await fetchMeta(null)).toEqual(meta)
-  })
-
-  it('uses fresh root definitions on subsequent lookups', async () => {
-    let rootName = 'Research Hub'
-    const mockFetch = mockApiFetch(
-      (url) => {
-        if (url.endsWith('/definitions-list')) {
-          return okJson([{ name: rootName, urlPrefix: '' }])()
-        }
-        return okJson(meta)()
-      },
-      {
-        ...resourceApiDocs,
-        paths: {
-          ...resourceApiDocs.paths,
-          '/renamed-status': { get: { operationId: 'getRenamed HubMeta' } },
-        },
-      },
-    )
-    vi.stubGlobal('fetch', mockFetch)
-    const { fetchMeta } = await import('../../src/composables/fdpApi')
-
-    await fetchMeta(null)
-    rootName = 'Renamed Hub'
-    await fetchMeta(null)
-    expect(mockFetch).toHaveBeenCalledWith('http://localhost/renamed-status', getJson)
   })
 })
 
