@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, useId } from 'vue'
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 
 // names: owners other than the current user; isOwner: the current user owns it too.
 // ownersLoaded: the owners list was fetched, so an empty names list means no other owners.
@@ -34,6 +34,18 @@ const description = computed(() => {
 function onFocus(event: FocusEvent) {
   if ((event.target as HTMLElement).matches(':focus-visible')) open.value = true
 }
+
+// Escape closes it from anywhere, since hovering does not focus the button.
+function onDocumentKeydown(event: KeyboardEvent) {
+  if (event.key === 'Escape') open.value = false
+}
+
+watch(open, (isOpen) => {
+  if (isOpen) document.addEventListener('keydown', onDocumentKeydown)
+  else document.removeEventListener('keydown', onDocumentKeydown)
+})
+
+onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown))
 </script>
 
 <template>
@@ -49,7 +61,6 @@ function onFocus(event: FocusEvent) {
       @focus="onFocus"
       @blur="open = false"
       @click="open = true"
-      @keydown.esc="open = false"
     >
       {{ label }}
     </button>
