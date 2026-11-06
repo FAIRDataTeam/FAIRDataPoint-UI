@@ -50,7 +50,7 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
         members.value = fetched
         loaded.value = true
       } catch (err) {
-        // Without the list loaded is false, so OwnersBadge doesn't claim sole ownership.
+        // Without the list loaded is false, so MembershipBadge doesn't claim sole ownership.
         console.warn('Failed to load members', currentResource, err)
       }
     },

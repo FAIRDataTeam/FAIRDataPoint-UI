@@ -7,7 +7,7 @@ import { useMembers } from '../composables/useMembers'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
-import OwnersBadge from '../components/OwnersBadge.vue'
+import MembershipBadge from '../components/MembershipBadge.vue'
 
 const {
   loading,
@@ -38,7 +38,7 @@ const {
 } = useMembers(resource)
 // Members also holds the admin's own membership, so the badge does not depend on meta's timing.
 const membershipName = computed(() => metaMembershipName.value ?? currentMembershipName.value)
-const showOwnersBadge = computed(
+const showMembershipBadge = computed(
   () =>
     membershipName.value !== null ||
     otherOwnerNames.value.length > 0 ||
@@ -100,10 +100,10 @@ const {
           <section class="resource-header">
             <div class="resource-title-row">
               <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
-              <div v-if="showOwnersBadge" class="resource-badges">
-                <OwnersBadge
-                  :names="otherOwnerNames"
-                  :member-names="otherMemberNames"
+              <div v-if="showMembershipBadge" class="resource-badges">
+                <MembershipBadge
+                  :other-owner-names="otherOwnerNames"
+                  :other-member-names="otherMemberNames"
                   :membership-name="membershipName"
                   :owners-loaded="ownersLoaded"
                   :resource-type="resource?.resourceType ?? null"

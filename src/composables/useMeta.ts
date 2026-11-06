@@ -21,7 +21,7 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
         if (cancelled) return
         membershipName.value = meta.member?.membership?.name ?? null
       } catch (err) {
-        // Without meta no membership badge is shown.
+        // Without meta, only admins still get their membership, from members.
         console.warn('Failed to load meta', currentResource, err)
       }
     },

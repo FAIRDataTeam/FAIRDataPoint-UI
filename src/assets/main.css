@@ -130,16 +130,16 @@ a:hover {
   font-size: var(--fdp-font-size-sm);
 }
 
-.owners-badge {
+.membership-details {
   position: relative;
   display: inline-flex;
 }
 
-.owners-badge__trigger {
+.membership-details__trigger {
   background: none;
 }
 
-.owners-badge__tooltip {
+.membership-details__tooltip {
   position: absolute;
   top: calc(100% + var(--fdp-space-1));
   right: 0;
@@ -155,7 +155,7 @@ a:hover {
 }
 
 /* Keep the gap hoverable when moving from the trigger onto the tooltip. */
-.owners-badge__tooltip::before {
+.membership-details__tooltip::before {
   content: '';
   position: absolute;
   bottom: 100%;
