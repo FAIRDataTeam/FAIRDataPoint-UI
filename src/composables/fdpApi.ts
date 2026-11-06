@@ -1,4 +1,4 @@
-import { bindOperation, type OperationBinding } from './apiDocs'
+import { bindOperation, getOperationId, type OperationBinding } from './apiDocs'
 import { authHeaders, request } from './fetchUtils'
 
 /**
@@ -13,6 +13,55 @@ function bindUserOperation(
   return !uuid
     ? bindOperation(currentUserOperationId)
     : bindOperation(uuidUserOperationId, { uuid })
+}
+
+/** Identifies a typed resource; null explicitly identifies the FDP root. */
+export type ResourceIdentifier = { resourceType: string; id: string } | null
+
+// Fields used from the backend's member and meta responses.
+export type ResourceMember = {
+  user: { uuid: string; firstName: string; lastName: string }
+  membership: {
+    name: string
+  }
+}
+
+export type ResourceMeta = {
+  member: { membership: ResourceMember['membership'] | null } | null
+}
+
+/**
+ * Resolves a resource operation from the capitalized prefix, or the root GET's operation ID.
+ */
+async function bindResourceOperation(
+  resource: ResourceIdentifier,
+  suffix: 'Meta' | 'Members',
+): Promise<OperationBinding> {
+  if (resource === null) {
+    const rootOperationId = await getOperationId('/', 'get')
+    return bindOperation(`${rootOperationId}${suffix}`)
+  }
+
+  const { resourceType, id } = resource
+  const resourceName = resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
+  return bindOperation(`get${resourceName}${suffix}`, { uuid: id })
+}
+
+/**
+ * Fetches a resource's meta; pass null for the root.
+ * ResourceMeta describes only the membership fields currently used by the client.
+ */
+export async function fetchMeta(resource: ResourceIdentifier): Promise<ResourceMeta> {
+  const { url, method } = await bindResourceOperation(resource, 'Meta')
+  const response = await request(url, { method, headers: { Accept: 'application/json' } })
+  return response.json() as Promise<ResourceMeta>
+}
+
+/** Fetches the members of a resource, each with their user and membership; pass null for the root. */
+export async function fetchMembers(resource: ResourceIdentifier): Promise<ResourceMember[]> {
+  const { url, method } = await bindResourceOperation(resource, 'Members')
+  const response = await request(url, { method, headers: { Accept: 'application/json' } })
+  return response.json() as Promise<ResourceMember[]>
 }
 
 /** Searches resources via the FDP full-text search endpoint. */
