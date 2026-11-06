@@ -1,13 +1,14 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, useId, watch } from 'vue'
 
-// names: owners other than the current user; isOwner: the current user owns it too.
+// membershipName: the current user's membership, if any.
+// names: owners other than the current user.
 // ownersLoaded: the owners list was fetched, so an empty names list means no other owners.
 // memberNames: other non-owners by membership.
 const props = defineProps<{
+  membershipName: string | null
   names: string[]
   memberNames: Record<string, string[]>
-  isOwner: boolean
   ownersLoaded: boolean
   resourceType: string | null
 }>()
@@ -16,35 +17,46 @@ const open = ref(false)
 const tooltipId = useId()
 
 const listFormat = new Intl.ListFormat('en', { type: 'conjunction' })
+const isOwner = computed(() => props.membershipName === 'Owner')
 const hasMembers = computed(() => Object.keys(props.memberNames).length > 0)
 
 // A single owner of someone else's resource, with no other members, is a plain badge below.
 const label = computed(() => {
   const count = props.names.length
-  if (props.isOwner) return count > 0 ? `Owner +${count}` : 'Owner'
+  if (isOwner.value) return count > 0 ? `Owner +${count}` : 'Owner'
+  if (props.membershipName) return props.membershipName
   if (count === 0) return 'No owners'
   return count === 1 ? `Owned by ${props.names[0]}` : `${count} owners`
 })
 
-const ownersText = computed(() => {
-  if (props.isOwner && props.names.length === 0) {
+function ownSentence(membership: string, article: string): string {
+  return `You are ${article} ${membership.toLowerCase()} of this ${props.resourceType ?? 'resource'}`
+}
+
+const ownersSentences = computed(() => {
+  const { membershipName, names, ownersLoaded } = props
+  if (isOwner.value) {
     // Without the owners list (non-admins, or a failed request) sole ownership is unknown.
-    const article = props.ownersLoaded ? 'the' : 'an'
-    return `You are ${article} owner of this ${props.resourceType ?? 'resource'}`
+    if (names.length === 0) return [ownSentence('owner', ownersLoaded ? 'the' : 'an')]
+    return [`Owned by ${listFormat.format(['you', ...names])}`]
   }
+  const sentences = membershipName
+    ? [ownSentence(membershipName, /^[aeiou]/i.test(membershipName) ? 'an' : 'a')]
+    : []
+  if (names.length > 0) sentences.push(`Owned by ${listFormat.format(names)}`)
   // Possible once the backend removes the last owner, e.g. when deleting their account.
-  if (!props.isOwner && props.names.length === 0) return 'No owners'
-  const owners = props.isOwner ? ['you', ...props.names] : props.names
-  return `Owned by ${listFormat.format(owners)}`
+  else if (ownersLoaded) sentences.push('No owners')
+  return sentences
 })
 
+// One sentence per line, without dots.
 const description = computed(() =>
   [
-    ownersText.value,
+    ...ownersSentences.value,
     ...Object.entries(props.memberNames).map(
       ([membership, names]) => `${membership}: ${listFormat.format(names)}`,
     ),
-  ].join('. '),
+  ].join('\n'),
 )
 
 // Only keyboard focus opens it; focus from a click, a tap or returning to the tab does not.
@@ -66,7 +78,7 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown)
 </script>
 
 <template>
-  <span v-if="!isOwner && names.length === 1 && !hasMembers" class="membership-badge">
+  <span v-if="!membershipName && names.length === 1 && !hasMembers" class="membership-badge">
     Owned by {{ names[0] }}
   </span>
   <span v-else class="owners-badge" @mouseenter="open = true" @mouseleave="open = false">

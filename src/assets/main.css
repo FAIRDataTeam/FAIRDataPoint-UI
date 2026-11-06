@@ -151,6 +151,7 @@ a:hover {
   background: var(--fdp-color-text);
   color: var(--fdp-color-surface);
   font-size: var(--fdp-font-size-sm);
+  white-space: pre-line;
 }
 
 /* Keep the gap hoverable when moving from the trigger onto the tooltip. */

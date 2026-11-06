@@ -31,10 +31,9 @@ const {
 
 const { membershipName } = useMeta(resource)
 const { otherOwnerNames, otherMemberNames, loaded: ownersLoaded } = useMembers(resource)
-const isOwner = computed(() => membershipName.value === 'Owner')
 const showOwnersBadge = computed(
   () =>
-    isOwner.value ||
+    membershipName.value !== null ||
     otherOwnerNames.value.length > 0 ||
     Object.keys(otherMemberNames.value).length > 0,
 )
@@ -94,16 +93,11 @@ const {
           <section class="resource-header">
             <div class="resource-title-row">
               <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
-              <div v-if="membershipName || showOwnersBadge" class="resource-badges">
-                <!-- Owner memberships are shown by OwnersBadge, with owner details on hover. -->
-                <span v-if="membershipName && !isOwner" class="membership-badge">{{
-                  membershipName
-                }}</span>
+              <div v-if="showOwnersBadge" class="resource-badges">
                 <OwnersBadge
-                  v-if="showOwnersBadge"
                   :names="otherOwnerNames"
                   :member-names="otherMemberNames"
-                  :is-owner="isOwner"
+                  :membership-name="membershipName"
                   :owners-loaded="ownersLoaded"
                   :resource-type="resource?.resourceType ?? null"
                 />
