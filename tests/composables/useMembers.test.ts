@@ -90,6 +90,16 @@ describe('useMembers otherOwnerNames', () => {
     expect(otherMemberNames.value).toEqual({ 'Data Provider': ['Marie Curie', 'Niels Bohr'] })
   })
 
+  it("reports the admin's own membership from the members list", async () => {
+    loginAsAdmin()
+    vi.mocked(fetchMembers).mockResolvedValue([einstein, curie])
+    const { currentMembershipName, otherOwnerNames } = scope.run(() => useMembers(ref(null)))!
+    expect(currentMembershipName.value).toBeNull()
+    await flushPromises()
+    expect(currentMembershipName.value).toBe('Owner')
+    expect(otherOwnerNames.value).toEqual([])
+  })
+
   it('is empty but loaded when the admin is the only owner', async () => {
     loginAsAdmin()
     vi.mocked(fetchMembers).mockResolvedValue([einstein, curie])

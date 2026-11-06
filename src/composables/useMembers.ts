@@ -14,6 +14,12 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
   const otherMembers = computed(() =>
     members.value.filter((member) => member.user.uuid !== user.value?.uuid),
   )
+  // The admin's own membership, available before or without meta.
+  const currentMembershipName = computed(
+    () =>
+      members.value.find((member) => member.user.uuid === user.value?.uuid)?.membership.name ??
+      null,
+  )
   const fullName = ({ user }: ResourceMember) => `${user.firstName} ${user.lastName}`
   const otherOwnerNames = computed(() =>
     otherMembers.value.filter((member) => member.membership.name === 'Owner').map(fullName),
@@ -51,5 +57,5 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
     { immediate: true },
   )
 
-  return { otherOwnerNames, otherMemberNames, loaded }
+  return { currentMembershipName, otherOwnerNames, otherMemberNames, loaded }
 }

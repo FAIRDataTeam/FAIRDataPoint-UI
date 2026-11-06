@@ -29,8 +29,15 @@ const {
   resourceLabel,
 } = useResourceView()
 
-const { membershipName } = useMeta(resource)
-const { otherOwnerNames, otherMemberNames, loaded: ownersLoaded } = useMembers(resource)
+const { membershipName: metaMembershipName } = useMeta(resource)
+const {
+  currentMembershipName,
+  otherOwnerNames,
+  otherMemberNames,
+  loaded: ownersLoaded,
+} = useMembers(resource)
+// Members also holds the admin's own membership, so the badge does not depend on meta's timing.
+const membershipName = computed(() => metaMembershipName.value ?? currentMembershipName.value)
 const showOwnersBadge = computed(
   () =>
     membershipName.value !== null ||
