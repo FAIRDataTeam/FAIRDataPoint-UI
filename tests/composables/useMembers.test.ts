@@ -70,13 +70,24 @@ describe('useMembers otherOwnerNames', () => {
   it('lists the owners other than the admin themselves', async () => {
     loginAsAdmin()
     vi.mocked(fetchMembers).mockResolvedValue([tesla, curie, einstein])
-    const { otherOwnerNames } = scope.run(() =>
+    const { otherOwnerNames, otherMemberNames } = scope.run(() =>
       useMembers(ref({ resourceType: 'catalog', id: 'abc' })),
     )!
     await flushPromises()
     expect(fetchMembers).toHaveBeenCalledTimes(1)
     expect(fetchMembers).toHaveBeenCalledWith({ resourceType: 'catalog', id: 'abc' })
     expect(otherOwnerNames.value).toEqual(['Nikola Tesla'])
+    expect(otherMemberNames.value).toEqual({ 'Data Provider': ['Marie Curie'] })
+  })
+
+  it('groups the other non-owners by membership, without the admin themselves', async () => {
+    loginAsAdmin()
+    const bohr = member('bohr-uuid', 'Niels', 'Bohr', 'Data Provider')
+    const einsteinProvider = member('einstein-uuid', 'Albert', 'Einstein', 'Data Provider')
+    vi.mocked(fetchMembers).mockResolvedValue([tesla, curie, bohr, einsteinProvider])
+    const { otherMemberNames } = scope.run(() => useMembers(ref(null)))!
+    await flushPromises()
+    expect(otherMemberNames.value).toEqual({ 'Data Provider': ['Marie Curie', 'Niels Bohr'] })
   })
 
   it('is empty but loaded when the admin is the only owner', async () => {

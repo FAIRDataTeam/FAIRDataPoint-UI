@@ -30,8 +30,14 @@ const {
 } = useResourceView()
 
 const { membershipName } = useMeta(resource)
-const { otherOwnerNames, loaded: ownersLoaded } = useMembers(resource)
+const { otherOwnerNames, otherMemberNames, loaded: ownersLoaded } = useMembers(resource)
 const isOwner = computed(() => membershipName.value === 'Owner')
+const showOwnersBadge = computed(
+  () =>
+    isOwner.value ||
+    otherOwnerNames.value.length > 0 ||
+    Object.keys(otherMemberNames.value).length > 0,
+)
 
 const showUnknown = ref(false)
 const showGraph = ref(false)
@@ -88,14 +94,15 @@ const {
           <section class="resource-header">
             <div class="resource-title-row">
               <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
-              <div v-if="membershipName || otherOwnerNames.length" class="resource-badges">
+              <div v-if="membershipName || showOwnersBadge" class="resource-badges">
                 <!-- Owner memberships are shown by OwnersBadge, with owner details on hover. -->
                 <span v-if="membershipName && !isOwner" class="membership-badge">{{
                   membershipName
                 }}</span>
                 <OwnersBadge
-                  v-if="isOwner || otherOwnerNames.length"
+                  v-if="showOwnersBadge"
                   :names="otherOwnerNames"
+                  :member-names="otherMemberNames"
                   :is-owner="isOwner"
                   :owners-loaded="ownersLoaded"
                   :resource-type="resource?.resourceType ?? null"

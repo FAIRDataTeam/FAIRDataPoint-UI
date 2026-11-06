@@ -3,19 +3,30 @@ import { fetchMembers, type ResourceIdentifier, type ResourceMember } from './fd
 import { useAuth } from './useAuth'
 
 /**
- * Names of the owners of the resource (null for the root) other than the current user,
+ * Names of the members of the resource (null for the root) other than the current user,
  * shown to admins only.
  */
 export function useMembers(resource: Ref<ResourceIdentifier>) {
   const { isLoggedIn, isAdmin, user } = useAuth()
   // Whether the owners list was fetched for the current resource, so an empty list is meaningful.
   const loaded = ref(false)
-  const owners = ref<ResourceMember['user'][]>([])
-  const otherOwnerNames = computed(() =>
-    owners.value
-      .filter((owner) => owner.uuid !== user.value?.uuid)
-      .map((owner) => `${owner.firstName} ${owner.lastName}`),
+  const members = ref<ResourceMember[]>([])
+  const otherMembers = computed(() =>
+    members.value.filter((member) => member.user.uuid !== user.value?.uuid),
   )
+  const fullName = ({ user }: ResourceMember) => `${user.firstName} ${user.lastName}`
+  const otherOwnerNames = computed(() =>
+    otherMembers.value.filter((member) => member.membership.name === 'Owner').map(fullName),
+  )
+  // Non-owners by membership, e.g. { 'Data Provider': ['Marie Curie'] }.
+  const otherMemberNames = computed(() => {
+    const byMembership: Record<string, string[]> = {}
+    for (const member of otherMembers.value) {
+      const { name } = member.membership
+      if (name !== 'Owner') (byMembership[name] ??= []).push(fullName(member))
+    }
+    return byMembership
+  })
 
   watch(
     [resource, isLoggedIn, isAdmin],
@@ -24,15 +35,13 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
       onCleanup(() => {
         cancelled = true
       })
-      owners.value = []
+      members.value = []
       loaded.value = false
       if (!loggedIn || !admin) return
       try {
-        const members = await fetchMembers(currentResource)
+        const fetched = await fetchMembers(currentResource)
         if (cancelled) return
-        owners.value = members
-          .filter((member) => member.membership.name === 'Owner')
-          .map((member) => member.user)
+        members.value = fetched
         loaded.value = true
       } catch (err) {
         // Without the list loaded is false, so OwnersBadge doesn't claim sole ownership.
@@ -42,5 +51,5 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
     { immediate: true },
   )
 
-  return { otherOwnerNames, loaded }
+  return { otherOwnerNames, otherMemberNames, loaded }
 }
