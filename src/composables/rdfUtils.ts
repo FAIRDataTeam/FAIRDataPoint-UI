@@ -1,4 +1,4 @@
-import { Store, Parser, DataFactory } from 'n3'
+import { Store, Parser, Writer, DataFactory } from 'n3'
 import type { Literal, Term } from 'n3'
 import {
   DCT_TITLE,
@@ -25,20 +25,14 @@ import {
   SIO_IS_ABOUT,
   SIO_IS_RELATED_TO,
   DASH_URI_VIEWER,
-  DASH_VIEWER,
   SHACL_IRI,
-  SHACL_NODE_SHAPE,
-  SHACL_TARGET_CLASS,
-  SHACL_PROPERTY,
-  SHACL_NODE_KIND,
-  SHACL_PATH,
-  SHACL_NAME,
-  SHACL_ORDER,
   prefixes,
   XSD_DATE,
   XSD_DATETIME,
 } from './vocabularies'
 import { predicateLabel, metadataPredicatePriority } from './shaclFallback'
+// Keep this type-only: shaclUtils imports runtime helpers from this module.
+import type { ShapeProperty } from './shaclUtils'
 import { isInternalUri } from './urlUtils'
 
 // --- Types ---
@@ -60,14 +54,6 @@ export type MetadataRow = {
   kind: 'literal' | 'link' | 'blank-node'
   values: LinkValue[]
   blankNodes?: BlankNodeProperty[][]
-}
-
-type ShapeProperty = {
-  path: string
-  label: string | null
-  order: number
-  viewer: string | null
-  nodeKind: string | null
 }
 
 // --- Low-level helpers ---
@@ -121,11 +107,13 @@ export function compactUri(uri: string): string {
 /** Returns the first literal value for a subject/predicate pair. */
 export function getFirstLiteral(
   store: Store,
-  subjectUri: string,
+  subject: Term | string,
   predicate: string,
 ): string | null {
+  // Accept a Term so blank-node subjects, such as a SHACL property shape, can be read too.
+  const subjectTerm = typeof subject === 'string' ? DataFactory.namedNode(subject) : subject
   const obj = store
-    .getObjects(DataFactory.namedNode(subjectUri), DataFactory.namedNode(predicate), null)
+    .getObjects(subjectTerm, DataFactory.namedNode(predicate), null)
     .find((o) => o.termType === 'Literal')
   return obj ? formatLiteralValue(obj as Literal) : null
 }
@@ -139,6 +127,16 @@ export function getNodeRefs(store: Store, subjectUri: string, predicate: string)
     .getObjects(DataFactory.namedNode(subjectUri), DataFactory.namedNode(predicate), null)
     .filter((obj) => obj.termType === 'NamedNode' || obj.termType === 'BlankNode')
     .map((obj) => (obj.termType === 'BlankNode' ? `_:${obj.value}` : obj.value))
+}
+
+/**
+ * Returns all object terms without display formatting, preserving RDF term types,
+ * datatypes, and language tags for editing.
+ */
+export function getObjectTerms(store: Store, subject: Term | string, predicate: string): Term[] {
+  // Accept a Term so nested records with blank-node subjects can be read too.
+  const subjectTerm = typeof subject === 'string' ? DataFactory.namedNode(subject) : subject
+  return store.getObjects(subjectTerm, DataFactory.namedNode(predicate), null)
 }
 
 /**
@@ -162,6 +160,15 @@ export function uriLabel(store: Store, uri: string): string {
 /** Parses a Turtle string into an N3 Store. */
 export function parseTurtle(turtle: string): Store {
   return new Store(new Parser().parse(turtle))
+}
+
+/** Serializes the store as Turtle using full IRIs rather than prefixes. */
+export function serializeTurtle(store: Store): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const writer = new Writer({ format: 'text/turtle' })
+    writer.addQuads(store.getQuads(null, null, null, null))
+    writer.end((error, result) => (error ? reject(error) : resolve(result)))
+  })
 }
 
 // --- Primary subject detection ---
@@ -338,95 +345,6 @@ export function getBreadcrumbs(
   return items
 }
 
-// --- SHACL/DASH shape properties ---
-
-/** Like getFirstLiteral but takes an N3 Term as subject; used when iterating SHACL shape nodes. */
-function getObjectLiteral(store: Store, subject: Term, predicate: string): string | null {
-  const obj = store
-    .getObjects(subject, DataFactory.namedNode(predicate), null)
-    .find((o) => o.termType === 'Literal')
-  return obj ? formatLiteralValue(obj as Literal) : null
-}
-
-/** Like getNodeRefs but takes an N3 Term as subject and returns only the first named node value. */
-function getObjectNamedNode(store: Store, subject: Term, predicate: string): string | null {
-  return (
-    store
-      .getObjects(subject, DataFactory.namedNode(predicate), null)
-      .find((o) => o.termType === 'NamedNode')?.value ?? null
-  )
-}
-
-/**
- * Reads a SHACL property shape node into a ShapeProperty struct.
- * Returns null if the node has no shacl:path.
- * shacl:order defaults to MAX_SAFE_INTEGER when absent, so unordered properties sort last.
- */
-function readShapeProperty(shapeGraph: Store, propTerm: Term): ShapeProperty | null {
-  const path = getObjectNamedNode(shapeGraph, propTerm, SHACL_PATH)
-  if (!path) return null
-
-  const label = getObjectLiteral(shapeGraph, propTerm, SHACL_NAME)
-  const orderStr = getObjectLiteral(shapeGraph, propTerm, SHACL_ORDER)
-  const order = orderStr ? parseInt(orderStr, 10) : Number.MAX_SAFE_INTEGER
-  const viewer = getObjectNamedNode(shapeGraph, propTerm, DASH_VIEWER)
-  const nodeKind = getObjectNamedNode(shapeGraph, propTerm, SHACL_NODE_KIND)
-
-  return { path, label, order, viewer, nodeKind }
-}
-
-/**
- * Builds a map of shacl:path -> ShapeProperty for the current resource's RDF types.
- * Searches all provided shape graphs for NodeShapes whose shacl:targetClass matches one of
- * the resource's types. When multiple shapes define the same path, the lower shacl:order wins;
- * missing fields are filled from the superseded entry.
- */
-function getShapePropertyMap(
-  resourceStore: Store,
-  subjectUri: string | null,
-  shapeGraphs: Store[],
-): Map<string, ShapeProperty> {
-  const map = new Map<string, ShapeProperty>()
-  if (!subjectUri) return map
-
-  const currentTypes = new Set<string>(getNodeRefs(resourceStore, subjectUri, RDF_TYPE))
-  if (currentTypes.size === 0) return map
-
-  for (const shapeGraph of shapeGraphs) {
-    for (const subject of shapeGraph.getSubjects(
-      DataFactory.namedNode(RDF_TYPE),
-      DataFactory.namedNode(SHACL_NODE_SHAPE),
-      null,
-    )) {
-      if (subject.termType !== 'NamedNode') continue
-      const targetClasses = getNodeRefs(shapeGraph, subject.value, SHACL_TARGET_CLASS)
-      if (!targetClasses.some((tc) => currentTypes.has(tc))) continue
-
-      for (const propTerm of shapeGraph.getObjects(
-        subject,
-        DataFactory.namedNode(SHACL_PROPERTY),
-        null,
-      )) {
-        const prop = readShapeProperty(shapeGraph, propTerm)
-        if (!prop) continue
-
-        // Lower order wins; if the new entry lacks a field, preserve it from the superseded one.
-        const existing = map.get(prop.path)
-        if (!existing || prop.order < existing.order) {
-          map.set(prop.path, {
-            path: prop.path,
-            label: prop.label ?? existing?.label ?? null,
-            order: prop.order,
-            viewer: prop.viewer ?? existing?.viewer ?? null,
-            nodeKind: prop.nodeKind ?? existing?.nodeKind ?? null,
-          })
-        }
-      }
-    }
-  }
-  return map
-}
-
 // --- Metadata rows ---
 
 const embeddedNodeSkipList = new Set([RDF_TYPE, SIO_IS_ABOUT, SIO_IS_RELATED_TO])
@@ -598,7 +516,7 @@ function buildRows(
   store: Store,
   uri: string,
   predicates: string[],
-  shapePropertyMap: Map<string, ShapeProperty>,
+  shapePropertyMap: ReadonlyMap<string, ShapeProperty>,
 ): MetadataRow[] {
   return predicates
     .map((p) => {
@@ -616,12 +534,11 @@ function buildRows(
 export function getMetadataRows(
   store: Store,
   subjectUri: string | null,
-  shapeGraphs: Store[],
+  shapePropertyMap: ReadonlyMap<string, ShapeProperty>,
 ): { rows: MetadataRow[]; unknownRows: MetadataRow[] } {
   if (!subjectUri) return { rows: [], unknownRows: [] }
 
   const allPredicates = getFilteredPredicates(store, subjectUri)
-  const shapePropertyMap = getShapePropertyMap(store, subjectUri, shapeGraphs)
 
   if (shapePropertyMap.size === 0) {
     const prioritySet = new Set(metadataPredicatePriority)

@@ -1,5 +1,6 @@
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import type { Store } from 'n3'
 import {
   getTitle,
   getBreadcrumbs,
@@ -13,8 +14,10 @@ import {
   getMetadataRows,
   uriLabel,
 } from './rdfUtils'
+import { getShapePropertyMap, getEditableFields } from './shaclUtils'
 import { useRdfLoader, type ChildSummary } from './useRdfLoader'
 import { getBaseUrl } from './urlUtils'
+import type { ResourceIdentifier } from './fdpApi'
 
 export type { ChildSummary }
 
@@ -22,22 +25,30 @@ export type { ChildSummary }
  * Derives all display data for ResourceView from the current route: resolves the resource URI,
  * delegates fetching to useRdfLoader, and exposes computed title, breadcrumbs, metadata rows, and child sections.
  */
-export function useResourceView() {
+export function useResourceView({
+  loadChildSummaries = true,
+}: { loadChildSummaries?: boolean } = {}) {
   const route = useRoute()
   const fdpBaseUri = getBaseUrl()
 
   const fdpUri = `${fdpBaseUri}/`
 
-  const resourceUri = computed(() => {
+  const resource = computed<ResourceIdentifier>((previous) => {
     const resourceType = route.params.resourceType
     const id = route.params.id
 
     if (typeof resourceType === 'string' && typeof id === 'string') {
-      return `${fdpBaseUri}/${resourceType}/${id}`
+      // Reuse the previous object supplied by Vue so unchanged route params do not trigger refetches.
+      if (previous?.resourceType === resourceType && previous.id === id) return previous
+      return { resourceType, id }
     }
 
-    return `${fdpBaseUri}/`
+    return null
   })
+
+  const resourceUri = computed(() =>
+    resource.value ? `${fdpBaseUri}/${resource.value.resourceType}/${resource.value.id}` : fdpUri,
+  )
 
   const {
     loading,
@@ -46,12 +57,15 @@ export function useResourceView() {
     rawTurtle,
     childSummaries,
     parentSummaries,
-    shapeGraphs,
     loadResource,
     loadChildSummary,
     loadParentChain,
     loadProfile,
   } = useRdfLoader()
+
+  const shapeGraphs = ref<Record<string, Store>>({})
+  const shapesLoading = ref(false)
+  const shapesError = ref<string | null>(null)
 
   function resourceLabel(uri: string): string {
     return uriLabel(quads.value, uri)
@@ -79,12 +93,20 @@ export function useResourceView() {
 
   const childSections = computed(() => getChildSections(quads.value, currentNodeUri.value))
 
+  // Share the computed shape map between metadata display and editable-field selection.
+  const shapeProperties = computed(() =>
+    getShapePropertyMap(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
+  )
+
   const allMetadataRows = computed(() =>
-    getMetadataRows(quads.value, currentNodeUri.value, Object.values(shapeGraphs.value)),
+    getMetadataRows(quads.value, currentNodeUri.value, shapeProperties.value),
   )
 
   const metadataRows = computed(() => allMetadataRows.value.rows)
   const unknownMetadataRows = computed(() => allMetadataRows.value.unknownRows)
+
+  // The same properties as the metadata table, filtered by dash:editor instead of dash:viewer.
+  const editableFields = computed(() => getEditableFields(shapeProperties.value))
 
   watch(
     resourceUri,
@@ -94,17 +116,20 @@ export function useResourceView() {
     { immediate: true },
   )
 
-  watch(
-    childSections,
-    (sections) => {
-      sections
-        .flatMap((section) => section.items)
-        .forEach((uri) => {
-          void loadChildSummary(uri)
-        })
-    },
-    { immediate: true },
-  )
+  // The edit page needs breadcrumbs, but not child summaries.
+  if (loadChildSummaries) {
+    watch(
+      childSections,
+      (sections) => {
+        sections
+          .flatMap((section) => section.items)
+          .forEach((uri) => {
+            void loadChildSummary(uri)
+          })
+      },
+      { immediate: true },
+    )
+  }
 
   watch(
     currentNodeUri,
@@ -121,18 +146,42 @@ export function useResourceView() {
 
   watch(
     currentNodeUri,
-    (uri) => {
+    async (uri, _previous, onCleanup) => {
+      let cancelled = false
+      onCleanup(() => {
+        cancelled = true
+      })
+      shapeGraphs.value = {}
+      shapesError.value = null
+      shapesLoading.value = false
       if (!uri) return
       const profileUri = getConformsTo(quads.value, uri)
-      if (profileUri) void loadProfile(profileUri)
+      if (!profileUri) return
+      shapesLoading.value = true
+      try {
+        const result = await loadProfile(profileUri)
+        if (!cancelled) {
+          shapeGraphs.value = result.graphs
+          shapesError.value = result.error
+        }
+      } catch (err) {
+        if (!cancelled) {
+          shapesError.value = err instanceof Error ? err.message : 'Unable to load resource shapes.'
+        }
+      } finally {
+        if (!cancelled) shapesLoading.value = false
+      }
     },
     { immediate: true },
   )
 
   return {
+    shapesLoading,
+    shapesError,
     loading,
     error,
     rawTurtle,
+    resource,
     resourceUri,
     currentNodeUri,
     title,
@@ -143,6 +192,7 @@ export function useResourceView() {
     quads,
     metadataRows,
     unknownMetadataRows,
+    editableFields,
     childSections,
     childSummaries,
     resourceLabel,
