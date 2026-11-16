@@ -151,8 +151,13 @@ a:hover {
   color: #dc3545;
 }
 
-.resource-action--danger:hover {
+.resource-action--danger:hover:enabled {
   color: #a71d2a;
+}
+
+.resource-action:disabled {
+  opacity: 0.65;
+  cursor: default;
 }
 
 .membership-badge {

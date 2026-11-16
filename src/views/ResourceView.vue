@@ -52,22 +52,32 @@ const showMembershipBadge = computed(
 const router = useRouter()
 const { deleteAvailable } = useDeleteResource(resource)
 const deleteError = ref<string | null>(null)
+const deleting = ref(false)
 
 /** Deletes the resource (after confirmation), then shows its parent. */
 async function handleDelete() {
   const currentResource = resource.value
-  if (!currentResource) return
+  if (!currentResource || deleting.value) return
   const resourceName = title.value ?? resourceLabel(resourceUri.value)
   const question = `Delete the ${currentResource.resourceType} "${resourceName}" and all its children?`
   if (!window.confirm(`${question} This cannot be undone.`)) return
+  const deletedUri = resourceUri.value
+  // The last breadcrumb is the resource itself, the one before it its parent.
+  const parentBreadcrumb = breadcrumbs.value.at(-2)
   deleteError.value = null
+  deleting.value = true
   try {
     await deleteResource(currentResource)
-    // The last breadcrumb is the resource itself, the one before it its parent.
-    const parentBreadcrumb = breadcrumbs.value.at(-2)
-    await router.push(parentBreadcrumb ? internalHref(parentBreadcrumb.uri) : '/')
+    // Stay put if another resource was opened meanwhile.
+    if (resourceUri.value === deletedUri) {
+      await router.push(parentBreadcrumb ? internalHref(parentBreadcrumb.uri) : '/')
+    }
   } catch (err) {
-    deleteError.value = err instanceof Error ? err.message : 'Unable to delete.'
+    if (resourceUri.value === deletedUri) {
+      deleteError.value = err instanceof Error ? err.message : 'Unable to delete.'
+    }
+  } finally {
+    deleting.value = false
   }
 }
 
@@ -140,6 +150,7 @@ const {
                 <button
                   type="button"
                   class="resource-action resource-action--danger"
+                  :disabled="deleting"
                   @click="handleDelete"
                 >
                   <IconTrashAlt />
