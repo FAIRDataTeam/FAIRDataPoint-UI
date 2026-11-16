@@ -233,3 +233,15 @@ export async function bindOperation(
   await apiDocsReady
   return getOperationOrThrow(operationId, pathParams)
 }
+
+/** Waits for api-docs readiness, then returns the operationId advertised for a path and method. */
+export async function getOperationId(path: string, method: string): Promise<string> {
+  await apiDocsReady
+  const operationId = apiDocs.value?.paths?.[path]?.[method]?.operationId
+  if (!operationId) {
+    throw new Error(
+      `No ${method.toUpperCase()} ${path} operation is offered by this FDP's api-docs`,
+    )
+  }
+  return operationId
+}

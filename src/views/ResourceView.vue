@@ -1,15 +1,19 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 import 'prismjs/themes/prism.css'
 import { useResourceView } from '../composables/useResourceView'
+import { useMeta } from '../composables/useMeta'
+import { useMembers } from '../composables/useMembers'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
+import MembershipBadge from '../components/MembershipBadge.vue'
 
 const {
   loading,
   error,
   rawTurtle,
+  resource,
   resourceUri,
   currentNodeUri,
   title,
@@ -24,6 +28,22 @@ const {
   childSummaries,
   resourceLabel,
 } = useResourceView()
+
+const { membershipName: metaMembershipName } = useMeta(resource)
+const {
+  currentMembershipName,
+  otherOwnerNames,
+  otherMemberNames,
+  loaded: ownersLoaded,
+} = useMembers(resource)
+// Members also holds the admin's own membership, so the badge does not depend on meta's timing.
+const membershipName = computed(() => metaMembershipName.value ?? currentMembershipName.value)
+const showMembershipBadge = computed(
+  () =>
+    membershipName.value !== null ||
+    otherOwnerNames.value.length > 0 ||
+    Object.keys(otherMemberNames.value).length > 0,
+)
 
 const showUnknown = ref(false)
 const showGraph = ref(false)
@@ -78,7 +98,18 @@ const {
       <template v-else>
         <template v-if="currentNodeUri">
           <section class="resource-header">
-            <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
+            <div class="resource-title-row">
+              <h1 class="resource-title">{{ title ?? resourceLabel(resourceUri) }}</h1>
+              <div v-if="showMembershipBadge" class="resource-badges">
+                <MembershipBadge
+                  :other-owner-names="otherOwnerNames"
+                  :other-member-names="otherMemberNames"
+                  :membership-name="membershipName"
+                  :owners-loaded="ownersLoaded"
+                  :resource-type="resource?.resourceType ?? null"
+                />
+              </div>
+            </div>
             <p v-if="description" class="resource-description">{{ description }}</p>
             <div v-if="accessUrl || downloadUrl" class="resource-access-buttons">
               <a
