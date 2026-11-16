@@ -1,13 +1,17 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import 'prismjs/themes/prism.css'
 import { useResourceView } from '../composables/useResourceView'
 import { useMeta } from '../composables/useMeta'
 import { useMembers } from '../composables/useMembers'
+import { useDeleteResource } from '../composables/useDeleteResource'
+import { deleteResource } from '../composables/fdpApi'
 import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
 import MembershipBadge from '../components/MembershipBadge.vue'
+import IconTrashAlt from '../assets/icons/trash-alt.svg?component'
 
 const {
   loading,
@@ -45,6 +49,27 @@ const showMembershipBadge = computed(
     Object.keys(otherMemberNames.value).length > 0,
 )
 
+const router = useRouter()
+const { deleteAvailable } = useDeleteResource(resource)
+const deleteError = ref<string | null>(null)
+
+/** Deletes the resource (after confirmation), then shows its parent. */
+async function handleDelete() {
+  const currentResource = resource.value
+  if (!currentResource) return
+  const name = title.value ?? resourceLabel(resourceUri.value)
+  if (!window.confirm(`Delete ${name} and everything in it? This cannot be undone.`)) return
+  deleteError.value = null
+  try {
+    await deleteResource(currentResource)
+    // The last breadcrumb is the resource itself, the one before it its parent.
+    const parent = breadcrumbs.value.at(-2)
+    await router.push(parent ? internalHref(parent.uri) : '/')
+  } catch (err) {
+    deleteError.value = err instanceof Error ? err.message : 'Unable to delete.'
+  }
+}
+
 const showUnknown = ref(false)
 const showGraph = ref(false)
 
@@ -53,6 +78,7 @@ const unknownStateByUri = new Map<string, boolean>()
 const graphStateByUri = new Map<string, boolean>()
 
 watch(resourceUri, (newUri, oldUri) => {
+  deleteError.value = null
   unknownStateByUri.set(oldUri, showUnknown.value)
   graphStateByUri.set(oldUri, showGraph.value)
 
@@ -109,7 +135,18 @@ const {
                   :resource-type="resource?.resourceType ?? null"
                 />
               </div>
+              <div v-if="deleteAvailable" class="resource-actions">
+                <button
+                  type="button"
+                  class="resource-action resource-action--danger"
+                  @click="handleDelete"
+                >
+                  <IconTrashAlt />
+                  Delete
+                </button>
+              </div>
             </div>
+            <p v-if="deleteError" class="alert alert-danger">Could not delete: {{ deleteError }}</p>
             <p v-if="description" class="resource-description">{{ description }}</p>
             <div v-if="accessUrl || downloadUrl" class="resource-access-buttons">
               <a
