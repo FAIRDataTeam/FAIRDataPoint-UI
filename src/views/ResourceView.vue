@@ -57,14 +57,14 @@ const deleteError = ref<string | null>(null)
 async function handleDelete() {
   const currentResource = resource.value
   if (!currentResource) return
-  const name = title.value ?? resourceLabel(resourceUri.value)
-  if (!window.confirm(`Delete ${name} and everything in it? This cannot be undone.`)) return
+  const resourceName = title.value ?? resourceLabel(resourceUri.value)
+  if (!window.confirm(`Delete ${resourceName} and everything in it? This cannot be undone.`)) return
   deleteError.value = null
   try {
     await deleteResource(currentResource)
     // The last breadcrumb is the resource itself, the one before it its parent.
-    const parent = breadcrumbs.value.at(-2)
-    await router.push(parent ? internalHref(parent.uri) : '/')
+    const parentBreadcrumb = breadcrumbs.value.at(-2)
+    await router.push(parentBreadcrumb ? internalHref(parentBreadcrumb.uri) : '/')
   } catch (err) {
     deleteError.value = err instanceof Error ? err.message : 'Unable to delete.'
   }
