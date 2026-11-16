@@ -10,20 +10,22 @@ const props = defineProps<{
   resourceType: string | null
 }>()
 
-const open = ref(false)
+const tooltipOpen = ref(false)
 const tooltipId = useId()
 
 const listFormat = new Intl.ListFormat('en', { type: 'conjunction' })
 const isOwner = computed(() => props.membershipName === 'Owner')
-const hasMembers = computed(() => Object.keys(props.otherMemberNames).length > 0)
+const hasOtherMembers = computed(() => Object.keys(props.otherMemberNames).length > 0)
 
 // A single owner of someone else's resource, with no other members, is a plain badge below.
 const label = computed(() => {
-  const count = props.otherOwnerNames.length
-  if (isOwner.value) return count > 0 ? `Owner +${count}` : 'Owner'
+  const otherOwnerCount = props.otherOwnerNames.length
+  if (isOwner.value) return otherOwnerCount > 0 ? `Owner +${otherOwnerCount}` : 'Owner'
   if (props.membershipName) return props.membershipName
-  if (count === 0) return 'No owners'
-  return count === 1 ? `Owned by ${props.otherOwnerNames[0]}` : `${count} owners`
+  if (otherOwnerCount === 0) return 'No owners'
+  return otherOwnerCount === 1
+    ? `Owned by ${props.otherOwnerNames[0]}`
+    : `${otherOwnerCount} owners`
 })
 
 function ownSentence(membership: string, article: string): string {
@@ -58,15 +60,15 @@ const description = computed(() =>
 
 // Only keyboard focus opens it; focus from a click, a tap or returning to the tab does not.
 function onFocus(event: FocusEvent) {
-  if ((event.target as HTMLElement).matches(':focus-visible')) open.value = true
+  if ((event.target as HTMLElement).matches(':focus-visible')) tooltipOpen.value = true
 }
 
 // Escape closes it from anywhere, since hovering does not focus the button.
 function onDocumentKeydown(event: KeyboardEvent) {
-  if (event.key === 'Escape') open.value = false
+  if (event.key === 'Escape') tooltipOpen.value = false
 }
 
-watch(open, (isOpen) => {
+watch(tooltipOpen, (isOpen) => {
   if (isOpen) document.addEventListener('keydown', onDocumentKeydown)
   else document.removeEventListener('keydown', onDocumentKeydown)
 })
@@ -76,24 +78,29 @@ onBeforeUnmount(() => document.removeEventListener('keydown', onDocumentKeydown)
 
 <template>
   <span
-    v-if="!membershipName && otherOwnerNames.length === 1 && !hasMembers"
+    v-if="!membershipName && otherOwnerNames.length === 1 && !hasOtherMembers"
     class="membership-badge"
   >
     Owned by {{ otherOwnerNames[0] }}
   </span>
-  <span v-else class="membership-details" @mouseenter="open = true" @mouseleave="open = false">
+  <span
+    v-else
+    class="membership-details"
+    @mouseenter="tooltipOpen = true"
+    @mouseleave="tooltipOpen = false"
+  >
     <!-- Click is for touch devices, which have no hover. It only opens: with a mouse, hover already did. -->
     <button
       type="button"
       class="membership-badge membership-details__trigger"
       :aria-describedby="tooltipId"
       @focus="onFocus"
-      @blur="open = false"
-      @click="open = true"
+      @blur="tooltipOpen = false"
+      @click="tooltipOpen = true"
     >
       {{ label }}
     </button>
-    <span v-show="open" :id="tooltipId" role="tooltip" class="membership-details__tooltip">
+    <span v-show="tooltipOpen" :id="tooltipId" role="tooltip" class="membership-details__tooltip">
       {{ description }}
     </span>
   </span>

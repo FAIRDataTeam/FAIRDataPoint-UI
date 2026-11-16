@@ -17,9 +17,9 @@ export function useMeta(resource: Ref<ResourceIdentifier>) {
       membershipName.value = null
       if (!loggedIn) return
       try {
-        const meta = await fetchMeta(currentResource)
+        const resourceMeta = await fetchMeta(currentResource)
         if (cancelled) return
-        membershipName.value = meta.member?.membership?.name ?? null
+        membershipName.value = resourceMeta.member?.membership?.name ?? null
       } catch (err) {
         // Without meta, only admins still get their membership, from members.
         console.warn('Failed to load meta', currentResource, err)

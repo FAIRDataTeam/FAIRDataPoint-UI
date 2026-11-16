@@ -45,9 +45,9 @@ export function useMembers(resource: Ref<ResourceIdentifier>) {
       loaded.value = false
       if (!loggedIn || !admin) return
       try {
-        const fetched = await fetchMembers(currentResource)
+        const resourceMembers = await fetchMembers(currentResource)
         if (cancelled) return
-        members.value = fetched
+        members.value = resourceMembers
         loaded.value = true
       } catch (err) {
         // Without the list loaded is false, so MembershipBadge doesn't claim sole ownership.
