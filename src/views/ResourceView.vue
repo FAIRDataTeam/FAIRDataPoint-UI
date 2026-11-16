@@ -58,7 +58,8 @@ async function handleDelete() {
   const currentResource = resource.value
   if (!currentResource) return
   const resourceName = title.value ?? resourceLabel(resourceUri.value)
-  if (!window.confirm(`Delete ${resourceName} and everything in it? This cannot be undone.`)) return
+  const question = `Delete the ${currentResource.resourceType} "${resourceName}" and all its children?`
+  if (!window.confirm(`${question} This cannot be undone.`)) return
   deleteError.value = null
   try {
     await deleteResource(currentResource)
