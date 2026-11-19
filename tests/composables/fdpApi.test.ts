@@ -71,6 +71,7 @@ describe('resource operations', () => {
       '/status/{uuid}': { get: { operationId: 'getCatalogMeta' } },
       '/access/{uuid}': { get: { operationId: 'getCatalogMembers' } },
       '/custom-status/{uuid}': { get: { operationId: 'getResearchDataMeta' } },
+      '/remove/{uuid}': { delete: { operationId: 'deleteCatalog' } },
     },
   }
   const meta = { member: { membership: { name: 'Owner' } } }
@@ -119,6 +120,18 @@ describe('resource operations', () => {
 
     await fetchMeta({ resourceType: 'researchData', id: 'a b' })
     expect(mockFetch).toHaveBeenCalledWith('http://localhost/custom-status/a%20b', getJson)
+  })
+
+  it('deletes a typed resource through its advertised delete operation', async () => {
+    const mockFetch = mockApiFetch(async () => ({ ok: true }), resourceApiDocs)
+    vi.stubGlobal('fetch', mockFetch)
+    const { deleteResource } = await import('../../src/composables/fdpApi')
+
+    await deleteResource({ resourceType: 'catalog', id: 'abc' })
+    expect(mockFetch).toHaveBeenCalledWith('http://localhost/remove/abc', {
+      method: 'DELETE',
+      headers: expect.any(Object),
+    })
   })
 
   it('refuses an unadvertised operation even if a conventional endpoint path exists', async () => {

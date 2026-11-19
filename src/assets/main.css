@@ -122,6 +122,44 @@ a:hover {
   margin-left: auto;
 }
 
+.resource-actions {
+  display: flex;
+  gap: var(--fdp-space-2);
+  margin-left: auto;
+}
+
+.resource-badges + .resource-actions {
+  margin-left: 0;
+}
+
+.resource-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--fdp-space-2);
+  padding: 6px 12px;
+  border: none;
+  background: none;
+  color: var(--fdp-color-link);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  cursor: pointer;
+  transition: color 0.15s ease-in-out;
+}
+
+.resource-action--danger {
+  color: #dc3545;
+}
+
+.resource-action--danger:hover:enabled {
+  color: #a71d2a;
+}
+
+.resource-action:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
 .membership-badge {
   padding: var(--fdp-space-1) var(--fdp-space-3);
   border: 1px solid var(--fdp-color-muted);

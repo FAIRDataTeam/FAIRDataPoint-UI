@@ -43,8 +43,17 @@ async function bindResourceOperation(
   }
 
   const { resourceType, id } = resource
-  const resourceName = resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
-  return bindOperation(`get${resourceName}${suffix}`, { uuid: id })
+  return bindOperation(`get${operationName(resourceType)}${suffix}`, { uuid: id })
+}
+
+/** The backend names typed operations after the capitalized URL prefix, e.g. getCatalogMeta. */
+function operationName(resourceType: string): string {
+  return resourceType.charAt(0).toUpperCase() + resourceType.slice(1)
+}
+
+/** The operation deleting a typed resource, e.g. deleteCatalog. */
+export function deleteOperationId(resourceType: string): string {
+  return `delete${operationName(resourceType)}`
 }
 
 /**
@@ -62,6 +71,15 @@ export async function fetchMembers(resource: ResourceIdentifier): Promise<Resour
   const { url, method } = await bindResourceOperation(resource, 'Members')
   const response = await request(url, { method, headers: { Accept: 'application/json' } })
   return response.json() as Promise<ResourceMember[]>
+}
+
+/** Deletes a typed resource; the backend also deletes everything in it. */
+export async function deleteResource({
+  resourceType,
+  id,
+}: NonNullable<ResourceIdentifier>): Promise<void> {
+  const { url, method } = await bindOperation(deleteOperationId(resourceType), { uuid: id })
+  await request(url, { method })
 }
 
 /** Searches resources via the FDP full-text search endpoint. */
