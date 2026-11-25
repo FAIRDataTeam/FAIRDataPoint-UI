@@ -27,7 +27,9 @@ export type ResourceMember = {
 }
 
 export type ResourceMeta = {
-  member: { membership: ResourceMember['membership'] | null } | null
+  member: {
+    membership: (ResourceMember['membership'] & { permissions: { code: string }[] }) | null
+  } | null
 }
 
 /**
@@ -54,6 +56,12 @@ function operationName(resourceType: string): string {
 /** The operation deleting a typed resource, e.g. deleteCatalog. */
 export function deleteOperationId(resourceType: string): string {
   return `delete${operationName(resourceType)}`
+}
+
+/** The operation updating a resource, e.g. putCatalog; null when the root's is not advertised. */
+export async function putOperationId(resource: ResourceIdentifier): Promise<string | null> {
+  if (resource !== null) return `put${operationName(resource.resourceType)}`
+  return getOperationId('/', 'put').catch(() => null)
 }
 
 /**

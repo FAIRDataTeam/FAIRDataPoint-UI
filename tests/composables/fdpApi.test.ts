@@ -134,6 +134,25 @@ describe('resource operations', () => {
     })
   })
 
+  it('names the PUT after the prefix, and reads the root PUT from the api-docs', async () => {
+    vi.stubGlobal('fetch', mockApiFetch(okJson(), resourceApiDocs))
+    const { putOperationId } = await import('../../src/composables/fdpApi')
+    expect(await putOperationId({ resourceType: 'catalog', id: 'abc' })).toBe('putCatalog')
+    // resourceApiDocs advertises no PUT /.
+    expect(await putOperationId(null)).toBeNull()
+
+    vi.resetModules()
+    vi.stubGlobal(
+      'fetch',
+      mockApiFetch(okJson(), {
+        openapi: '3.0.1',
+        paths: { '/': { put: { operationId: 'putResearch Hub' } } },
+      }),
+    )
+    const { putOperationId: rootPutOperationId } = await import('../../src/composables/fdpApi')
+    expect(await rootPutOperationId(null)).toBe('putResearch Hub')
+  })
+
   it('refuses an unadvertised operation even if a conventional endpoint path exists', async () => {
     const handleRequest = vi.fn(okJson(meta))
     vi.stubGlobal(

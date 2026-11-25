@@ -11,6 +11,7 @@ import { useRawFormat, formats } from '../composables/useRawFormat'
 import { internalHref } from '../composables/urlUtils'
 import RdfGraph from '../components/RdfGraph.vue'
 import MembershipBadge from '../components/MembershipBadge.vue'
+import IconEdit from '../assets/icons/edit.svg?component'
 import IconTrashAlt from '../assets/icons/trash-alt.svg?component'
 
 const {
@@ -33,7 +34,10 @@ const {
   resourceLabel,
 } = useResourceView()
 
-const { membershipName: metaMembershipName } = useMeta(resource)
+const { membershipName: metaMembershipName, canEdit } = useMeta(resource)
+const editPath = computed(() =>
+  resource.value ? `/${resource.value.resourceType}/${resource.value.id}/edit` : '/edit',
+)
 const {
   currentMembershipName,
   otherOwnerNames,
@@ -146,8 +150,13 @@ const {
                   :resource-type="resource?.resourceType ?? null"
                 />
               </div>
-              <div v-if="deleteAvailable" class="resource-actions">
+              <div v-if="canEdit || deleteAvailable" class="resource-actions">
+                <router-link v-if="canEdit" :to="editPath" class="resource-action">
+                  <IconEdit />
+                  Edit
+                </router-link>
                 <button
+                  v-if="deleteAvailable"
                   type="button"
                   class="resource-action resource-action--danger"
                   :disabled="deleting"

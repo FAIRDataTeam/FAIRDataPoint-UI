@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import ResourceView from '@/views/ResourceView.vue'
+import ResourceEditView from '@/views/ResourceEditView.vue'
 import LoginView from '@/views/LoginView.vue'
 import SearchView from '@/views/SearchView.vue'
 import NotAllowedView from '@/views/NotAllowedView.vue'
@@ -19,6 +20,18 @@ const router = createRouter({
       path: '/:resourceType/:id',
       name: 'resource',
       component: ResourceView,
+    },
+    {
+      path: '/edit',
+      name: 'fdp-root-edit',
+      component: ResourceEditView,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/:resourceType/:id/edit',
+      name: 'resource-edit',
+      component: ResourceEditView,
+      meta: { requiresAuth: true },
     },
     {
       path: '/login',
